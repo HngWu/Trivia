@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import RoomPage from '../src/app/room/[code]/page'
 
 describe('Room Page', () => {
