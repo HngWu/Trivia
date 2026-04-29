@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { createRoom, joinRoom } from '@/lib/actions';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const TOPICS = [
   { id: 'history', name: 'History', icon: '📜' },
@@ -25,8 +26,6 @@ export default function Home() {
     setIsLoading(true);
     try {
       const topicToUse = selectedTopic === 'custom' ? customTopic : selectedTopic;
-      
-      // 1. Generate questions via AI
       const aiResponse = await fetch('/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -36,10 +35,8 @@ export default function Home() {
       const aiData = await aiResponse.json();
       if (!aiData.questions) throw new Error('Failed to generate questions');
 
-      // 2. Create room and player in DB
       const { room, player } = await createRoom(topicToUse, nickname);
       
-      // 3. Store in localStorage for session
       localStorage.setItem('trivia_questions', JSON.stringify(aiData.questions));
       localStorage.setItem('player_id', player.id);
       localStorage.setItem('player_name', nickname);
@@ -73,40 +70,44 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white flex flex-col items-center justify-center p-6 transition-colors duration-300">
+      <div className="absolute top-6 right-6">
+        <ThemeToggle />
+      </div>
+
       <div className="max-w-2xl w-full space-y-12">
         <header className="text-center">
-          <h1 className="text-5xl font-extrabold tracking-tight text-blue-500 mb-2">TriviaDuel</h1>
-          <p className="text-gray-400 text-lg">Challenge your friends in real-time trivia</p>
+          <h1 className="text-5xl font-black tracking-tighter text-blue-600 dark:text-blue-500 mb-2 italic">TriviaDuel</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">Challenge your friends in real-time trivia</p>
         </header>
 
-        <section className="bg-gray-800 p-8 rounded-2xl shadow-2xl space-y-6">
+        <section className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl space-y-8 border border-gray-100 dark:border-gray-700">
           <div>
-            <label htmlFor="nickname" className="block text-sm font-medium text-gray-300 mb-2">Your Nickname</label>
+            <label htmlFor="nickname" className="block text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Your Nickname</label>
             <input
               type="text"
               id="nickname"
               placeholder="Enter nickname"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
+              className="w-full bg-gray-50 dark:bg-gray-700 border-2 border-gray-100 dark:border-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-bold"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-4">
-              <h2 className="text-xl font-bold">Create a Game</h2>
-              <div className="space-y-2">
-                <p className="text-sm text-gray-400">Choose a Topic</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+            <div className="space-y-6">
+              <h2 className="text-xl font-black uppercase tracking-tight">Create a Game</h2>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-400 font-bold uppercase">Topic</p>
                 <div className="grid grid-cols-2 gap-2">
                   {TOPICS.map((topic) => (
                     <button
                       key={topic.id}
                       onClick={() => setSelectedTopic(topic.id)}
-                      className={`p-3 rounded-lg text-left transition-all ${
+                      className={`p-3 rounded-xl text-left transition-all font-medium ${
                         selectedTopic === topic.id
-                          ? 'bg-blue-600 ring-2 ring-blue-400'
-                          : 'bg-gray-700 hover:bg-gray-650'
+                          ? 'bg-blue-600 text-white ring-4 ring-blue-500/20'
+                          : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-650'
                       }`}
                     >
                       <span className="mr-2">{topic.icon}</span>
@@ -120,38 +121,38 @@ export default function Home() {
                     placeholder="Enter custom topic..."
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
-                    className="w-full mt-2 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full mt-2 bg-gray-50 dark:bg-gray-700 border-2 border-gray-100 dark:border-gray-600 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
                   />
                 )}
               </div>
               <button
                 disabled={!nickname || !selectedTopic || isLoading}
                 onClick={handleCreateRoom}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center"
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 uppercase tracking-widest"
               >
                 {isLoading && selectedTopic ? 'Creating...' : 'Create Room'}
               </button>
             </div>
 
-            <div className="space-y-4 flex flex-col justify-between">
-              <div className="space-y-4">
-                <h2 className="text-xl font-bold">Join a Game</h2>
+            <div className="space-y-6 flex flex-col justify-between">
+              <div className="space-y-6">
+                <h2 className="text-xl font-black uppercase tracking-tight">Join a Game</h2>
                 <div>
-                  <label htmlFor="roomCode" className="block text-sm text-gray-400 mb-2">Room Code</label>
+                  <label htmlFor="roomCode" className="block text-sm text-gray-400 font-bold uppercase mb-3">Room Code</label>
                   <input
                     type="text"
                     id="roomCode"
                     placeholder="e.g. A1B2"
                     value={roomCode}
                     onChange={(e) => setRoomCode(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500 uppercase"
+                    className="w-full bg-gray-50 dark:bg-gray-700 border-2 border-gray-100 dark:border-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 uppercase font-black tracking-widest text-center text-xl"
                   />
                 </div>
               </div>
               <button
                 disabled={!nickname || !roomCode || isLoading}
                 onClick={handleJoinRoom}
-                className="w-full border-2 border-blue-600 text-blue-500 hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed font-bold py-3 rounded-lg transition-all"
+                className="w-full border-4 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white disabled:opacity-50 font-black py-4 rounded-xl transition-all uppercase tracking-widest"
               >
                 {isLoading && !selectedTopic ? 'Joining...' : 'Join Room'}
               </button>
@@ -159,8 +160,8 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="text-center text-gray-500 text-sm">
-          Built with Next.js, Supabase, and Gemini AI
+        <footer className="text-center text-gray-500 text-xs font-bold uppercase tracking-widest">
+          Built with Next.js • Supabase • Gemini AI
         </footer>
       </div>
     </main>
