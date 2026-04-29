@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 type Question = {
   summary: string;
@@ -10,95 +11,187 @@ type Question = {
   correct_answer: string;
 };
 
+type Player = {
+  id: string;
+  name: string;
+  score: number;
+  is_leader: boolean;
+};
+
 type GameState = 'lobby' | 'wager' | 'question' | 'results' | 'final';
 
 export default function RoomPage({ params }: { params: { code: string } }) {
+  const supabase = createClient();
   const [gameState, setGameState] = useState<GameState>('lobby');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [playerName, setPlayerName] = useState('');
-  const [score, setScore] = useState(0);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [myPlayerId, setMyPlayerId] = useState('');
   const [availableWeights, setAvailableWeights] = useState([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   const [currentWager, setCurrentWager] = useState<number | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [lastResult, setLastResult] = useState<{ correct: boolean; answer: string } | null>(null);
 
+  const myPlayer = players.find(p => p.id === myPlayerId);
+
   useEffect(() => {
     const savedQuestions = localStorage.getItem('trivia_questions');
-    const savedName = localStorage.getItem('player_name');
+    const savedId = localStorage.getItem('player_id');
     if (savedQuestions) setQuestions(JSON.parse(savedQuestions));
-    if (savedName) setPlayerName(savedName);
-  }, []);
+    if (savedId) setMyPlayerId(savedId);
 
-  const handleStartGame = () => setGameState('wager');
+    // Initial fetch of players
+    const fetchPlayers = async () => {
+      const { data: roomData } = await supabase
+        .from('rooms')
+        .select('id, status, current_question_index')
+        .eq('code', params.code)
+        .single();
+
+      if (roomData) {
+        const { data: playerData } = await supabase
+          .from('players')
+          .select('*')
+          .eq('room_id', roomData.id);
+        
+        if (playerData) setPlayers(playerData);
+        setGameState(roomData.status as GameState);
+        setCurrentIndex(roomData.current_question_index);
+      }
+    };
+
+    fetchPlayers();
+
+    // Real-time subscription
+    const channel = supabase
+      .channel(`room-${params.code}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setPlayers(prev => [...prev, payload.new as Player]);
+        } else if (payload.eventType === 'UPDATE') {
+          setPlayers(prev => prev.map(p => p.id === payload.new.id ? payload.new as Player : p));
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms' }, (payload) => {
+        setGameState(payload.new.status);
+        setCurrentIndex(payload.new.current_question_index);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [params.code, supabase]);
+
+  const handleStartGame = async () => {
+    await supabase
+      .from('rooms')
+      .update({ status: 'wager' })
+      .eq('code', params.code);
+  };
 
   const handleSelectWager = (weight: number) => {
     setCurrentWager(weight);
     setAvailableWeights(prev => prev.filter(w => w !== weight));
-    setGameState('question');
+    setGameState('question'); // In multiplayer, this would wait for all to wager
   };
 
-  const handleSubmitAnswer = () => {
+  const handleSubmitAnswer = async () => {
     const currentQuestion = questions[currentIndex];
     const isCorrect = userAnswer.trim().toLowerCase() === currentQuestion.correct_answer.toLowerCase();
     
-    if (isCorrect && currentWager) {
-      setScore(prev => prev + currentWager);
+    if (isCorrect && currentWager && myPlayer) {
+      const newScore = myPlayer.score + currentWager;
+      await supabase
+        .from('players')
+        .update({ score: newScore })
+        .eq('id', myPlayerId);
     }
     
     setLastResult({ correct: isCorrect, answer: currentQuestion.correct_answer });
     setGameState('results');
   };
 
-  const handleNextQuestion = () => {
+  const handleNextQuestion = async () => {
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+      if (myPlayer?.is_leader) {
+        await supabase
+          .from('rooms')
+          .update({ 
+            current_question_index: currentIndex + 1,
+            status: 'wager'
+          })
+          .eq('code', params.code);
+      }
       setUserAnswer('');
       setCurrentWager(null);
-      setGameState('wager');
     } else {
-      setGameState('final');
+      if (myPlayer?.is_leader) {
+        await supabase
+          .from('rooms')
+          .update({ status: 'final' })
+          .eq('code', params.code);
+      }
     }
   };
 
   const currentQuestion = questions[currentIndex];
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       {/* Top Nav Leaderboard */}
-      <nav className="bg-gray-800 border-b border-gray-700 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-        <div className="flex items-center space-x-4">
-          <button onClick={() => window.location.href = '/'} className="text-gray-400 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <nav className="bg-gray-800 border-b border-gray-700 px-6 py-2 flex justify-between items-center sticky top-0 z-10 overflow-x-auto">
+        <div className="flex items-center space-x-4 shrink-0">
+          <button onClick={() => window.location.href = '/'} className="text-gray-400 hover:text-white">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
-          <span className="font-bold text-xl text-blue-500">TriviaDuel</span>
+          <span className="font-bold text-lg text-blue-500 hidden md:inline">TriviaDuel</span>
         </div>
         
-        <div className="flex items-center space-x-8">
-          <div className="text-center">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Room Code</p>
-            <p className="font-mono font-bold">{params.code}</p>
-          </div>
-          <div className="bg-gray-700 px-4 py-2 rounded-lg border border-gray-600">
-            <p className="text-xs text-gray-400 uppercase">Your Score</p>
-            <p className="text-xl font-black text-yellow-400">{score}</p>
-          </div>
+        <div className="flex items-center space-x-4 px-4 overflow-x-auto no-scrollbar">
+          {sortedPlayers.map((p, i) => (
+            <div key={p.id} className={`flex items-center space-x-2 px-3 py-1 rounded-full shrink-0 ${p.id === myPlayerId ? 'bg-blue-900 border border-blue-500' : 'bg-gray-700'}`}>
+              <span className="text-xs font-bold text-gray-400">#{i + 1}</span>
+              <span className="text-sm font-medium truncate max-w-[80px]">{p.name}</span>
+              <span className="text-sm font-black text-yellow-400">{p.score}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="shrink-0 ml-4">
+           <p className="text-[10px] text-gray-500 uppercase text-right">Room</p>
+           <p className="font-mono font-bold text-sm">{params.code}</p>
         </div>
       </nav>
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 max-w-4xl mx-auto w-full">
         {gameState === 'lobby' && (
-          <div className="text-center space-y-8 animate-fade-in">
-            <h2 className="text-4xl font-bold">Welcome, {playerName}!</h2>
-            <p className="text-gray-400">Waiting for other players to join... (Solo Mode Active)</p>
-            <button
-              onClick={handleStartGame}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-lg transition-transform hover:scale-105"
-            >
-              Start Game
-            </button>
+          <div className="text-center space-y-8 w-full">
+            <h2 className="text-4xl font-bold">Lobby</h2>
+            <div className="bg-gray-800 p-6 rounded-2xl border border-gray-700 w-full max-w-md mx-auto space-y-4">
+               <p className="text-gray-400 uppercase text-xs font-bold tracking-widest">Players ({players.length}/10)</p>
+               <div className="space-y-2">
+                 {players.map(p => (
+                   <div key={p.id} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg">
+                      <span className="font-bold">{p.name} {p.is_leader && '👑'}</span>
+                      <span className="text-xs text-gray-400">{p.id === myPlayerId ? '(You)' : 'Ready'}</span>
+                   </div>
+                 ))}
+               </div>
+            </div>
+            {myPlayer?.is_leader ? (
+              <button
+                onClick={handleStartGame}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-lg transition-transform hover:scale-105"
+              >
+                Start Game
+              </button>
+            ) : (
+              <p className="text-blue-400 animate-pulse">Waiting for leader to start...</p>
+            )}
           </div>
         )}
 
@@ -110,7 +203,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
               <p className="text-gray-400">How much do you want to wager on this question?</p>
             </div>
 
-            <div className="grid grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(weight => {
                 const isAvailable = availableWeights.includes(weight);
                 return (
@@ -129,7 +222,6 @@ export default function RoomPage({ params }: { params: { code: string } }) {
                 );
               })}
             </div>
-            <p className="text-center text-sm text-gray-500 italic">Each point weight can only be used once per game.</p>
           </div>
         )}
 
@@ -199,55 +291,56 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         )}
 
         {gameState === 'results' && lastResult && (
-          <div className="text-center space-y-8 animate-fade-in">
-            <div className={`text-7xl mb-4 ${lastResult.correct ? 'text-green-500' : 'text-red-500'}`}>
-              {lastResult.correct ? '✓ Correct!' : '✗ Wrong!'}
+          <div className="text-center space-y-8 animate-fade-in w-full">
+            <div className={`text-6xl font-black ${lastResult.correct ? 'text-green-500' : 'text-red-500'}`}>
+              {lastResult.correct ? 'CORRECT!' : 'WRONG!'}
             </div>
-            <div className="space-y-2">
-              <p className="text-gray-400 text-lg">The correct answer was:</p>
-              <p className="text-3xl font-bold text-blue-400">{lastResult.answer}</p>
+            <div className="bg-gray-800 p-8 rounded-2xl border border-gray-700 max-w-md mx-auto">
+               <p className="text-gray-400 mb-2">The answer was:</p>
+               <p className="text-2xl font-bold text-blue-400 mb-6">{lastResult.answer}</p>
+               <div className="border-t border-gray-700 pt-4">
+                 <p className="text-sm text-gray-500 uppercase">Points Gained</p>
+                 <p className="text-4xl font-black text-yellow-400">{lastResult.correct ? `+${currentWager}` : '0'}</p>
+               </div>
             </div>
-            <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-               <p className="text-gray-400">Points Gained</p>
-               <p className="text-4xl font-black text-yellow-400">{lastResult.correct ? `+${currentWager}` : '0'}</p>
-            </div>
-            <button
-              onClick={handleNextQuestion}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-lg transition-transform hover:scale-105"
-            >
-              {currentIndex < questions.length - 1 ? 'Next Question' : 'Finish Game'}
-            </button>
+            {myPlayer?.is_leader ? (
+              <button
+                onClick={handleNextQuestion}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-lg transition-transform hover:scale-105"
+              >
+                {currentIndex < questions.length - 1 ? 'Next Question' : 'View Final Results'}
+              </button>
+            ) : (
+              <p className="text-blue-400 animate-pulse">Waiting for leader to continue...</p>
+            )}
           </div>
         )}
 
         {gameState === 'final' && (
-          <div className="text-center space-y-12 animate-slide-up">
-            <header className="space-y-4">
-              <h2 className="text-5xl font-black text-yellow-400">Game Over!</h2>
-              <p className="text-2xl text-gray-400">Well played, {playerName}!</p>
-            </header>
-            
-            <div className="bg-gray-800 p-12 rounded-3xl border-4 border-yellow-500 shadow-2xl space-y-6">
-              <p className="text-2xl font-bold text-gray-300 uppercase tracking-widest">Final Score</p>
-              <p className="text-9xl font-black text-white">{score}</p>
-              <div className="pt-6 border-t border-gray-700">
-                 <p className="text-gray-500">Rank: #1 (Local Leaderboard)</p>
-              </div>
+          <div className="text-center space-y-8 w-full max-w-lg mx-auto">
+            <h2 className="text-4xl font-black text-yellow-500">FINAL STANDINGS</h2>
+            <div className="bg-gray-800 rounded-3xl border border-gray-700 overflow-hidden shadow-2xl">
+              {sortedPlayers.map((p, i) => (
+                <div key={p.id} className={`flex items-center justify-between p-6 ${i === 0 ? 'bg-yellow-500/10' : ''} ${i < sortedPlayers.length - 1 ? 'border-b border-gray-700' : ''}`}>
+                   <div className="flex items-center space-x-4">
+                      <span className={`text-2xl font-black ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-500' : 'text-gray-500'}`}>
+                        {i + 1}
+                      </span>
+                      <span className="text-xl font-bold">{p.name} {p.id === myPlayerId && '(You)'}</span>
+                   </div>
+                   <span className="text-3xl font-black text-white">{p.score}</span>
+                </div>
+              ))}
             </div>
-
             <button
               onClick={() => window.location.href = '/'}
-              className="bg-gray-700 hover:bg-gray-600 text-white px-8 py-3 rounded-lg font-bold transition-colors"
+              className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-bold"
             >
-              Play Again
+              Back to Menu
             </button>
           </div>
         )}
       </main>
-
-      <footer className="p-6 text-center text-gray-600 text-sm">
-        TriviaDuel v1.0 • Solo Experience
-      </footer>
     </div>
   );
 }
