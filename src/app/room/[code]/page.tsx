@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -21,7 +21,10 @@ type Player = {
 
 type GameState = 'lobby' | 'wager' | 'question' | 'results' | 'final';
 
-export default function RoomPage({ params }: { params: { code: string } }) {
+export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
+  const unwrappedParams = use(params);
+  const roomCode = unwrappedParams.code;
+  
   const supabase = createClient();
   const [gameState, setGameState] = useState<GameState>('lobby');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -36,16 +39,14 @@ export default function RoomPage({ params }: { params: { code: string } }) {
   const myPlayer = players.find(p => p.id === myPlayerId);
 
   useEffect(() => {
-    const savedQuestions = localStorage.getItem('trivia_questions');
     const savedId = localStorage.getItem('player_id');
-    if (savedQuestions) setQuestions(JSON.parse(savedQuestions));
     if (savedId) setMyPlayerId(savedId);
 
-    const fetchPlayers = async () => {
+    const fetchRoomData = async () => {
       const { data: roomData } = await supabase
         .from('rooms')
         .select('id, status, current_question_index')
-        .eq('code', params.code)
+        .eq('code', roomCode)
         .single();
 
       if (roomData) {
@@ -53,17 +54,24 @@ export default function RoomPage({ params }: { params: { code: string } }) {
           .from('players')
           .select('*')
           .eq('room_id', roomData.id);
+          
+        const { data: questionData } = await supabase
+          .from('questions')
+          .select('*')
+          .eq('room_id', roomData.id)
+          .order('id');
         
         if (playerData) setPlayers(playerData);
-        setGameState(roomData.status as GameState);
+        if (questionData) setQuestions(questionData);
+        if (roomData.status) setGameState(roomData.status as GameState);
         setCurrentIndex(roomData.current_question_index);
       }
     };
 
-    fetchPlayers();
+    fetchRoomData();
 
     const channel = supabase
-      .channel(`room-${params.code}`)
+      .channel(`room-${roomCode}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           setPlayers(prev => [...prev, payload.new as Player]);
@@ -72,7 +80,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms' }, (payload) => {
-        setGameState(payload.new.status);
+        setGameState(payload.new.status as GameState);
         setCurrentIndex(payload.new.current_question_index);
       })
       .subscribe();
@@ -80,13 +88,13 @@ export default function RoomPage({ params }: { params: { code: string } }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [params.code, supabase]);
+  }, [roomCode, supabase]);
 
   const handleStartGame = async () => {
     await supabase
       .from('rooms')
       .update({ status: 'wager' })
-      .eq('code', params.code);
+      .eq('code', roomCode);
   };
 
   const handleSelectWager = (weight: number) => {
@@ -120,7 +128,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
             current_question_index: currentIndex + 1,
             status: 'wager'
           })
-          .eq('code', params.code);
+          .eq('code', roomCode);
       }
       setUserAnswer('');
       setCurrentWager(null);
@@ -129,7 +137,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         await supabase
           .from('rooms')
           .update({ status: 'final' })
-          .eq('code', params.code);
+          .eq('code', roomCode);
       }
     }
   };
@@ -162,7 +170,7 @@ export default function RoomPage({ params }: { params: { code: string } }) {
         <div className="flex items-center space-x-4 shrink-0 ml-4">
            <div className="text-right hidden sm:block">
               <p className="text-[10px] text-gray-500 uppercase tracking-tighter">Room</p>
-              <p className="font-mono font-bold text-sm">{params.code}</p>
+              <p className="font-mono font-bold text-sm">{roomCode}</p>
            </div>
            <ThemeToggle />
         </div>
