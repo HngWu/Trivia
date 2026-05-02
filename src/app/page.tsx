@@ -63,16 +63,7 @@ export default function Home() {
     setIsLoading(true);
     try {
       const topicToUse = selectedTopic === 'custom' ? customTopic : selectedTopic;
-      const aiResponse = await fetch('/api/generate-questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topicToUse }),
-      });
-      
-      const aiData = await aiResponse.json();
-      if (!aiData.questions) throw new Error('Failed to generate questions');
-
-      const { room, player } = await createRoom(topicToUse, nickname, aiData.questions);
+      const { room, player } = await createRoom(topicToUse, nickname);
       
       localStorage.setItem('player_id', player.id);
       localStorage.setItem('player_name', nickname);
@@ -112,12 +103,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-4 sm:p-8 page-transition overflow-y-auto">
-      {/* Decorative Background Element */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-30">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
-        <div className="absolute -bottom-[10%] -right-[10%] w-[30%] h-[30%] bg-white/20 rounded-full blur-[100px]" />
-      </div>
-
       <div className="max-w-4xl w-full space-y-12 relative z-10 py-12">
         <header className="text-center space-y-4">
           <h1 className="text-6xl sm:text-8xl font-black tracking-tighter text-foreground uppercase italic animate-fade-in">
@@ -174,23 +159,32 @@ export default function Home() {
           )}
         </section>
 
-        {/* Middle Section: Category Carousel */}
+        {/* Middle Section: Category Grid */}
         {!showJoinInput && (
-          <section className="w-full space-y-6">
+          <section className="w-full max-w-4xl mx-auto space-y-6">
             <h2 className="text-center text-xs font-black uppercase tracking-[0.4em] text-gray-500">Select Category</h2>
-            <div className="flex overflow-x-auto gap-4 pb-6 no-scrollbar px-4 -mx-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {TOPICS.map((topic) => (
                 <button
                   key={topic.id}
                   onClick={() => setSelectedTopic(topic.id)}
-                  className={`flex-shrink-0 w-40 h-40 glass rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 ${
+                  className={`group relative p-6 glass rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 border border-white/5 hover:border-white/20 ${
                     selectedTopic === topic.id 
-                      ? 'border-white bg-white/10 scale-105 shadow-[0_0_30px_rgba(255,255,255,0.1)]' 
-                      : 'hover:bg-white/5 opacity-70 hover:opacity-100'
+                      ? 'border-white bg-white/10 scale-[1.02] shadow-[0_0_40px_rgba(255,255,255,0.1)]' 
+                      : 'hover:bg-white/5 opacity-80 hover:opacity-100'
                   }`}
                 >
-                  <span className="text-5xl">{topic.icon}</span>
-                  <span className="font-black uppercase tracking-widest text-xs text-white">{topic.name}</span>
+                  {/* Selection Indicator */}
+                  {selectedTopic === topic.id && (
+                    <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]" />
+                  )}
+                  
+                  <span className="text-5xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
+                  <span className="font-black uppercase tracking-[0.2em] text-xs text-white">{topic.name}</span>
+                  
+                  <div className="absolute inset-0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+                  </div>
                 </button>
               ))}
             </div>

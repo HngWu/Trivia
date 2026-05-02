@@ -4,28 +4,42 @@ import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer } from "./types/game";
 
-export async function createRoom(topic: string, leaderName: string, initialQuestions?: Question[]) {
+export async function createRoom(topic: string, leaderName: string) {
   const supabase = await createClient();
-  const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const normalizedTopic = topic.toLowerCase();
   
-  let finalQuestions: Question[] = initialQuestions || [];
-  
-  if (finalQuestions.length === 0) {
-    const { data: filler } = await supabase
-      .from("filler_questions")
-      .select("*")
-      .eq("topic", topic.toLowerCase())
-      .limit(10);
-      
-    finalQuestions = (filler || []) as unknown as Question[];
+  // 1. Try to fetch from database first
+  let { data: questions } = await supabase
+    .from("filler_questions")
+    .select("*")
+    .eq("topic", normalizedTopic)
+    .limit(10);
+    
+  // 2. If no questions found (e.g., custom topic), fallback to AI
+  if (!questions || questions.length === 0) {
+    const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/generate-questions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic }),
+    });
+    const aiData = await aiResponse.json();
+    questions = aiData.questions;
   }
 
-  // Safety: Ensure every question has a unique ID
-  finalQuestions = finalQuestions.map((q, idx) => ({
-    ...q,
-    id: q.id || `q-${idx}-${crypto.randomUUID()}`
+  if (!questions || questions.length === 0) throw new Error("Failed to generate or retrieve questions");
+
+  // Safety: Ensure every question has a unique ID and map fields if needed
+  const finalQuestions: Question[] = questions.map((q: any, idx: number) => ({
+    id: q.id || `q-${idx}-${crypto.randomUUID()}`,
+    summary: q.summary,
+    text: q.text,
+    type: q.type as "multiple_choice" | "boolean" | "text",
+    options: q.options,
+    correct_answer: q.correct_answer,
+    explanation: q.explanation || "No explanation provided."
   }));
 
+  const code = Math.random().toString(36).substring(2, 6).toUpperCase();
   const player: Player = {
     id: crypto.randomUUID(),
     name: leaderName,

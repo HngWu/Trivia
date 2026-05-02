@@ -350,7 +350,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           </button>
           <div className="flex flex-col">
             <span className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">Your Score</span>
-            <span className="text-sm font-black uppercase italic tracking-tighter">HW {myPlayer?.score || 0}</span>
+            <span className="text-sm font-black uppercase italic tracking-tighter">{myPlayer?.score || 0}</span>
           </div>
         </div>
         
@@ -398,17 +398,29 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         {/* Phase: Lobby */}
         {roomStatus === "waiting" && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-12">
-            <h2 className="text-7xl sm:text-9xl font-black uppercase italic tracking-tighter mb-4 text-white">Lobby</h2>
-            <p className="text-gray-500 font-bold tracking-[0.4em] uppercase text-[10px] mb-16">Waiting for players...</p>
+            <div className="text-center space-y-4 mb-12">
+              <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-600">
+                <span>Selected Topic</span>
+              </div>
+              <h2 className="text-6xl sm:text-8xl font-black uppercase italic tracking-tighter text-gray-400">
+                {topic || "General"}
+              </h2>
+            </div>
             
             <div className="glass p-8 sm:p-12 rounded-[3rem] w-full max-w-xl space-y-8">
                <div className="flex justify-between items-center border-b border-white/5 pb-6">
-                  <p className="text-gray-500 uppercase text-[10px] font-black tracking-[0.3em]">Players Online ({players.length}/10)</p>
+                  <div className="flex flex-col">
+                    <p className="text-gray-500 uppercase text-[10px] font-black tracking-[0.3em]">Players Online ({players.length}/10)</p>
+                    <div className="flex items-center mt-2 space-x-2">
+                      <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">Code:</span>
+                      <span className="text-xs font-black text-white tracking-widest font-mono">{roomCode}</span>
+                    </div>
+                  </div>
                   <div className="h-2 w-2 rounded-full bg-white animate-pulse shadow-[0_0_15px_white]" />
                </div>
-               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
                  {players.map(p => (
-                   <div key={p.id} className={`flex justify-between items-center p-6 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 hover:border-white/20 text-gray-400'}`}>
+                   <div key={p.id} className={`flex justify-between items-center p-6 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white/10 border-white/30' : 'bg-white/5 border-white/5 hover:border-white/10'} text-white`}>
                       <span className="font-black italic text-xl uppercase tracking-tight">{p.id === roomLeaderId ? "● " : ""}{p.name}</span>
                       <span className={`text-[9px] font-black uppercase tracking-widest opacity-60`}>{p.id === myPlayerId ? "You" : "Player"}</span>
                    </div>
@@ -416,30 +428,44 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                </div>
             </div>
             
-            <div className="mt-16 flex flex-col items-center space-y-8">
-              {isLeader ? (
-                <button 
-                  disabled={questions.length === 0} 
-                  onClick={handleStartGame} 
-                  className="bg-white text-black hover:bg-gray-200 px-24 py-8 rounded-[2.5rem] font-black text-3xl shadow-[0_0_60px_rgba(255,255,255,0.15)] transition-all active:scale-95 uppercase tracking-[0.3em] italic disabled:opacity-20"
-                >
-                  {questions.length === 0 ? "Loading..." : "Start"}
-                </button>
-              ) : (
-                <div className="glass px-12 py-6 rounded-3xl animate-pulse">
-                  <p className="text-gray-400 font-black uppercase tracking-[0.3em] text-xs italic">Waiting for leader to start...</p>
-                </div>
-              )}
+            <div className="mt-16 flex flex-col items-center space-y-12 w-full max-w-xl">
+              <div className="w-full flex flex-col items-center space-y-4">
+                {isLeader ? (
+                  <button 
+                    disabled={questions.length === 0} 
+                    onClick={handleStartGame} 
+                    className="w-full max-w-md bg-gray-400 text-black hover:bg-white disabled:opacity-20 py-8 rounded-[2rem] font-black text-3xl shadow-[0_0_40px_rgba(255,255,255,0.03)] transition-all active:scale-95 uppercase tracking-[0.3em] italic"
+                  >
+                    {questions.length === 0 ? "Loading..." : "Start Battle"}
+                  </button>
+                ) : (
+                  <div className="glass px-12 py-6 rounded-3xl animate-pulse">
+                    <p className="text-gray-400 font-black uppercase tracking-[0.3em] text-xs italic">Waiting for leader...</p>
+                  </div>
+                )}
+              </div>
 
-              <button 
-                onClick={handleCopyLink}
-                className="flex items-center space-x-3 text-gray-500 hover:text-white transition-colors uppercase font-black text-[10px] tracking-[0.3em] group"
-              >
-                <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-                <span>{copied ? "Link Copied!" : "Copy Invite Link"}</span>
-              </button>
+              <div className="w-full flex flex-col items-center space-y-6">
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-600">Invite Participants</p>
+                <div className="glass flex items-center justify-between pl-8 pr-3 py-4 rounded-[2rem] w-full border-white/10 shadow-2xl">
+                  <span className="text-xs sm:text-sm font-mono text-white/50 truncate mr-6 tracking-tight">
+                    {typeof window !== 'undefined' ? window.location.href : `.../room/${roomCode}`}
+                  </span>
+                  <button 
+                    onClick={handleCopyLink}
+                    className="h-12 px-8 bg-white text-black hover:bg-gray-200 rounded-2xl transition-all shadow-lg group flex items-center space-x-3 shrink-0"
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-widest">
+                      {copied ? "Copied" : "Copy Link"}
+                    </span>
+                    {!copied && (
+                      <svg className="w-4 h-4 text-black group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -502,7 +528,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
              <div className="glass p-10 sm:p-20 rounded-[4rem] shadow-2xl space-y-16 relative overflow-hidden border-white/10">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
                 
-                <h2 className="text-3xl sm:text-6xl font-black tracking-tight leading-tight italic uppercase text-white">
+                <h2 className="text-3xl sm:text-6xl font-black tracking-tight leading-tight italic text-white">
                    &quot;{currentQuestion?.text}&quot;
                 </h2>
 
@@ -523,7 +549,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         key={val} 
                         // eslint-disable-next-line react-hooks/refs
                         onClick={() => handleSubmitAnswer(val)} 
-                        className="p-16 rounded-[2.5rem] font-black text-5xl border-2 border-white/5 bg-white/5 transition-all hover:bg-white hover:text-black active:scale-95 uppercase tracking-tighter"
+                        className="p-16 rounded-[2.5rem] font-black text-5xl border-2 border-white/5 bg-white/5 transition-all hover:bg-white hover:text-black active:scale-95 tracking-tighter"
                       >
                         {val}
                       </button>
@@ -537,11 +563,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                           onChange={(e) => setTextAnswer(e.target.value)}
                           placeholder="Type your answer..." 
                           onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer(textAnswer)} 
-                          className="flex-1 w-full h-10 glass-input rounded-xl px-6 text-xl focus:ring-0 transition-all font-black italic uppercase tracking-tighter placeholder:text-gray-500" 
+                          className="flex-1 w-full h-10 glass-input rounded-xl px-6 text-xl focus:ring-0 transition-all font-black italic tracking-tighter placeholder:text-gray-500" 
                         />
                         <button 
                           onClick={() => handleSubmitAnswer(textAnswer)}
-                          className="h-10 px-8 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 whitespace-nowrap"
+                          className="h-10 px-8 bg-white text-black rounded-xl font-black italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 whitespace-nowrap"
                         >
                           Submit Answer
                         </button>
