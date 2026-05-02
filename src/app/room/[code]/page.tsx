@@ -5,11 +5,21 @@ import { createClient } from '@/lib/supabase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 type Question = {
+  id: string;
   summary: string;
   text: string;
   type: 'multiple_choice' | 'boolean' | 'text';
   options: string[] | null;
   correct_answer: string;
+};
+
+type Answer = {
+  id: string;
+  question_id: string;
+  player_id: string;
+  wager: number;
+  submitted_answer: string;
+  is_correct: boolean;
 };
 
 type Player = {
@@ -30,6 +40,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [players, setPlayers] = useState<Player[]>([]);
+  const [answers, setAnswers] = useState<Answer[]>([]);
   const [myPlayerId, setMyPlayerId] = useState('');
   const [availableWeights, setAvailableWeights] = useState([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   const [currentWager, setCurrentWager] = useState<number | null>(null);
@@ -37,6 +48,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [lastResult, setLastResult] = useState<{ correct: boolean; answer: string } | null>(null);
 
   const myPlayer = players.find(p => p.id === myPlayerId);
+  const currentQuestion = questions[currentIndex];
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
   useEffect(() => {
     const savedId = localStorage.getItem('player_id');
@@ -62,7 +75,19 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           .order('id');
         
         if (playerData) setPlayers(playerData);
-        if (questionData) setQuestions(questionData);
+        if (questionData) {
+          setQuestions(questionData);
+          
+          // Fetch answers for current question
+          const currentQ = questionData[roomData.current_question_index];
+          if (currentQ) {
+            const { data: answerData } = await supabase
+              .from('answers')
+              .select('*')
+              .eq('question_id', currentQ.id);
+            if (answerData) setAnswers(answerData);
+          }
+        }
         if (roomData.status) setGameState(roomData.status as GameState);
         setCurrentIndex(roomData.current_question_index);
       }
@@ -83,43 +108,26 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         setGameState(payload.new.status as GameState);
         setCurrentIndex(payload.new.current_question_index);
       })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'answers',
+        filter: currentQuestion ? `question_id=eq.${currentQuestion.id}` : undefined 
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setAnswers(prev => [...prev, payload.new as Answer]);
+        } else if (payload.eventType === 'UPDATE') {
+          setAnswers(prev => prev.map(a => a.id === payload.new.id ? payload.new as Answer : a));
+        }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [roomCode, supabase]);
+  }, [roomCode, supabase, currentQuestion]);
 
-  const handleStartGame = async () => {
-    await supabase
-      .from('rooms')
-      .update({ status: 'wager' })
-      .eq('code', roomCode);
-  };
-
-  const handleSelectWager = (weight: number) => {
-    setCurrentWager(weight);
-    setAvailableWeights(prev => prev.filter(w => w !== weight));
-    setGameState('question');
-  };
-
-  const handleSubmitAnswer = async () => {
-    const currentQuestion = questions[currentIndex];
-    const isCorrect = userAnswer.trim().toLowerCase() === currentQuestion.correct_answer.toLowerCase();
-    
-    if (isCorrect && currentWager && myPlayer) {
-      const newScore = myPlayer.score + currentWager;
-      await supabase
-        .from('players')
-        .update({ score: newScore })
-        .eq('id', myPlayerId);
-    }
-    
-    setLastResult({ correct: isCorrect, answer: currentQuestion.correct_answer });
-    setGameState('results');
-  };
-
-  const handleNextQuestion = async () => {
+  const handleNextRound = async () => {
     if (currentIndex < questions.length - 1) {
       if (myPlayer?.is_leader) {
         await supabase
@@ -132,6 +140,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       }
       setUserAnswer('');
       setCurrentWager(null);
+      setLastResult(null);
+      setAnswers([]); // Reset answers for new question
     } else {
       if (myPlayer?.is_leader) {
         await supabase
@@ -142,8 +152,93 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     }
   };
 
-  const currentQuestion = questions[currentIndex];
-  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  // Collective Transitions (Leader Only)
+  useEffect(() => {
+    if (!myPlayer?.is_leader || !currentQuestion) return;
+
+    const checkTransitions = async () => {
+      if (gameState === 'wager') {
+        const wagersCount = answers.filter(a => a.wager > 0).length;
+        if (wagersCount > 0 && wagersCount === players.length) {
+          await supabase
+            .from('rooms')
+            .update({ status: 'question' })
+            .eq('code', roomCode);
+        }
+      } else if (gameState === 'question') {
+        const answersCount = answers.filter(a => a.submitted_answer !== '').length;
+        if (answersCount > 0 && answersCount === players.length) {
+          await supabase
+            .from('rooms')
+            .update({ status: 'results' })
+            .eq('code', roomCode);
+        }
+      }
+    };
+
+    checkTransitions();
+  }, [gameState, answers, players.length, myPlayer?.is_leader, roomCode, currentQuestion, supabase]);
+
+  // Automatic Timer for Next Round (Leader Only)
+  useEffect(() => {
+    if (gameState === 'results' && myPlayer?.is_leader) {
+      const timer = setTimeout(() => {
+        handleNextRound();
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState, myPlayer?.is_leader]);
+
+  const handleStartGame = async () => {
+    await supabase
+      .from('rooms')
+      .update({ status: 'wager' })
+      .eq('code', roomCode);
+  };
+
+  const handleSelectWager = async (weight: number) => {
+    if (!currentQuestion || !myPlayerId) return;
+    
+    setCurrentWager(weight);
+    setAvailableWeights(prev => prev.filter(w => w !== weight));
+    
+    // Save wager to DB
+    await supabase
+      .from('answers')
+      .upsert({
+        question_id: currentQuestion.id,
+        player_id: myPlayerId,
+        wager: weight,
+        submitted_answer: '',
+        is_correct: false
+      }, { onConflict: 'question_id,player_id' });
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (!currentQuestion || !myPlayerId || !currentWager) return;
+
+    const isCorrect = userAnswer.trim().toLowerCase() === currentQuestion.correct_answer.toLowerCase();
+    
+    // Save answer to DB
+    await supabase
+      .from('answers')
+      .update({
+        submitted_answer: userAnswer,
+        is_correct: isCorrect
+      })
+      .eq('question_id', currentQuestion.id)
+      .eq('player_id', myPlayerId);
+
+    if (isCorrect && myPlayer) {
+      const newScore = myPlayer.score + currentWager;
+      await supabase
+        .from('players')
+        .update({ score: newScore })
+        .eq('id', myPlayerId);
+    }
+    
+    setLastResult({ correct: isCorrect, answer: currentQuestion.correct_answer });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white flex flex-col transition-colors duration-300">
@@ -314,7 +409,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             </div>
             {myPlayer?.is_leader ? (
               <button
-                onClick={handleNextQuestion}
+                onClick={handleNextRound}
                 className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-lg transition-transform hover:scale-105"
               >
                 {currentIndex < questions.length - 1 ? 'Next Question' : 'View Final Results'}
