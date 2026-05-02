@@ -20,6 +20,12 @@ export async function createRoom(topic: string, leaderName: string, initialQuest
     finalQuestions = filler || [];
   }
 
+  // Safety: Ensure every question has a unique ID
+  finalQuestions = finalQuestions.map((q, idx) => ({
+    ...q,
+    id: q.id || `q-${idx}-${crypto.randomUUID()}`
+  }));
+
   const roomData = {
     code,
     topic,

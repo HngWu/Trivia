@@ -359,6 +359,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                    <p className="text-blue-600 dark:text-blue-500 font-black uppercase tracking-[0.4em] text-xs">Direct Engagement</p>
                    <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight italic uppercase">&quot;{currentQuestion?.text}&quot;</h2>
                 </div>
+
                 {!roundData.answer ? (
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
