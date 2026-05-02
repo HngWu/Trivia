@@ -39,6 +39,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [isLoading, setIsLoading] = useState(true);
   const [timer, setTimer] = useState(60);
   const [roomLeaderId, setRoomLeaderId] = useState<string | null>(null);
+  const [topic, setTopic] = useState("");
 
   // --- DERIVED DATA (The Single Source of Truth) ---
   const currentQuestion = useMemo(() => questions[currentIndex], [questions, currentIndex]);
@@ -69,9 +70,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     };
   }, [allRoomAnswers, currentQuestion, myPlayerId, roomStatus]);
 
-  const availablePoints = useMemo(() => {
-    const used = allRoomAnswers.filter(a => a.player_id === myPlayerId).map(a => a.wager);
-    return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(w => !used.includes(w));
+  const usedWagers = useMemo(() => {
+    return allRoomAnswers
+      .filter(a => a.player_id === myPlayerId)
+      .map(a => a.wager);
   }, [allRoomAnswers, myPlayerId]);
 
   const fetchData = useCallback(async () => {
@@ -80,6 +82,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       if (!room) return;
 
       setRoomLeaderId(room.leader_id);
+      setTopic(room.topic || "");
       if (p) setPlayers(p);
       if (room.questions) setQuestions(room.questions);
       if (a) setAllRoomAnswers(a);
@@ -139,12 +142,13 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
 
   const handleTimeUp = useCallback(() => {
+    const availableWeights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(w => !usedWagers.includes(w));
     if (roomStatus === "wager" && !roundData.wager) {
-      handleSelectWager(availablePoints[0] || 1);
+      handleSelectWager(availableWeights[0] || 1);
     } else if (roomStatus === "question" && !roundData.answer) {
       handleSubmitAnswer("TIMEOUT_EXPIRED");
     }
-  }, [roomStatus, roundData.wager, roundData.answer, availablePoints, handleSelectWager, handleSubmitAnswer]);
+  }, [roomStatus, roundData.wager, roundData.answer, usedWagers, handleSelectWager, handleSubmitAnswer]);
 
   const handleNextRound = useCallback(async () => {
     if (!isLeader) return;
@@ -243,205 +247,305 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
-  if (isLoading) return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center font-black uppercase tracking-widest animate-pulse text-center p-8">Initializing Game Systems...</div>;
+  if (isLoading) return <div className="min-h-screen bg-[#0B0E14] text-white flex items-center justify-center font-black uppercase tracking-widest animate-pulse text-center p-8">Initializing Game Systems...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white flex flex-col transition-colors duration-300 overflow-hidden font-sans">
-      <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-2 flex justify-between items-center sticky top-0 z-20 shadow-sm">
-        <div className="flex items-center space-x-4">
-          <button onClick={() => window.location.href = "/"} className="text-gray-400 hover:text-blue-500 transition-colors">
+    <div className="min-h-screen bg-[#0B0E14] text-white flex flex-col overflow-hidden font-sans selection:bg-mint/30">
+      {/* Top Bar Section */}
+      <nav className="bg-card/30 backdrop-blur-md border-b border-white/5 px-6 py-3 flex justify-between items-center sticky top-0 z-20">
+        <div className="flex items-center space-x-6">
+          <button onClick={() => window.location.href = "/"} className="text-gray-400 hover:text-mint transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           </button>
-          <span className="font-black text-lg text-blue-600 dark:text-blue-500 uppercase tracking-tighter italic">TriviaDuel</span>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Current Standing</span>
+            <span className="text-sm font-black text-mint uppercase italic tracking-tighter">Hw {myPlayer?.score || 0}</span>
+          </div>
         </div>
         
-        <div className="flex items-center space-x-2 overflow-x-auto no-scrollbar max-w-[50%]">
+        <div className="hidden md:flex items-center space-x-3 overflow-x-auto no-scrollbar max-w-[40%]">
           {sortedPlayers.map((p, i) => (
-            <div key={p.id} className={`px-3 py-1 rounded-full text-[10px] font-black uppercase whitespace-nowrap transition-all border ${p.id === myPlayerId ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20" : "bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600"}`}>
+            <div key={p.id} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase whitespace-nowrap transition-all border ${p.id === myPlayerId ? "bg-mint border-mint text-[#0B0E14] shadow-lg shadow-mint/20" : "bg-card border-white/5 text-gray-400"}`}>
               #{i + 1} {p.name}: {p.score}
             </div>
           ))}
         </div>
 
-        <div className="flex items-center space-x-4">
-           <div className="text-right text-[10px] hidden sm:block">
-              <p className="text-gray-400 font-bold uppercase tracking-widest">Protocol</p>
-              <p className="font-mono font-black text-blue-600 uppercase">{roomCode}</p>
+        <div className="flex items-center space-x-6">
+           <div className="text-right">
+              <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Protocol</p>
+              <p className="font-mono font-black text-xs text-mint uppercase">{roomCode}</p>
            </div>
            <ThemeToggle />
         </div>
       </nav>
 
-      {/* Unique key forces fresh remount on every round increment */}
-      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center justify-center p-6 max-w-4xl mx-auto w-full relative">
+      {/* Main Content */}
+      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-8 max-w-6xl mx-auto w-full relative">
+        {/* Header/Breadcrumbs Section */}
         {roomStatus !== "waiting" && roomStatus !== "final" && (
-          <div className={`absolute top-0 right-0 m-4 sm:m-8 w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 flex flex-col items-center justify-center font-black transition-all z-10 bg-white dark:bg-gray-800 shadow-xl ${timer < 10 ? "border-red-500 text-red-500 animate-bounce scale-110" : "border-blue-500 text-blue-500"}`}>
-            <span className="text-[10px] uppercase opacity-50 leading-none">Sec</span>
-            <span className="text-2xl">{timer}</span>
+          <header className="w-full text-center space-y-2 mb-12 animate-fade-in">
+            <div className="flex items-center justify-center space-x-3 text-[10px] font-black uppercase tracking-[0.4em] text-gray-500">
+               <span>Q{currentIndex + 1}</span>
+               <span className="w-1 h-1 rounded-full bg-gray-700"></span>
+               <span>{topic || "World Geography"}</span>
+            </div>
+            <h2 className="text-mint text-4xl sm:text-5xl font-black uppercase italic tracking-widest drop-shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+               {currentQuestion?.summary || "Capitals"}
+            </h2>
+            <div className="pt-6">
+               <p className="text-white text-xl sm:text-2xl font-medium tracking-tight max-w-2xl mx-auto opacity-90 leading-relaxed">
+                  {topic && `Round Topic: ${topic}`}
+               </p>
+            </div>
+          </header>
+        )}
+
+        {/* Timer UI */}
+        {roomStatus !== "waiting" && roomStatus !== "final" && (
+          <div className={`fixed top-20 right-8 w-14 h-14 rounded-xl border-2 flex flex-col items-center justify-center font-black transition-all z-10 bg-card/80 backdrop-blur shadow-2xl ${timer < 10 ? "border-red-500 text-red-500 animate-pulse" : "border-mint/30 text-mint"}`}>
+            <span className="text-[8px] uppercase opacity-50 leading-none mb-0.5">Sec</span>
+            <span className="text-xl">{timer}</span>
           </div>
         )}
 
+        {/* Phase: Lobby */}
         {roomStatus === "waiting" && (
-          <div className="text-center space-y-8 w-full animate-fade-in">
-            <div className="space-y-2">
-              <h2 className="text-7xl font-black uppercase italic tracking-tighter text-blue-600 dark:text-blue-500 text-glow">Lobby</h2>
-              <p className="text-gray-500 dark:text-gray-400 font-bold tracking-widest uppercase text-xs">Waiting for participants to connect...</p>
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-12">
+            <div className="text-center space-y-4 mb-12">
+              <h2 className="text-8xl font-black uppercase italic tracking-tighter text-mint drop-shadow-[0_0_30px_rgba(52,211,153,0.2)]">Lobby</h2>
+              <p className="text-gray-500 font-bold tracking-[0.3em] uppercase text-xs">Waiting for participants to connect...</p>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] border-2 border-gray-100 dark:border-gray-700 w-full max-w-md mx-auto space-y-4 shadow-2xl">
-               <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-700 pb-3">
-                  <p className="text-gray-400 uppercase text-[10px] font-black tracking-widest">Active Players ({players.length}/10)</p>
-                  <span className="animate-pulse h-2 w-2 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></span>
+            
+            <div className="bg-card p-8 rounded-[2rem] border border-white/5 w-full max-w-md space-y-6 shadow-2xl">
+               <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                  <p className="text-gray-500 uppercase text-[10px] font-black tracking-[0.2em]">Active Players ({players.length}/10)</p>
+                  <span className="animate-pulse h-2 w-2 rounded-full bg-mint shadow-[0_0_10px_rgba(52,211,153,0.5)]"></span>
                </div>
-               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
+               <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 no-scrollbar">
                  {players.map(p => (
-                   <div key={p.id} className={`flex justify-between items-center p-4 rounded-2xl bg-gray-50 dark:bg-gray-700/50 border border-transparent hover:border-blue-500/20 transition-all ${p.id === myPlayerId ? 'ring-2 ring-blue-500/50' : ''}`}>
-                      <span className="font-black italic text-lg">{p.id === roomLeaderId ? "👑 " : ""}{p.name}</span>
-                      <span className="text-[10px] uppercase font-black text-blue-500">{p.id === myPlayerId ? "Protocol Primary" : "Connected"}</span>
+                   <div key={p.id} className={`flex justify-between items-center p-5 rounded-2xl bg-[#0B0E14]/50 border border-white/5 hover:border-mint/20 transition-all ${p.id === myPlayerId ? 'ring-1 ring-mint/50' : ''}`}>
+                      <span className="font-black italic text-lg tracking-tight">{p.id === roomLeaderId ? "👑 " : ""}{p.name}</span>
+                      <span className="text-[10px] uppercase font-black text-mint tracking-widest">{p.id === myPlayerId ? "Protocol Primary" : "Connected"}</span>
                    </div>
                  ))}
                </div>
             </div>
-            <div className="pt-4">
+            
+            <div className="mt-12">
               {isLeader ? (
-                <button disabled={questions.length === 0} onClick={handleStartGame} className="bg-blue-600 hover:bg-blue-500 text-white px-20 py-6 rounded-2xl font-black text-3xl shadow-xl shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest italic disabled:opacity-50">
-                  {questions.length === 0 ? "Loading Data..." : "Engage Match"}
+                <button 
+                  disabled={questions.length === 0} 
+                  onClick={handleStartGame} 
+                  className="bg-mint hover:bg-mint/90 text-[#0B0E14] px-16 py-6 rounded-2xl font-black text-2xl shadow-2xl shadow-mint/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-[0.2em] italic disabled:opacity-30"
+                >
+                  {questions.length === 0 ? "Loading Match Data..." : "Engage Match"}
                 </button>
               ) : (
-                <div className="bg-blue-50 dark:bg-blue-900/20 px-8 py-4 rounded-2xl border border-blue-100 dark:border-blue-800 inline-block shadow-inner">
-                  <p className="text-blue-600 dark:text-blue-400 font-black animate-pulse uppercase tracking-widest">Standing by for leader authorization...</p>
+                <div className="bg-card/50 px-10 py-5 rounded-2xl border border-white/5 shadow-inner">
+                  <p className="text-mint font-black animate-pulse uppercase tracking-widest text-sm italic">Standing by for leader authorization...</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Phase 1: Wager (Selection) - Shown if room is in wager phase and I haven't picked yet for this ID */}
+        {/* Phase 1: Wager Grid (Jeopardy-Style) */}
         {roomStatus === "wager" && !roundData.wager && (
-          <div className="w-full space-y-12 animate-slide-up text-center">
+          <div className="w-full max-w-4xl space-y-12 animate-slide-up text-center py-8">
             <div className="space-y-4">
-              <p className="text-blue-500 font-black uppercase tracking-[0.3em] text-sm">Priority Selection</p>
-              <h2 className="text-6xl font-black tracking-tighter uppercase italic">{currentQuestion?.summary}</h2>
-              <p className="text-gray-400 font-black uppercase text-xs tracking-widest">Determine point risk factor for this encounter</p>
+              <p className="text-mint font-black uppercase tracking-[0.5em] text-xs opacity-70">Strategic Weight Selection</p>
+              <h2 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase italic">Determine Point Value</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 max-w-2xl mx-auto">
+            
+            {/* The 2x5 Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(weight => {
-                const isUsed = !availablePoints.includes(weight);
+                const isUsed = usedWagers.includes(weight);
                 return (
-                  <button key={weight} disabled={isUsed} onClick={() => handleSelectWager(weight)} className={`h-24 rounded-3xl font-black text-4xl transition-all border-4 ${isUsed ? "border-transparent bg-gray-100 dark:bg-gray-900 text-gray-300 dark:text-gray-800 cursor-not-allowed grayscale" : "border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-500 hover:scale-105 active:scale-90 shadow-sm"}`}>
-                    {weight}
+                  <button 
+                    key={weight} 
+                    disabled={isUsed} 
+                    onClick={() => handleSelectWager(weight)} 
+                    className={`h-28 sm:h-36 rounded-2xl font-black text-5xl sm:text-6xl transition-all border-2 relative overflow-hidden group ${
+                      isUsed 
+                      ? "border-transparent bg-[#0B0E14] text-gray-800 cursor-not-allowed" 
+                      : "border-white/5 bg-card hover:border-mint hover:text-mint shadow-xl hover:shadow-mint/10 active:scale-95"
+                    }`}
+                    aria-label={`Wager ${weight} points`}
+                  >
+                    <span className={isUsed ? "line-through decoration-mint/50 decoration-4" : ""}>
+                      {weight}
+                    </span>
+                    {!isUsed && (
+                      <div className="absolute inset-0 bg-mint/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    )}
                   </button>
                 );
               })}
             </div>
+            <p className="text-gray-500 font-bold uppercase text-[10px] tracking-[0.3em] pt-8">Select an available point value to proceed</p>
           </div>
         )}
 
-        {/* Phase 1.5: Waiting for others after Wager */}
+        {/* Waiting after Wager */}
         {roomStatus === "wager" && !!roundData.wager && (
-          <div className="w-full space-y-12 animate-fade-in text-center">
-            <div className="space-y-4">
-              <p className="text-blue-600 dark:text-blue-500 font-black uppercase tracking-[0.4em] text-xs">Priority Committed</p>
-              <h2 className="text-6xl font-black tracking-tighter uppercase italic">{currentQuestion?.summary}</h2>
-              <div className="space-y-3 pt-6 animate-pulse">
-                <p className="text-blue-600 dark:text-blue-500 font-black uppercase tracking-[0.3em] text-2xl italic">Wager Committed</p>
-                <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Waiting for other players to pick ({roundData.competitors.length}/{players.length})</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Phase 2: Answering - Only shown when status is 'question' */}
-        {roomStatus === "question" && (
-          <div className="w-full space-y-10 animate-fade-in text-center">
-             <div className="bg-white dark:bg-gray-800 p-8 sm:p-14 rounded-[4rem] border-2 border-gray-100 dark:border-gray-700 shadow-2xl space-y-12 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.5)]"></div>
-                <div className="space-y-4">
-                   <p className="text-blue-600 dark:text-blue-500 font-black uppercase tracking-[0.4em] text-xs">Direct Engagement</p>
-                   <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight italic uppercase">&quot;{currentQuestion?.text}&quot;</h2>
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8">
+             <div className="text-center space-y-6">
+                <div className="inline-block px-8 py-4 bg-card rounded-2xl border border-mint/20 shadow-2xl">
+                   <p className="text-mint text-3xl font-black uppercase tracking-widest italic animate-pulse">Wager Committed</p>
                 </div>
-
-                {!roundData.answer ? (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {currentQuestion?.type === "multiple_choice" && currentQuestion.options?.map((option, i) => (
-                        <button key={i} onClick={() => handleSubmitAnswer(option)} className="p-8 rounded-[2rem] text-left border-4 transition-all font-black text-xl active:scale-95 shadow-sm border-gray-100 dark:border-gray-700 hover:border-blue-400 bg-gray-50 dark:bg-gray-750">
-                          <span className="mr-4 opacity-30 italic font-black text-2xl">{String.fromCharCode(65 + i)}</span> {option}
-                        </button>
-                      ))}
-                      {currentQuestion?.type === "boolean" && ["True", "False"].map(val => (
-                        <button key={val} onClick={() => handleSubmitAnswer(val)} className="p-12 rounded-[2rem] font-black text-4xl border-4 transition-all active:scale-95 shadow-sm border-gray-100 dark:border-gray-700 hover:border-blue-400 bg-gray-50 dark:bg-gray-750">
-                          {val.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-                    {currentQuestion?.type === "text" && (
-                      <input type="text" autoFocus placeholder="Authorize Response..." onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer(e.currentTarget.value)} className="w-full bg-gray-50 dark:bg-gray-900 border-4 border-gray-100 dark:border-gray-700 rounded-[2.5rem] px-12 py-10 text-4xl focus:outline-none focus:border-blue-500 transition-all font-black italic shadow-inner text-center uppercase tracking-tighter" />
-                    )}
-                  </>
-                ) : (
-                  <div className="space-y-3 pt-6 animate-pulse">
-                    <p className="text-blue-600 dark:text-blue-500 font-black uppercase tracking-[0.3em] text-2xl italic">Response Authorized</p>
-                    <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Waiting for concurrent node validation ({roundData.competitors.filter(a => a.submitted_answer !== "").length}/{players.length})</p>
-                  </div>
-                )}
+                <p className="text-gray-500 font-black uppercase text-xs tracking-[0.3em]">
+                   Waiting for concurrent node validation ({roundData.competitors.length}/{players.length})
+                </p>
+             </div>
+             <div className="h-1 w-64 bg-gray-900 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-mint transition-all duration-500" 
+                  style={{ width: `${(roundData.competitors.length / players.length) * 100}%` }}
+                />
              </div>
           </div>
         )}
 
-        {/* Phase 3: Results */}
-        {roomStatus === "results" && roundData.results && (
-          <div className="text-center space-y-12 animate-fade-in w-full">
-            <h2 className={`text-[12rem] font-black italic tracking-tighter leading-none transition-all drop-shadow-2xl ${roundData.results.correct ? "text-green-500 scale-110" : "text-red-500"}`}>{roundData.results.correct ? "CORRECT" : "WRONG"}</h2>
-            <div className="bg-white dark:bg-gray-800 p-14 rounded-[4rem] border-2 border-gray-100 dark:border-gray-700 max-w-2xl mx-auto shadow-2xl space-y-10 relative overflow-hidden text-glow">
-               <div className="space-y-4 pt-4">
-                 <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.5em]">Resolved Answer</p>
-                 <p className="text-5xl font-black text-blue-600 dark:text-blue-400 italic uppercase">"{roundData.results.answer}"</p>
-               </div>
-               <div className="border-t-4 border-gray-50 dark:border-gray-700 pt-10 flex justify-between items-center px-10">
-                 <div className="text-left">
-                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Risk Weight</p>
-                    <p className="text-5xl font-black italic tracking-tighter">{roundData.wager}</p>
-                 </div>
-                 <div className="text-right">
-                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Delta Adjusted</p>
-                    <p className={`text-8xl font-black italic tracking-tighter ${roundData.results.correct ? "text-yellow-500" : "text-gray-700 dark:text-gray-600 opacity-30"}`}>+{roundData.results.correct ? roundData.wager : 0}</p>
-                 </div>
-               </div>
-            </div>
-            {isLeader && (
-               <button onClick={handleNextRound} className="bg-blue-600 hover:bg-blue-500 text-white px-20 py-6 rounded-3xl font-black text-2xl shadow-xl transition-all hover:scale-105 active:scale-95 uppercase tracking-widest italic">
-                 Next Encounter
-               </button>
-            )}
+        {/* Phase 2: Question Interaction */}
+        {roomStatus === "question" && (
+          <div className="w-full max-w-4xl space-y-10 animate-fade-in text-center py-8">
+             <div className="bg-card p-10 sm:p-16 rounded-[3rem] border border-white/5 shadow-2xl space-y-12 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-mint to-transparent opacity-50 shadow-[0_0_20px_rgba(52,211,153,0.3)]"></div>
+                
+                <div className="space-y-6">
+                   <p className="text-mint font-black uppercase tracking-[0.6em] text-[10px]">Direct Encounter Engagement</p>
+                   <h2 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight italic uppercase text-white/95">
+                      &quot;{currentQuestion?.text}&quot;
+                   </h2>
+                </div>
+
+                {!roundData.answer ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {currentQuestion?.type === "multiple_choice" && currentQuestion.options?.map((option, i) => (
+                        <button 
+                          key={i} 
+                          onClick={() => handleSubmitAnswer(option)} 
+                          className="p-8 rounded-3xl text-left border-2 border-white/5 bg-[#0B0E14] transition-all font-black text-xl hover:border-mint hover:text-mint active:scale-95 group relative overflow-hidden"
+                        >
+                          <span className="mr-4 opacity-20 italic font-black text-2xl group-hover:text-mint/50 transition-colors">{String.fromCharCode(65 + i)}</span> 
+                          {option}
+                        </button>
+                      ))}
+                      {currentQuestion?.type === "boolean" && ["True", "False"].map(val => (
+                        <button 
+                          key={val} 
+                          onClick={() => handleSubmitAnswer(val)} 
+                          className="p-12 rounded-3xl font-black text-4xl border-2 border-white/5 bg-[#0B0E14] transition-all hover:border-mint hover:text-mint active:scale-95 uppercase tracking-tighter"
+                        >
+                          {val}
+                        </button>
+                      ))}
+                    </div>
+                    {currentQuestion?.type === "text" && (
+                      <input 
+                        type="text" 
+                        autoFocus 
+                        placeholder="Authorize Response..." 
+                        onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer(e.currentTarget.value)} 
+                        className="w-full bg-[#0B0E14] border-2 border-white/5 rounded-3xl px-12 py-10 text-4xl focus:outline-none focus:border-mint transition-all font-black italic shadow-inner text-center uppercase tracking-tighter placeholder:text-gray-800" 
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-8">
+                    <p className="text-mint text-3xl font-black uppercase tracking-[0.3em] italic animate-pulse">Response Authorized</p>
+                    <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.4em]">Synchronizing remaining nodes ({roundData.competitors.filter(a => a.submitted_answer !== "").length}/{players.length})</p>
+                  </div>
+                )}
+             </div>
+             <div className="flex justify-center pt-8">
+                <span className="bg-card px-6 py-2 rounded-full border border-white/5 text-[10px] font-black uppercase tracking-widest text-gray-500">
+                  Wager: <span className="text-mint">{roundData.wager} PTS</span>
+                </span>
+             </div>
           </div>
         )}
 
-        {roomStatus === "final" && (
-          <div className="text-center space-y-12 w-full max-w-lg animate-slide-up">
-            <div className="space-y-4">
-              <h2 className="text-8xl font-black text-yellow-500 uppercase italic tracking-tighter drop-shadow-[0_0_30px_rgba(234,179,8,0.3)]">TERMINATED</h2>
-              <p className="text-gray-400 font-black uppercase tracking-[0.4em] text-xs opacity-50">Match Sequence Complete</p>
+        {/* Phase 3: Resolved Results */}
+        {roomStatus === "results" && roundData.results && (
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-12">
+            <div className="text-center space-y-12 w-full max-w-4xl">
+              <h2 className={`text-8xl sm:text-[14rem] font-black italic tracking-tighter leading-none transition-all drop-shadow-[0_0_50px_rgba(0,0,0,0.5)] ${roundData.results.correct ? "text-mint scale-110" : "text-red-500"}`}>
+                {roundData.results.correct ? "CORRECT" : "WRONG"}
+              </h2>
+              
+              <div className="bg-card p-12 rounded-[4rem] border border-white/5 max-w-2xl mx-auto shadow-2xl space-y-10 relative overflow-hidden">
+                <div className="space-y-4">
+                  <p className="text-gray-500 font-black uppercase text-[10px] tracking-[0.5em]">Resolved Primary Answer</p>
+                  <p className="text-5xl font-black text-mint italic uppercase tracking-tighter leading-tight">
+                    &quot;{roundData.results.answer}&quot;
+                  </p>
+                </div>
+                
+                <div className="border-t border-white/5 pt-10 flex justify-between items-center px-12">
+                  <div className="text-left">
+                    <p className="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] mb-2">Risk Factor</p>
+                    <p className="text-6xl font-black italic tracking-tighter">{roundData.wager}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em] mb-2">Delta Adjusted</p>
+                    <p className={`text-9xl font-black italic tracking-tighter ${roundData.results.correct ? "text-mint drop-shadow-[0_0_20px_rgba(52,211,153,0.4)]" : "text-gray-800 opacity-50"}`}>
+                      +{roundData.results.correct ? roundData.wager : 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {isLeader && (
+                <div className="pt-12">
+                  <button onClick={handleNextRound} className="bg-mint hover:bg-mint/90 text-[#0B0E14] px-24 py-6 rounded-3xl font-black text-2xl shadow-2xl shadow-mint/20 transition-all hover:scale-105 active:scale-95 uppercase tracking-[0.2em] italic">
+                    Next Encounter
+                  </button>
+                  <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.4em] mt-6 animate-pulse">Auto-transition in progress...</p>
+                </div>
+              )}
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-[4rem] border-2 border-gray-100 dark:border-gray-700 overflow-hidden shadow-2xl relative">
+          </div>
+        )}
+
+        {/* Phase: Termination (Final Results) */}
+        {roomStatus === "final" && (
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-slide-up py-12">
+            <div className="text-center space-y-6 mb-16">
+              <h2 className="text-8xl sm:text-9xl font-black text-mint uppercase italic tracking-tighter drop-shadow-[0_0_50px_rgba(52,211,153,0.2)]">TERMINATED</h2>
+              <p className="text-gray-500 font-black uppercase tracking-[0.5em] text-xs opacity-50 text-glow-pulse">Match Sequence Complete</p>
+            </div>
+            
+            <div className="bg-card w-full max-w-xl rounded-[4rem] border border-white/5 overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)]">
               {sortedPlayers.map((p, i) => (
-                <div key={p.id} className={`flex items-center justify-between p-12 ${i === 0 ? "bg-yellow-500/10" : ""} ${i < sortedPlayers.length - 1 ? "border-b-2 border-gray-50 dark:border-gray-700" : ""}`}>
-                   <div className="flex items-center space-x-10">
-                      <span className={`text-6xl font-black italic ${i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-500" : "text-gray-700 dark:text-gray-600"}`}>#{i + 1}</span>
+                <div key={p.id} className={`flex items-center justify-between p-12 transition-colors ${i === 0 ? "bg-mint/5" : ""} ${i < sortedPlayers.length - 1 ? "border-b border-white/5" : ""}`}>
+                   <div className="flex items-center space-x-12">
+                      <span className={`text-7xl font-black italic ${i === 0 ? "text-mint" : i === 1 ? "text-gray-400" : i === 2 ? "text-orange-500" : "text-gray-800"}`}>
+                        #{i + 1}
+                      </span>
                       <div className="text-left">
-                        <p className="text-3xl font-black tracking-tighter uppercase">{p.name}</p>
-                        <p className="text-[10px] font-black uppercase text-blue-500 tracking-[0.3em]">{p.id === myPlayerId ? "Local System" : "Remote Peer"}</p>
+                        <p className="text-4xl font-black tracking-tighter uppercase leading-none mb-2">{p.name}</p>
+                        <p className="text-[10px] font-black uppercase text-mint/60 tracking-[0.3em]">{p.id === myPlayerId ? "Local System" : "Remote Peer"}</p>
                       </div>
                    </div>
-                   <span className="text-6xl font-black tabular-nums italic">{p.score}</span>
+                   <span className="text-7xl font-black tabular-nums italic text-white/90">{p.score}</span>
                 </div>
               ))}
             </div>
-            <button onClick={() => window.location.href = "/"} className="bg-blue-600 hover:bg-blue-700 text-white px-24 py-8 rounded-[2.5rem] font-black text-3xl shadow-xl shadow-blue-500/20 transition-all uppercase active:scale-95 italic tracking-widest">Eject</button>
+            
+            <button onClick={() => window.location.href = "/"} className="mt-16 bg-mint hover:bg-mint/90 text-[#0B0E14] px-24 py-8 rounded-[3rem] font-black text-4xl shadow-2xl shadow-mint/20 transition-all uppercase active:scale-95 italic tracking-[0.2em]">
+              Eject
+            </button>
           </div>
         )}
       </main>
       
-      <footer className="p-8 text-center text-gray-400 text-[10px] font-black uppercase tracking-[1em] opacity-10">Redis Distributed State Secure</footer>
+      <footer className="p-10 text-center text-gray-500 text-[10px] font-black uppercase tracking-[1.5em] opacity-20">
+        Redis Distributed State Secure • Protocol v2.6
+      </footer>
     </div>
   );
 }
