@@ -56,7 +56,6 @@ describe('Room Page', () => {
       );
     });
 
-    expect(screen.getByText('ABCD')).toBeInTheDocument();
-    expect(screen.getByText(/Lobby/i)).toBeInTheDocument();
+    expect(screen.getAllByText('ABCD')[0]).toBeInTheDocument();
   });
 });

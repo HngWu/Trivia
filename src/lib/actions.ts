@@ -29,14 +29,14 @@ export async function createRoom(topic: string, leaderName: string) {
   if (!questions || questions.length === 0) throw new Error("Failed to generate or retrieve questions");
 
   // Safety: Ensure every question has a unique ID and map fields if needed
-  const finalQuestions: Question[] = questions.map((q: any, idx: number) => ({
-    id: q.id || `q-${idx}-${crypto.randomUUID()}`,
-    summary: q.summary,
-    text: q.text,
+  const finalQuestions: Question[] = questions.map((q: Record<string, unknown>, idx: number) => ({
+    id: (q.id as string) || `q-${idx}-${crypto.randomUUID()}`,
+    summary: q.summary as string,
+    text: q.text as string,
     type: q.type as "multiple_choice" | "boolean" | "text",
-    options: q.options,
-    correct_answer: q.correct_answer,
-    explanation: q.explanation || "No explanation provided."
+    options: q.options as string[],
+    correct_answer: q.correct_answer as string,
+    explanation: (q.explanation as string) || "No explanation provided."
   }));
 
   const code = Math.random().toString(36).substring(2, 6).toUpperCase();

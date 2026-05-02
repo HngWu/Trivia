@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { createRoom, joinRoom } from '@/lib/actions';
+import Toast from '@/components/Toast';
 
 const TOPICS = [
+// ... (keep TOPICS as is)
   { 
     id: 'history', 
     name: 'History', 
@@ -55,6 +57,14 @@ export default function Home() {
   const [customTopic, setCustomTopic] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showJoinInput, setShowJoinInput] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
 
   const handleCreateRoom = async () => {
     if (!nickname || !selectedTopic) return;
@@ -71,7 +81,7 @@ export default function Home() {
       window.location.href = `/room/${room.code}`;
     } catch (error) {
       console.error('Error creating room:', error);
-      alert('Failed to create room. Please try again.');
+      showToast('Failed to create room. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +89,7 @@ export default function Home() {
 
   const handleJoinRoom = async () => {
     if (!nickname || !roomCode) {
-      alert('Please enter both your name and a room code.');
+      showToast('Please enter both your name and a room code.');
       return;
     }
     
@@ -93,7 +103,7 @@ export default function Home() {
       window.location.href = `/room/${room.code}`;
     } catch (error) {
       console.error('Error joining room:', error);
-      alert('Room not found or failed to join.');
+      showToast('Room not found or failed to join.');
     } finally {
       setIsLoading(false);
     }
@@ -103,18 +113,19 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-4 sm:p-8 page-transition overflow-y-auto">
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <div className="max-w-4xl w-full space-y-12 relative z-10 py-12">
-        <header className="text-center space-y-4">
+        <header className={`text-center space-y-4 ${selectedTopic ? 'hidden md:block' : ''}`}>
           <h1 className="text-6xl sm:text-8xl font-black tracking-tighter text-foreground uppercase italic animate-fade-in">
             Trivia<span className="text-gray-500 font-light not-italic">Duel</span>
           </h1>
-          <p className="text-gray-500 font-medium tracking-[0.2em] uppercase text-sm sm:text-base">
+          <p className="text-gray-500 font-medium tracking-[0.2em] uppercase text-[10px] sm:text-xs">
             High-Stakes Real-Time Competition
           </p>
         </header>
 
         {/* Top Section: Join Battle */}
-        <section className="w-full max-w-md mx-auto space-y-4 text-center">
+        <section className={`w-full max-w-md mx-auto space-y-4 text-center ${selectedTopic ? 'hidden md:block' : ''}`}>
           {!showJoinInput ? (
             <button 
               onClick={() => setShowJoinInput(true)}
@@ -161,14 +172,14 @@ export default function Home() {
 
         {/* Middle Section: Category Grid */}
         {!showJoinInput && (
-          <section className="w-full max-w-4xl mx-auto space-y-6">
+          <section className={`w-full max-w-4xl mx-auto space-y-6 ${selectedTopic ? 'hidden md:block' : ''}`}>
             <h2 className="text-center text-xs font-black uppercase tracking-[0.4em] text-gray-500">Select Category</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {TOPICS.map((topic) => (
                 <button
                   key={topic.id}
                   onClick={() => setSelectedTopic(topic.id)}
-                  className={`group relative p-6 glass rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 border border-white/5 hover:border-white/20 ${
+                  className={`group relative p-4 sm:p-6 glass rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 border border-white/5 hover:border-white/20 ${
                     selectedTopic === topic.id 
                       ? 'border-white bg-white/10 scale-[1.02] shadow-[0_0_40px_rgba(255,255,255,0.1)]' 
                       : 'hover:bg-white/5 opacity-80 hover:opacity-100'
@@ -179,7 +190,7 @@ export default function Home() {
                     <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]" />
                   )}
                   
-                  <span className="text-5xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
+                  <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
                   <span className="font-black uppercase tracking-[0.2em] text-xs text-white">{topic.name}</span>
                   
                   <div className="absolute inset-0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -194,6 +205,13 @@ export default function Home() {
         {/* Bottom Section: Selection View (Dynamic) */}
         {!showJoinInput && selectedTopicData && (
           <section className="glass w-full max-w-2xl mx-auto p-8 sm:p-10 rounded-[2.5rem] animate-slide-up space-y-8 border-white/20">
+            <button 
+              onClick={() => setSelectedTopic('')}
+              className="md:hidden flex items-center gap-2 text-[10px] uppercase font-black tracking-widest opacity-50 hover:opacity-100 mb-2"
+            >
+              ← Back to Categories
+            </button>
+
             <div className="space-y-3">
               <div className="flex items-center gap-4">
                 <span className="text-4xl">{selectedTopicData.icon}</span>
