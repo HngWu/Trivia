@@ -1,7 +1,7 @@
 import { render, screen, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React, { Suspense } from 'react';
-import { ThemeProvider } from '../src/components/ThemeProvider';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Mock redis and gemini
 jest.mock('../src/lib/redis', () => ({
@@ -18,6 +18,7 @@ jest.mock('../src/lib/redis', () => ({
 import RoomPage from '../src/app/room/[code]/page';
 import * as actions from '../src/lib/actions';
 import { createClient } from '../src/lib/supabase/client';
+import { Question, Player } from '../src/lib/types/game';
 
 // Mock dependencies
 jest.mock('../src/lib/actions');
@@ -26,24 +27,24 @@ jest.mock('../src/lib/supabase/client');
 const mockedActions = actions as jest.Mocked<typeof actions>;
 const mockedCreateClient = createClient as jest.Mock;
 
-const mockQuestions = [
+const mockQuestions: Question[] = [
   {
     id: 'q1',
     summary: 'Question 1 Summary',
     text: 'What is the capital of France?',
-    type: 'multiple_choice' as const,
+    type: 'multiple_choice',
     options: ['Paris', 'London', 'Berlin', 'Madrid'],
     correct_answer: 'Paris',
     explanation: 'Paris is the capital and largest city of France.'
   }
 ];
 
-const mockPlayers = [
+const mockPlayers: Player[] = [
   { id: 'player-id', name: 'Player', score: 0, is_leader: true }
 ];
 
 describe('Explanation Display', () => {
-  let mockChannel: any;
+  let mockChannel: Partial<RealtimeChannel>;
 
   beforeEach(() => {
     mockChannel = {
@@ -52,7 +53,7 @@ describe('Explanation Display', () => {
       send: jest.fn(),
     };
     mockedCreateClient.mockReturnValue({
-      channel: () => mockChannel,
+      channel: () => mockChannel as RealtimeChannel,
       removeChannel: jest.fn(),
     });
 
@@ -72,7 +73,8 @@ describe('Explanation Display', () => {
         status: 'results',
         current_question_index: 0,
         questions: mockQuestions,
-        leader_id: 'player-id'
+        leader_id: 'player-id',
+        topic: 'General'
       },
       players: mockPlayers,
       allAnswers: [
@@ -84,11 +86,9 @@ describe('Explanation Display', () => {
     
     await act(async () => {
       render(
-        <ThemeProvider>
-          <Suspense fallback={<div>Loading...</div>}>
-            <RoomPage params={params} />
-          </Suspense>
-        </ThemeProvider>
+        <Suspense fallback={<div>Loading...</div>}>
+          <RoomPage params={params} />
+        </Suspense>
       );
     });
 

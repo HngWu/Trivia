@@ -20,9 +20,13 @@ jest.mock('../src/lib/gemini', () => ({
 // Mock actions as well since we don't want to run real server actions
 jest.mock('../src/lib/actions', () => ({
   getRoomState: jest.fn().mockResolvedValue({
-    room: { code: 'ABCD', status: 'waiting', questions: [] },
+    room: { code: 'ABCD', status: 'waiting', questions: [], leader_id: 'p1' },
     players: [],
     allAnswers: []
+  }),
+  joinRoom: jest.fn().mockResolvedValue({
+    room: { code: 'ABCD', status: 'waiting', questions: [], leader_id: 'p1' },
+    player: { id: 'p1', name: 'Test Player', score: 0, is_leader: true }
   }),
   updateRoomStatus: jest.fn(),
   submitWager: jest.fn(),
@@ -30,19 +34,25 @@ jest.mock('../src/lib/actions', () => ({
 }));
 
 import RoomPage from '../src/app/room/[code]/page'
-import { ThemeProvider } from '../src/components/ThemeProvider'
 
 describe('Room Page', () => {
+  beforeEach(() => {
+    localStorage.setItem('player_name', 'Test Player');
+    localStorage.setItem('player_id', 'p1');
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+  });
+
   it('renders waiting lobby', async () => {
     const params = Promise.resolve({ code: 'ABCD' });
     
     await act(async () => {
       render(
-        <ThemeProvider>
-          <Suspense fallback={<div>Loading...</div>}>
-            <RoomPage params={params} />
-          </Suspense>
-        </ThemeProvider>
+        <Suspense fallback={<div>Loading...</div>}>
+          <RoomPage params={params} />
+        </Suspense>
       );
     });
 

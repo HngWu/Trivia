@@ -1,10 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { Question } from "./types/game";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-export async function generateQuestions(topic: string) {
+export async function generateQuestions(topic: string): Promise<Question[]> {
   // List of models to try in order of preference
-    const modelsToTry = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
+  const modelsToTry = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
   let questions = null;
   let lastError = null;
 
@@ -31,12 +32,13 @@ export async function generateQuestions(topic: string) {
       
       const match = text.match(/\[[\s\S]*\]/);
       if (match) {
-        questions = JSON.parse(match[0]);
+        questions = JSON.parse(match[0]) as Question[];
         console.log(`Successfully generated questions with ${modelName}`);
         return questions;
       }
-    } catch (err: any) {
-      console.warn(`Model ${modelName} failed:`, err?.message || err);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.warn(`Model ${modelName} failed:`, errorMessage);
       lastError = err;
       continue;
     }

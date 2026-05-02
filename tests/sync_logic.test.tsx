@@ -1,7 +1,7 @@
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, RenderResult } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import React, { Suspense } from 'react';
-import { ThemeProvider } from '../src/components/ThemeProvider';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Mock redis and gemini BEFORE importing components that might use them
 jest.mock('../src/lib/redis', () => ({
@@ -21,6 +21,7 @@ jest.mock('../src/lib/gemini', () => ({
 import RoomPage from '../src/app/room/[code]/page';
 import * as actions from '../src/lib/actions';
 import { createClient } from '../src/lib/supabase/client';
+import { Question, Player } from '../src/lib/types/game';
 
 // Mock dependencies
 jest.mock('../src/lib/actions');
@@ -29,7 +30,7 @@ jest.mock('../src/lib/supabase/client');
 const mockedActions = actions as jest.Mocked<typeof actions>;
 const mockedCreateClient = createClient as jest.Mock;
 
-const mockQuestions = [
+const mockQuestions: Question[] = [
   {
     id: 'q1',
     summary: 'Question 1 Summary',
@@ -40,13 +41,13 @@ const mockQuestions = [
   }
 ];
 
-const mockPlayers = [
+const mockPlayers: Player[] = [
   { id: 'leader-id', name: 'Leader', score: 0, is_leader: true },
   { id: 'player-id', name: 'Player', score: 0, is_leader: false }
 ];
 
 describe('Sync Logic Transitions', () => {
-  let mockChannel: any;
+  let mockChannel: Partial<RealtimeChannel>;
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -56,7 +57,7 @@ describe('Sync Logic Transitions', () => {
       send: jest.fn(),
     };
     mockedCreateClient.mockReturnValue({
-      channel: () => mockChannel,
+      channel: () => mockChannel as RealtimeChannel,
       removeChannel: jest.fn(),
     });
 
@@ -75,16 +76,14 @@ describe('Sync Logic Transitions', () => {
     jest.useRealTimers();
   });
 
-  const renderRoom = async (code: string) => {
+  const renderRoom = async (code: string): Promise<RenderResult> => {
     const params = Promise.resolve({ code });
-    let result: any;
+    let result: RenderResult = {} as RenderResult;
     await act(async () => {
       result = render(
-        <ThemeProvider>
-          <Suspense fallback={<div>Loading...</div>}>
-            <RoomPage params={params} />
-          </Suspense>
-        </ThemeProvider>
+        <Suspense fallback={<div>Loading...</div>}>
+          <RoomPage params={params} />
+        </Suspense>
       );
     });
     return result;
@@ -97,12 +96,13 @@ describe('Sync Logic Transitions', () => {
         status: 'wager',
         current_question_index: 0,
         questions: mockQuestions,
-        leader_id: 'leader-id'
+        leader_id: 'leader-id',
+        topic: 'General'
       },
       players: mockPlayers,
       allAnswers: [
-        { player_id: 'leader-id', question_id: 'q1', wager: 5 },
-        { player_id: 'player-id', question_id: 'q1', wager: 3 }
+        { player_id: 'leader-id', question_id: 'q1', wager: 5, submitted_answer: '', is_correct: false },
+        { player_id: 'player-id', question_id: 'q1', wager: 3, submitted_answer: '', is_correct: false }
       ]
     });
 
@@ -120,7 +120,8 @@ describe('Sync Logic Transitions', () => {
         status: 'question',
         current_question_index: 0,
         questions: mockQuestions,
-        leader_id: 'leader-id'
+        leader_id: 'leader-id',
+        topic: 'General'
       },
       players: mockPlayers,
       allAnswers: [
@@ -143,7 +144,8 @@ describe('Sync Logic Transitions', () => {
         status: 'results',
         current_question_index: 0,
         questions: mockQuestions,
-        leader_id: 'leader-id'
+        leader_id: 'leader-id',
+        topic: 'General'
       },
       players: mockPlayers,
       allAnswers: [
@@ -177,7 +179,8 @@ describe('Sync Logic Transitions', () => {
         status: 'wager',
         current_question_index: 0,
         questions: mockQuestions,
-        leader_id: 'leader-id'
+        leader_id: 'leader-id',
+        topic: 'General'
       },
       players: mockPlayers,
       allAnswers: []
@@ -199,11 +202,12 @@ describe('Sync Logic Transitions', () => {
         status: 'wager',
         current_question_index: 0,
         questions: mockQuestions,
-        leader_id: 'leader-id'
+        leader_id: 'leader-id',
+        topic: 'General'
       },
       players: mockPlayers,
       allAnswers: [
-        { player_id: 'leader-id', question_id: 'q1', wager: 5 }
+        { player_id: 'leader-id', question_id: 'q1', wager: 5, submitted_answer: '', is_correct: false }
       ]
     });
 

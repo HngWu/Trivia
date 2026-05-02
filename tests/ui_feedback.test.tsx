@@ -2,6 +2,7 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import RoomPage from "../src/app/room/[code]/page";
 import { use } from "react";
+import * as actions from "../src/lib/actions";
 
 // Mocking use() for Next.js 15+ compatibility in tests
 jest.mock("react", () => ({
@@ -17,10 +18,7 @@ jest.mock("../src/lib/actions", () => ({
   submitAnswer: jest.fn(),
 }));
 
-// Mocking ThemeToggle
-jest.mock("../src/components/ThemeToggle", () => ({
-  ThemeToggle: () => <div data-testid="theme-toggle" />
-}));
+const mockedActions = actions as jest.Mocked<typeof actions>;
 
 describe("RoomPage UI Feedback", () => {
   const mockParams = Promise.resolve({ code: "TEST12" });
@@ -39,13 +37,14 @@ describe("RoomPage UI Feedback", () => {
   });
 
   it("renders 'Waiting for other players to pick' when wager is committed", async () => {
-    const { getRoomState } = require("../src/lib/actions");
-    getRoomState.mockResolvedValue({
+    mockedActions.getRoomState.mockResolvedValue({
       room: {
         status: "wager",
         current_question_index: 0,
         leader_id: "p1",
-        questions: [{ id: "q1", summary: "Test Question", text: "What is 1+1?", correct_answer: "2", type: "multiple_choice", options: ["1", "2"] }]
+        questions: [{ id: "q1", summary: "Test Question", text: "What is 1+1?", correct_answer: "2", type: "multiple_choice", options: ["1", "2"] }],
+        code: "TEST12",
+        topic: "General"
       },
       players: [{ id: "p1", name: "Player 1", score: 0, is_leader: true }, { id: "p2", name: "Player 2", score: 0, is_leader: false }],
       allAnswers: [{ player_id: "p1", question_id: "q1", wager: 5, submitted_answer: "", is_correct: false }]
@@ -63,13 +62,14 @@ describe("RoomPage UI Feedback", () => {
   });
 
   it("renders 'Waiting for others to answer' when answer is committed", async () => {
-    const { getRoomState } = require("../src/lib/actions");
-    getRoomState.mockResolvedValue({
+    mockedActions.getRoomState.mockResolvedValue({
       room: {
         status: "question",
         current_question_index: 0,
         leader_id: "p1",
-        questions: [{ id: "q1", summary: "Test Question", text: "What is 1+1?", correct_answer: "2", type: "multiple_choice", options: ["1", "2"] }]
+        questions: [{ id: "q1", summary: "Test Question", text: "What is 1+1?", correct_answer: "2", type: "multiple_choice", options: ["1", "2"] }],
+        code: "TEST12",
+        topic: "General"
       },
       players: [{ id: "p1", name: "Player 1", score: 0, is_leader: true }, { id: "p2", name: "Player 2", score: 0, is_leader: false }],
       allAnswers: [{ player_id: "p1", question_id: "q1", wager: 5, submitted_answer: "2", is_correct: true }]

@@ -1,47 +1,34 @@
 "use client";
 
 import React, { useState, useEffect, use, useMemo, useRef, useCallback } from "react";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { getRoomState, updateRoomStatus, submitWager, submitAnswer } from "@/lib/actions";
-
-type Question = {
-  id: string;
-  summary: string;
-  text: string;
-  type: "multiple_choice" | "boolean" | "text";
-  options: string[] | null;
-  correct_answer: string;
-  explanation?: string;
-};
-
-type Player = {
-  id: string;
-  name: string;
-  score: number;
-  is_leader: boolean;
-};
-
-type GameState = "waiting" | "wager" | "question" | "results" | "final";
+import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom } from "@/lib/actions";
+import { Player, Question, Answer, GameState } from "@/lib/types/game";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const unwrappedParams = use(params);
   const roomCode = unwrappedParams.code;
   const supabase = useMemo(() => createClient(), []);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
   
   // --- CORE SYSTEM STATE ---
   const [roomStatus, setRoomStatus] = useState<GameState>("waiting");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [allRoomAnswers, setAllRoomAnswers] = useState<any[]>([]);
+  const [allRoomAnswers, setAllRoomAnswers] = useState<Answer[]>([]);
   const [myPlayerId, setMyPlayerId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [timer, setTimer] = useState(60);
   const [roomLeaderId, setRoomLeaderId] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
   const [textAnswer, setTextAnswer] = useState("");
+
+  // --- UI STATE ---
+  const [isJoining, setIsJoining] = useState(false);
+  const [nickname, setNickname] = useState("");
+  const [copied, setCopied] = useState(false);
 
   // --- DERIVED DATA (The Single Source of Truth) ---
   const currentQuestion = useMemo(() => questions[currentIndex], [questions, currentIndex]);
@@ -55,7 +42,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   // All data for the CURRENT active round
   const roundData = useMemo(() => {
-    if (!currentQuestion) return { wager: null, answer: "", results: null, competitors: [] };
+    if (!currentQuestion) return { wager: null, answer: "", results: null as { correct: boolean; answer: string; explanation?: string; qId: string } | null, competitors: [] as Answer[] };
 
     const qAnswers = allRoomAnswers.filter(a => a.question_id === currentQuestion.id);
     const myAns = qAnswers.find(a => a.player_id === myPlayerId);
@@ -115,7 +102,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (roundData.wager || !currentQuestion) return;
     
     // Optimistic Update
-    const optimisticAnswer = {
+    const optimisticAnswer: Answer = {
        player_id: myPlayerId,
        question_id: currentQuestion.id,
        wager: weight,
@@ -169,14 +156,75 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     triggerSync();
   }, [questions.length, roomCode, triggerSync]);
 
+  const handleJoin = useCallback(async () => {
+    if (!nickname.trim()) return;
+    setIsLoading(true);
+    try {
+      const { player } = await joinRoom(roomCode, nickname.trim());
+      setMyPlayerId(player.id);
+      localStorage.setItem("player_id", player.id);
+      localStorage.setItem("player_name", nickname.trim());
+      await fetchData();
+      setIsJoining(false);
+      triggerSync();
+    } catch (err) {
+      console.error("Join error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [nickname, roomCode, fetchData, triggerSync]);
+
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
+
   // 1. Initial Load & Subscriptions
   useEffect(() => {
     const savedId = localStorage.getItem("player_id");
+    const savedName = localStorage.getItem("player_name");
     
     const initialFetch = async () => {
-      if (savedId) setMyPlayerId(savedId);
       setIsLoading(true);
-      await fetchData();
+      const { room, players: p, allAnswers: a } = await getRoomState(roomCode);
+      
+      if (!room) {
+          setIsLoading(false);
+          return;
+      }
+
+      setRoomLeaderId(room.leader_id);
+      setTopic(room.topic || "");
+      if (p) setPlayers(p);
+      if (room.questions) setQuestions(room.questions);
+      if (a) setAllRoomAnswers(a);
+      setRoomStatus(room.status as GameState);
+      setCurrentIndex(room.current_question_index);
+
+      const isAlreadyInRoom = p?.some((player: Player) => player.id === savedId);
+
+      if (isAlreadyInRoom && savedId) {
+        setMyPlayerId(savedId);
+      } else if (myPlayerId) {
+        // Already have a player ID in state, don't re-join
+      } else {
+        if (savedName) {
+           try {
+             const { player } = await joinRoom(roomCode, savedName);
+             setMyPlayerId(player.id);
+             localStorage.setItem("player_id", player.id);
+             const state = await getRoomState(roomCode);
+             if (state.players) setPlayers(state.players);
+             triggerSync();
+           } catch (e) {
+             console.error("Auto-join failed", e);
+             setIsJoining(true);
+           }
+        } else {
+           setIsJoining(true);
+        }
+      }
       setIsLoading(false);
     };
 
@@ -196,7 +244,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       supabase.removeChannel(channel); 
       channelRef.current = null;
     };
-  }, [roomCode, supabase, fetchData]);
+  }, [roomCode, supabase, fetchData, triggerSync, questions.length]);
 
   // 2. Timer Logic
   useEffect(() => {
@@ -204,9 +252,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
     const interval = setInterval(() => {
       setTimer(prev => {
-        if (prev <= 1) {
+        if (prev <= 0) {
           clearInterval(interval);
-          handleTimeUp();
           return 0;
         }
         return prev - 1;
@@ -214,7 +261,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [roomStatus, isLoading, currentIndex, handleTimeUp]);
+  }, [roomStatus, isLoading, currentIndex]);
+
+  // Handle Time Up separately from timer decrement to avoid side-effects in setState
+  useEffect(() => {
+    if (timer === 0 && (roomStatus === "wager" || roomStatus === "question")) {
+      const timeout = setTimeout(() => {
+        handleTimeUp();
+      }, 0);
+      return () => clearTimeout(timeout);
+    }
+  }, [timer, roomStatus, handleTimeUp]);
 
   // 3. Leader-Only Transitions
   useEffect(() => {
@@ -236,7 +293,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       }
     };
     checkCollectiveTransitions();
-  }, [roundData.competitors, players.length, roomStatus, isLeader, roomCode, currentQuestion, isLoading, triggerSync]);
+  }, [roundData.competitors, players.length, roomStatus, isLeader, roomCode, currentQuestion, isLoading, triggerSync, myPlayerId]);
 
   // 4. Automatic Timer for Next Round (Leader Only)
   useEffect(() => {
@@ -250,7 +307,38 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
-  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-black uppercase tracking-widest animate-pulse text-center p-8">Loading Room...</div>;
+  if (isJoining) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-3xl flex items-center justify-center p-6">
+        <div className="glass p-12 rounded-[3rem] w-full max-w-lg space-y-8 animate-slide-up border-white/10 shadow-2xl">
+          <div className="text-center space-y-4">
+            <h2 className="text-5xl font-black uppercase italic tracking-tighter text-white">Enter Battle</h2>
+            <p className="text-gray-500 font-bold tracking-[0.3em] uppercase text-[10px]">Identify yourself to join</p>
+          </div>
+          <div className="space-y-6">
+            <input 
+              type="text" 
+              autoFocus
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="Your Nickname" 
+              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
+              className="w-full h-10 glass-input rounded-xl px-6 text-xl font-black italic uppercase tracking-tighter placeholder:text-gray-600 focus:border-white transition-all text-white" 
+            />
+            <button 
+              onClick={handleJoin}
+              disabled={!nickname.trim() || isLoading}
+              className="w-full h-10 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isLoading ? "Joining..." : "Join Room"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-black uppercase tracking-widest animate-pulse text-center p-8 text-white">Loading Room...</div>;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20">
@@ -279,7 +367,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">Room Code</p>
               <p className="font-mono font-black text-xs uppercase tracking-widest">{roomCode}</p>
            </div>
-           <ThemeToggle />
         </div>
       </nav>
 
@@ -311,7 +398,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         {/* Phase: Lobby */}
         {roomStatus === "waiting" && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-12">
-            <h2 className="text-7xl sm:text-9xl font-black uppercase italic tracking-tighter mb-4">Lobby</h2>
+            <h2 className="text-7xl sm:text-9xl font-black uppercase italic tracking-tighter mb-4 text-white">Lobby</h2>
             <p className="text-gray-500 font-bold tracking-[0.4em] uppercase text-[10px] mb-16">Waiting for players...</p>
             
             <div className="glass p-8 sm:p-12 rounded-[3rem] w-full max-w-xl space-y-8">
@@ -321,7 +408,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                </div>
                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
                  {players.map(p => (
-                   <div key={p.id} className={`flex justify-between items-center p-6 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 hover:border-white/20'}`}>
+                   <div key={p.id} className={`flex justify-between items-center p-6 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 hover:border-white/20 text-gray-400'}`}>
                       <span className="font-black italic text-xl uppercase tracking-tight">{p.id === roomLeaderId ? "● " : ""}{p.name}</span>
                       <span className={`text-[9px] font-black uppercase tracking-widest opacity-60`}>{p.id === myPlayerId ? "You" : "Player"}</span>
                    </div>
@@ -329,7 +416,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                </div>
             </div>
             
-            <div className="mt-16">
+            <div className="mt-16 flex flex-col items-center space-y-8">
               {isLeader ? (
                 <button 
                   disabled={questions.length === 0} 
@@ -343,6 +430,16 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                   <p className="text-gray-400 font-black uppercase tracking-[0.3em] text-xs italic">Waiting for leader to start...</p>
                 </div>
               )}
+
+              <button 
+                onClick={handleCopyLink}
+                className="flex items-center space-x-3 text-gray-500 hover:text-white transition-colors uppercase font-black text-[10px] tracking-[0.3em] group"
+              >
+                <svg className="w-4 h-4 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+                <span>{copied ? "Link Copied!" : "Copy Invite Link"}</span>
+              </button>
             </div>
           </div>
         )}
@@ -424,6 +521,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                     {currentQuestion?.type === "boolean" && ["True", "False"].map(val => (
                       <button 
                         key={val} 
+                        // eslint-disable-next-line react-hooks/refs
                         onClick={() => handleSubmitAnswer(val)} 
                         className="p-16 rounded-[2.5rem] font-black text-5xl border-2 border-white/5 bg-white/5 transition-all hover:bg-white hover:text-black active:scale-95 uppercase tracking-tighter"
                       >

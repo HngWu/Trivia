@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import React from 'react';
 
@@ -24,29 +24,24 @@ jest.mock('../src/lib/actions', () => ({
 }));
 
 import Home from '../src/app/page'
-import { ThemeProvider } from '../src/components/ThemeProvider'
 
 describe('Landing Page', () => {
   it('renders landing page with main actions', () => {
-    render(
-      <ThemeProvider>
-        <Home />
-      </ThemeProvider>
-    );
-    expect(screen.getByPlaceholderText(/Enter nickname/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Create Battle/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Join Battle/i })).toBeInTheDocument();
+    render(<Home />);
+    expect(screen.getByRole('button', { name: /Join a Battle/i })).toBeInTheDocument();
+    expect(screen.getByText(/Select Category/i)).toBeInTheDocument();
   });
 
-  it('displays topic selection', () => {
-    render(
-      <ThemeProvider>
-        <Home />
-      </ThemeProvider>
-    );
-    // There are multiple "Topic" related strings, check for some specific ones
+  it('displays topic selection and reveals create flow on click', async () => {
+    render(<Home />);
+    
     expect(screen.getByText('History')).toBeInTheDocument();
-    expect(screen.getByText('Science')).toBeInTheDocument();
-    expect(screen.getByText('Geography')).toBeInTheDocument();
+    
+    // Click History category
+    fireEvent.click(screen.getByText('History'));
+    
+    // Now nickname and create button should appear
+    expect(screen.getByPlaceholderText(/Enter Nickname/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create Battle/i })).toBeInTheDocument();
   });
 });

@@ -1,14 +1,14 @@
 'use server';
 
 import { createClient } from "./supabase/server";
-import { generateQuestions } from "./gemini";
 import { redis, ROOM_TTL } from "./redis";
+import { Room, Player, Question, Answer } from "./types/game";
 
-export async function createRoom(topic: string, leaderName: string, initialQuestions?: any[]) {
+export async function createRoom(topic: string, leaderName: string, initialQuestions?: Question[]) {
   const supabase = await createClient();
   const code = Math.random().toString(36).substring(2, 6).toUpperCase();
   
-  let finalQuestions: any[] = initialQuestions || [];
+  let finalQuestions: Question[] = initialQuestions || [];
   
   if (finalQuestions.length === 0) {
     const { data: filler } = await supabase
@@ -17,7 +17,7 @@ export async function createRoom(topic: string, leaderName: string, initialQuest
       .eq("topic", topic.toLowerCase())
       .limit(10);
       
-    finalQuestions = filler || [];
+    finalQuestions = (filler || []) as unknown as Question[];
   }
 
   // Safety: Ensure every question has a unique ID
@@ -26,40 +26,36 @@ export async function createRoom(topic: string, leaderName: string, initialQuest
     id: q.id || `q-${idx}-${crypto.randomUUID()}`
   }));
 
-  const roomData = {
-    code,
-    topic,
-    status: "waiting",
-    current_question_index: 0,
-    leader_id: "", 
-    questions: finalQuestions,
-  };
-  
-  await redis.set(`room:${code}`, roomData, { ex: ROOM_TTL });
-
-  const player = {
+  const player: Player = {
     id: crypto.randomUUID(),
     name: leaderName,
     score: 0,
     is_leader: true,
   };
+
+  const roomData: Room = {
+    code,
+    topic,
+    status: "waiting",
+    current_question_index: 0,
+    leader_id: player.id, 
+    questions: finalQuestions,
+  };
   
+  await redis.set(`room:${code}`, roomData, { ex: ROOM_TTL });
   await redis.hset(`players:${code}`, { [player.id]: JSON.stringify(player) });
   await redis.expire(`players:${code}`, ROOM_TTL);
-
-  roomData.leader_id = player.id;
-  await redis.set(`room:${code}`, roomData, { ex: ROOM_TTL });
   
   return { room: roomData, player };
 }
 
 export async function joinRoom(code: string, playerName: string) {
   const normalizedCode = code.toUpperCase();
-  const room: any = await redis.get(`room:${normalizedCode}`);
+  const room = await redis.get<Room>(`room:${normalizedCode}`);
   
   if (!room) throw new Error("Room not found");
   
-  const player = {
+  const player: Player = {
     id: crypto.randomUUID(),
     name: playerName,
     score: 0,
@@ -73,20 +69,19 @@ export async function joinRoom(code: string, playerName: string) {
 
 export async function getRoomState(code: string) {
   const normalizedCode = code.toUpperCase();
-  const room: any = await redis.get(`room:${normalizedCode}`);
-  const playersMap: any = await redis.hgetall(`players:${normalizedCode}`);
-  const answersMap: any = await redis.hgetall(`answers:${normalizedCode}`);
+  const room = await redis.get<Room>(`room:${normalizedCode}`);
+  const playersMap = await redis.hgetall<Record<string, string | Player>>(`players:${normalizedCode}`);
+  const answersMap = await redis.hgetall<Record<string, string | Answer>>(`answers:${normalizedCode}`);
   
-  // Players and answers might be stored as JSON strings depending on Redis behavior
-  const players = playersMap ? Object.values(playersMap).map(p => typeof p === "string" ? JSON.parse(p) : p) : [];
-  const allAnswers = answersMap ? Object.values(answersMap).map(a => typeof a === "string" ? JSON.parse(a) : a) : [];
+  const players: Player[] = playersMap ? Object.values(playersMap).map(p => typeof p === "string" ? JSON.parse(p) : p) : [];
+  const allAnswers: Answer[] = answersMap ? Object.values(answersMap).map(a => typeof a === "string" ? JSON.parse(a) : a) : [];
   
   return { room, players, allAnswers };
 }
 
 export async function updateRoomStatus(code: string, status: string, index?: number) {
   const normalizedCode = code.toUpperCase();
-  const room: any = await redis.get(`room:${normalizedCode}`);
+  const room = await redis.get<Room>(`room:${normalizedCode}`);
   if (!room) throw new Error("Room not found in Redis during status update");
   
   room.status = status;
@@ -98,7 +93,7 @@ export async function updateRoomStatus(code: string, status: string, index?: num
 
 export async function submitWager(code: string, playerId: string, questionId: string, wager: number) {
   const normalizedCode = code.toUpperCase();
-  const answer = {
+  const answer: Answer = {
     player_id: playerId,
     question_id: questionId,
     wager,
@@ -114,18 +109,18 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
   const normalizedCode = code.toUpperCase();
   const key = `${playerId}:${questionId}`;
   
-  const existingRaw: any = await redis.hget(`answers:${normalizedCode}`, key);
+  const existingRaw = await redis.hget<string | Answer>(`answers:${normalizedCode}`, key);
   if (existingRaw) {
-    const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) : existingRaw;
+    const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) as Answer : existingRaw;
     existing.submitted_answer = answerText;
     existing.is_correct = isCorrect;
     await redis.hset(`answers:${normalizedCode}`, { [key]: JSON.stringify(existing) });
   }
   
   if (scoreDelta > 0) {
-    const playerRaw: any = await redis.hget(`players:${normalizedCode}`, playerId);
+    const playerRaw = await redis.hget<string | Player>(`players:${normalizedCode}`, playerId);
     if (playerRaw) {
-      const player = typeof playerRaw === "string" ? JSON.parse(playerRaw) : playerRaw;
+      const player = typeof playerRaw === "string" ? JSON.parse(playerRaw) as Player : playerRaw;
       player.score += scoreDelta;
       await redis.hset(`players:${normalizedCode}`, { [playerId]: JSON.stringify(player) });
     }
