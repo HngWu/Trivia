@@ -156,7 +156,7 @@ describe('Sync Logic Transitions', () => {
 
     // Wait for initial render and results to show
     await waitFor(() => {
-      expect(screen.getByText(/CORRECT/i)).toBeInTheDocument();
+      expect(screen.getByText(/PASSED/i)).toBeInTheDocument();
     });
 
     // Fast-forward 7 seconds
@@ -210,7 +210,7 @@ describe('Sync Logic Transitions', () => {
     await renderRoom('TEST');
 
     await waitFor(() => {
-      expect(screen.getByText(/Waiting for concurrent node validation/i)).toBeInTheDocument();
+      expect(screen.getByText(/Synchronizing nodes/i)).toBeInTheDocument();
     });
   });
 });

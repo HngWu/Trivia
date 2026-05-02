@@ -10,7 +10,7 @@ const TOPICS = [
   { id: 'pop-culture', name: 'Pop Culture', icon: '🎬' },
   { id: 'geography', name: 'Geography', icon: '🌍' },
   { id: 'sports', name: 'Sports', icon: '⚽' },
-  { id: 'custom', name: 'Custom Topic', icon: '✨' },
+  { id: 'custom', name: 'Custom', icon: '✨' },
 ];
 
 export default function Home() {
@@ -69,98 +69,112 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white flex flex-col items-center justify-center p-6 transition-colors duration-300">
-      <div className="absolute top-6 right-6">
+    <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 sm:p-8 page-transition">
+      <div className="fixed top-8 right-8 z-50">
         <ThemeToggle />
       </div>
 
-      <div className="max-w-2xl w-full space-y-12">
-        <header className="text-center">
-          <h1 className="text-5xl font-black tracking-tighter text-blue-600 dark:text-blue-500 mb-2 italic">TriviaDuel</h1>
-          <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">Challenge your friends in real-time trivia</p>
+      {/* Decorative Background Element */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-30">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-white rounded-full blur-[120px]" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[30%] h-[30%] bg-white/20 rounded-full blur-[100px]" />
+      </div>
+
+      <div className="max-w-4xl w-full space-y-16 relative z-10">
+        <header className="text-center space-y-4">
+          <h1 className="text-6xl sm:text-8xl font-black tracking-tighter text-foreground uppercase italic animate-fade-in">
+            Trivia<span className="text-gray-500 font-light not-italic">Duel</span>
+          </h1>
+          <p className="text-gray-500 font-medium tracking-[0.2em] uppercase text-sm sm:text-base">
+            High-Stakes Real-Time Competition
+          </p>
         </header>
 
-        <section className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl space-y-8 border border-gray-100 dark:border-gray-700">
-          <div>
-            <label htmlFor="nickname" className="block text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Your Nickname</label>
-            <input
-              type="text"
-              id="nickname"
-              placeholder="Enter nickname"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              className="w-full bg-gray-50 dark:bg-gray-700 border-2 border-gray-100 dark:border-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-bold"
-            />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12">
+          {/* Identity & Creation */}
+          <section className="glass p-8 sm:p-12 rounded-[2.5rem] space-y-10">
+            <div className="space-y-4">
+              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Identity Protocol</label>
+              <input
+                type="text"
+                placeholder="Enter Nickname"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                className="w-full glass-input rounded-2xl px-6 py-4 text-xl font-bold placeholder:text-gray-700"
+              />
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <div className="space-y-6">
-              <h2 className="text-xl font-black uppercase tracking-tight">Create a Game</h2>
-              <div className="space-y-3">
-                <p className="text-sm text-gray-400 font-bold uppercase">Topic</p>
-                <div className="grid grid-cols-2 gap-2">
+              <h2 className="text-2xl font-black uppercase italic tracking-tight border-l-4 border-white pl-4">Engage Match</h2>
+              
+              <div className="space-y-4">
+                <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Select Domain</p>
+                <div className="grid grid-cols-2 gap-3">
                   {TOPICS.map((topic) => (
                     <button
                       key={topic.id}
                       onClick={() => setSelectedTopic(topic.id)}
-                      className={`p-3 rounded-xl text-left transition-all font-medium ${
-                        selectedTopic === topic.id
-                          ? 'bg-blue-600 text-white ring-4 ring-blue-500/20'
-                          : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-650'
+                      className={`p-4 rounded-2xl text-left transition-all font-black text-sm glass-button flex items-center space-x-3 ${
+                        selectedTopic === topic.id ? 'bg-white text-black border-white' : ''
                       }`}
                     >
-                      <span className="mr-2">{topic.icon}</span>
-                      {topic.name}
+                      <span className="text-xl">{topic.icon}</span>
+                      <span>{topic.name}</span>
                     </button>
                   ))}
                 </div>
                 {selectedTopic === 'custom' && (
                   <input
                     type="text"
-                    placeholder="Enter custom topic..."
+                    placeholder="Enter Custom Topic..."
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
-                    className="w-full mt-2 bg-gray-50 dark:bg-gray-700 border-2 border-gray-100 dark:border-gray-600 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                    className="w-full glass-input rounded-xl px-6 py-3 text-sm font-bold animate-slide-up"
                   />
                 )}
               </div>
+
               <button
                 disabled={!nickname || !selectedTopic || isLoading}
                 onClick={handleCreateRoom}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-xl transition-all shadow-lg shadow-blue-500/20 uppercase tracking-widest"
+                className="w-full bg-white text-black hover:bg-gray-200 disabled:opacity-20 font-black py-5 rounded-2xl transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] uppercase tracking-[0.2em] text-lg active:scale-95"
               >
-                {isLoading && selectedTopic ? 'Creating...' : 'Create Room'}
+                {isLoading ? 'Processing...' : 'Initialize Room'}
               </button>
             </div>
+          </section>
 
-            <div className="space-y-6 flex flex-col justify-between">
-              <div className="space-y-6">
-                <h2 className="text-xl font-black uppercase tracking-tight">Join a Game</h2>
-                <div>
-                  <label htmlFor="roomCode" className="block text-sm text-gray-400 font-bold uppercase mb-3">Room Code</label>
-                  <input
-                    type="text"
-                    id="roomCode"
-                    placeholder="e.g. A1B2"
-                    value={roomCode}
-                    onChange={(e) => setRoomCode(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-gray-700 border-2 border-gray-100 dark:border-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 uppercase font-black tracking-widest text-center text-xl"
-                  />
-                </div>
+          {/* Join Match */}
+          <section className="glass p-8 sm:p-12 rounded-[2.5rem] flex flex-col justify-between space-y-10">
+            <div className="space-y-10">
+              <h2 className="text-2xl font-black uppercase italic tracking-tight border-l-4 border-white pl-4">Inbound Access</h2>
+              
+              <div className="space-y-4">
+                <label className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Access Protocol Code</label>
+                <input
+                  type="text"
+                  placeholder="E.G. A1B2"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  className="w-full glass-input rounded-2xl px-6 py-8 text-4xl focus:ring-0 placeholder:text-gray-800 uppercase font-black tracking-[0.5em] text-center"
+                />
               </div>
-              <button
-                disabled={!nickname || !roomCode || isLoading}
-                onClick={handleJoinRoom}
-                className="w-full border-4 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white disabled:opacity-50 font-black py-4 rounded-xl transition-all uppercase tracking-widest"
-              >
-                {isLoading && !selectedTopic ? 'Joining...' : 'Join Room'}
-              </button>
             </div>
-          </div>
-        </section>
 
-        <footer className="text-center text-gray-500 text-xs font-bold uppercase tracking-widest">
-          Built with Next.js • Supabase • Gemini AI
+            <button
+              disabled={!nickname || !roomCode || isLoading}
+              onClick={handleJoinRoom}
+              className="w-full glass-button hover:bg-white hover:text-black disabled:opacity-20 font-black py-5 rounded-2xl uppercase tracking-[0.2em] text-lg transition-all"
+            >
+              {isLoading ? 'Authenticating...' : 'Join Encounter'}
+            </button>
+          </section>
+        </div>
+
+        <footer className="text-center">
+          <p className="text-gray-600 text-[10px] font-black uppercase tracking-[1.5em] opacity-50">
+            Redis Distributed State Secure • Protocol v3.0
+          </p>
         </footer>
       </div>
     </main>
