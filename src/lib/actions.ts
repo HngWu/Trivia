@@ -4,20 +4,13 @@ import { createClient } from "./supabase/server";
 import { generateQuestions } from "./gemini";
 import { redis, ROOM_TTL } from "./redis";
 
-export async function createRoom(topic: string, leaderName: string, isCustom: boolean = false) {
+export async function createRoom(topic: string, leaderName: string, initialQuestions?: any[]) {
   const supabase = await createClient();
   const code = Math.random().toString(36).substring(2, 6).toUpperCase();
   
-  let finalQuestions: any[] = [];
-  if (isCustom) {
-    try {
-      finalQuestions = await generateQuestions(topic);
-    } catch (aiError) {
-      console.warn("AI generation failed, falling back to database filler:", aiError);
-    }
-  }
-
-  if (!finalQuestions || finalQuestions.length === 0) {
+  let finalQuestions: any[] = initialQuestions || [];
+  
+  if (finalQuestions.length === 0) {
     const { data: filler } = await supabase
       .from("filler_questions")
       .select("*")

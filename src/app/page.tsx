@@ -35,9 +35,8 @@ export default function Home() {
       const aiData = await aiResponse.json();
       if (!aiData.questions) throw new Error('Failed to generate questions');
 
-      const { room, player } = await createRoom(topicToUse, nickname);
+      const { room, player } = await createRoom(topicToUse, nickname, aiData.questions);
       
-      localStorage.setItem('trivia_questions', JSON.stringify(aiData.questions));
       localStorage.setItem('player_id', player.id);
       localStorage.setItem('player_name', nickname);
       
