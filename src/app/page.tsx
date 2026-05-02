@@ -94,18 +94,20 @@ export default function Home() {
           {/* Identity & Creation */}
           <section className="glass p-8 sm:p-12 rounded-[2.5rem] space-y-10">
             <div className="space-y-4">
-              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Identity Protocol</label>
+              <label className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Your Name</label>
               <input
                 type="text"
                 placeholder="Enter Nickname"
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
-                className="w-full glass-input rounded-2xl px-6 py-4 text-xl font-bold placeholder:text-gray-700"
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
+                disabled={isLoading}
+                className="w-full glass-input rounded-xl px-6 h-10 text-base font-bold placeholder:text-gray-700 disabled:opacity-50"
               />
             </div>
 
             <div className="space-y-6">
-              <h2 className="text-2xl font-black uppercase italic tracking-tight border-l-4 border-white pl-4">Engage Match</h2>
+              <h2 className="text-2xl font-black uppercase italic tracking-tight border-l-4 border-white pl-4">Start a Battle</h2>
               
               <div className="space-y-4">
                 <p className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Select Domain</p>
@@ -113,10 +115,11 @@ export default function Home() {
                   {TOPICS.map((topic) => (
                     <button
                       key={topic.id}
+                      disabled={isLoading}
                       onClick={() => setSelectedTopic(topic.id)}
                       className={`p-4 rounded-2xl text-left transition-all font-black text-sm glass-button flex items-center space-x-3 ${
                         selectedTopic === topic.id ? 'bg-white text-black border-white' : ''
-                      }`}
+                      } disabled:opacity-50`}
                     >
                       <span className="text-xl">{topic.icon}</span>
                       <span>{topic.name}</span>
@@ -129,7 +132,9 @@ export default function Home() {
                     placeholder="Enter Custom Topic..."
                     value={customTopic}
                     onChange={(e) => setCustomTopic(e.target.value)}
-                    className="w-full glass-input rounded-xl px-6 py-3 text-sm font-bold animate-slide-up"
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
+                    disabled={isLoading}
+                    className="w-full glass-input rounded-xl px-6 h-10 text-sm font-bold animate-slide-up disabled:opacity-50"
                   />
                 )}
               </div>
@@ -139,7 +144,7 @@ export default function Home() {
                 onClick={handleCreateRoom}
                 className="w-full bg-white text-black hover:bg-gray-200 disabled:opacity-20 font-black py-5 rounded-2xl transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] uppercase tracking-[0.2em] text-lg active:scale-95"
               >
-                {isLoading ? 'Processing...' : 'Initialize Room'}
+                {isLoading ? 'Creating...' : 'Create Battle'}
               </button>
             </div>
           </section>
@@ -147,16 +152,18 @@ export default function Home() {
           {/* Join Match */}
           <section className="glass p-8 sm:p-12 rounded-[2.5rem] flex flex-col justify-between space-y-10">
             <div className="space-y-10">
-              <h2 className="text-2xl font-black uppercase italic tracking-tight border-l-4 border-white pl-4">Inbound Access</h2>
+              <h2 className="text-2xl font-black uppercase italic tracking-tight border-l-4 border-white pl-4">Join Battle</h2>
               
               <div className="space-y-4">
-                <label className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Access Protocol Code</label>
+                <label className="text-[10px] text-gray-500 font-black uppercase tracking-[0.2em]">Room Code</label>
                 <input
                   type="text"
                   placeholder="E.G. A1B2"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  className="w-full glass-input rounded-2xl px-6 py-8 text-4xl focus:ring-0 placeholder:text-gray-800 uppercase font-black tracking-[0.5em] text-center"
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom()}
+                  disabled={isLoading}
+                  className="w-full glass-input rounded-xl px-6 h-10 text-base focus:ring-0 placeholder:text-gray-800 uppercase font-black tracking-[0.5em] text-center disabled:opacity-50"
                 />
               </div>
             </div>
@@ -166,7 +173,7 @@ export default function Home() {
               onClick={handleJoinRoom}
               className="w-full glass-button hover:bg-white hover:text-black disabled:opacity-20 font-black py-5 rounded-2xl uppercase tracking-[0.2em] text-lg transition-all"
             >
-              {isLoading ? 'Authenticating...' : 'Join Encounter'}
+              {isLoading ? 'Joining...' : 'Join Battle'}
             </button>
           </section>
         </div>

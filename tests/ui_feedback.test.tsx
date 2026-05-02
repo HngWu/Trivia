@@ -54,7 +54,7 @@ describe("RoomPage UI Feedback", () => {
     render(<RoomPage params={mockParams} />);
 
     // Wait for data to load
-    const message = await screen.findByText(/Waiting for other players to pick/i);
+    const message = await screen.findByText(/Waiting for players/i);
     expect(message).toBeDefined();
     
     // Ensure summary is visible but text is NOT (in wager phase)
@@ -62,7 +62,7 @@ describe("RoomPage UI Feedback", () => {
     expect(screen.queryByText("What is 1+1?")).toBeNull();
   });
 
-  it("renders 'Waiting for concurrent node validation' when answer is committed", async () => {
+  it("renders 'Waiting for others to answer' when answer is committed", async () => {
     const { getRoomState } = require("../src/lib/actions");
     getRoomState.mockResolvedValue({
       room: {
@@ -78,7 +78,7 @@ describe("RoomPage UI Feedback", () => {
     render(<RoomPage params={mockParams} />);
 
     // Wait for data to load
-    const message = await screen.findByText(/Waiting for concurrent node validation/i);
+    const message = await screen.findByText(/Waiting for others to answer/i);
     expect(message).toBeDefined();
     
     // Text SHOULD be visible in question phase

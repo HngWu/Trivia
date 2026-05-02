@@ -17,6 +17,7 @@ export async function generateQuestions(topic: string) {
   - type: one of "multiple_choice", "boolean", or "text"
   - options: an array of 4 strings for "multiple_choice", or null for others
   - correct_answer: the correct answer as a string
+  - explanation: a brief, clear explanation of why the answer is correct
 
   Ensure a mix of question types. Respond ONLY with the JSON array.`;
 

@@ -12,6 +12,7 @@ type Question = {
   type: "multiple_choice" | "boolean" | "text";
   options: string[] | null;
   correct_answer: string;
+  explanation?: string;
 };
 
 type Player = {
@@ -40,6 +41,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [timer, setTimer] = useState(60);
   const [roomLeaderId, setRoomLeaderId] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
+  const [textAnswer, setTextAnswer] = useState("");
 
   // --- DERIVED DATA (The Single Source of Truth) ---
   const currentQuestion = useMemo(() => questions[currentIndex], [questions, currentIndex]);
@@ -64,6 +66,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       results: (myAns && roomStatus === "results") ? {
         correct: myAns.is_correct,
         answer: currentQuestion.correct_answer,
+        explanation: currentQuestion.explanation,
         qId: currentQuestion.id
       } : null,
       competitors: qAnswers
@@ -89,6 +92,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
       if (room.current_question_index !== currentIndex) {
         setTimer(60);
+        setTextAnswer("");
       }
       setRoomStatus(room.status as GameState);
       setCurrentIndex(room.current_question_index);
@@ -246,7 +250,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
-  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-black uppercase tracking-widest animate-pulse text-center p-8">Establishing Secure Connection...</div>;
+  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-black uppercase tracking-widest animate-pulse text-center p-8">Loading Room...</div>;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20">
@@ -257,7 +261,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           </button>
           <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">Node Status</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">Your Score</span>
             <span className="text-sm font-black uppercase italic tracking-tighter">HW {myPlayer?.score || 0}</span>
           </div>
         </div>
@@ -272,7 +276,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         <div className="flex items-center space-x-6">
            <div className="text-right hidden sm:block">
-              <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">Access Protocol</p>
+              <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">Room Code</p>
               <p className="font-mono font-black text-xs uppercase tracking-widest">{roomCode}</p>
            </div>
            <ThemeToggle />
@@ -288,10 +292,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-500">
                <span>Round {currentIndex + 1}</span>
                <span className="w-1 h-1 rounded-full bg-white/20"></span>
-               <span>{topic || "Standard Protocol"}</span>
+               <span>{topic || "General Trivia"}</span>
             </div>
             <h2 className="text-4xl sm:text-7xl font-black uppercase italic tracking-tighter">
-               {currentQuestion?.summary || "Direct Engagement"}
+               {currentQuestion?.summary || "Get Ready"}
             </h2>
           </header>
         )}
@@ -308,18 +312,18 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         {roomStatus === "waiting" && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-12">
             <h2 className="text-7xl sm:text-9xl font-black uppercase italic tracking-tighter mb-4">Lobby</h2>
-            <p className="text-gray-500 font-bold tracking-[0.4em] uppercase text-[10px] mb-16">Establishing participant synchronization...</p>
+            <p className="text-gray-500 font-bold tracking-[0.4em] uppercase text-[10px] mb-16">Waiting for players...</p>
             
             <div className="glass p-8 sm:p-12 rounded-[3rem] w-full max-w-xl space-y-8">
                <div className="flex justify-between items-center border-b border-white/5 pb-6">
-                  <p className="text-gray-500 uppercase text-[10px] font-black tracking-[0.3em]">Active Peers ({players.length}/10)</p>
+                  <p className="text-gray-500 uppercase text-[10px] font-black tracking-[0.3em]">Players Online ({players.length}/10)</p>
                   <div className="h-2 w-2 rounded-full bg-white animate-pulse shadow-[0_0_15px_white]" />
                </div>
                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
                  {players.map(p => (
                    <div key={p.id} className={`flex justify-between items-center p-6 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white text-black border-white' : 'bg-white/5 border-white/5 hover:border-white/20'}`}>
                       <span className="font-black italic text-xl uppercase tracking-tight">{p.id === roomLeaderId ? "● " : ""}{p.name}</span>
-                      <span className={`text-[9px] font-black uppercase tracking-widest opacity-60`}>{p.id === myPlayerId ? "Local System" : "Linked"}</span>
+                      <span className={`text-[9px] font-black uppercase tracking-widest opacity-60`}>{p.id === myPlayerId ? "You" : "Player"}</span>
                    </div>
                  ))}
                </div>
@@ -332,11 +336,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                   onClick={handleStartGame} 
                   className="bg-white text-black hover:bg-gray-200 px-24 py-8 rounded-[2.5rem] font-black text-3xl shadow-[0_0_60px_rgba(255,255,255,0.15)] transition-all active:scale-95 uppercase tracking-[0.3em] italic disabled:opacity-20"
                 >
-                  {questions.length === 0 ? "Loading Data..." : "Engage"}
+                  {questions.length === 0 ? "Loading..." : "Start"}
                 </button>
               ) : (
                 <div className="glass px-12 py-6 rounded-3xl animate-pulse">
-                  <p className="text-gray-400 font-black uppercase tracking-[0.3em] text-xs italic">Waiting for authority authorization...</p>
+                  <p className="text-gray-400 font-black uppercase tracking-[0.3em] text-xs italic">Waiting for leader to start...</p>
                 </div>
               )}
             </div>
@@ -347,8 +351,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         {roomStatus === "wager" && !roundData.wager && (
           <div className="w-full max-w-5xl space-y-16 animate-slide-up text-center py-8">
             <div className="space-y-4">
-              <p className="text-gray-500 font-black uppercase tracking-[0.6em] text-[10px]">Strategic Risk Allocation</p>
-              <h2 className="text-3xl sm:text-5xl font-black uppercase italic tracking-tight">Allocate Point Weight</h2>
+              <p className="text-gray-500 font-black uppercase tracking-[0.6em] text-[10px]">Pick Your Wager</p>
+              <h2 className="text-3xl sm:text-5xl font-black uppercase italic tracking-tight">How many points at stake?</h2>
             </div>
             
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-8">
@@ -378,11 +382,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-12">
              <div className="text-center space-y-10">
                 <div className="inline-block px-12 py-6 glass border-white/20 rounded-[2rem] shadow-2xl">
-                   <p className="text-white text-4xl font-black uppercase tracking-[0.4em] italic animate-pulse">Committed</p>
+                   <p className="text-white text-4xl font-black uppercase tracking-[0.4em] italic animate-pulse">Wager Locked</p>
                 </div>
                 <div className="space-y-4">
                   <p className="text-gray-500 font-black uppercase text-[10px] tracking-[0.5em]">
-                    Synchronizing nodes ({roundData.competitors.length}/{players.length})
+                    Waiting for players ({roundData.competitors.length}/{players.length})
                   </p>
                   <div className="h-1 w-64 bg-white/5 rounded-full mx-auto overflow-hidden">
                     <div 
@@ -427,25 +431,35 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                       </button>
                     ))}
                     {currentQuestion?.type === "text" && (
-                      <input 
-                        type="text" 
-                        autoFocus 
-                        placeholder="Authorize Response..." 
-                        onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer(e.currentTarget.value)} 
-                        className="col-span-full w-full glass-input rounded-[2.5rem] px-12 py-12 text-4xl sm:text-6xl focus:ring-0 transition-all font-black italic text-center uppercase tracking-tighter placeholder:text-gray-800" 
-                      />
+                      <div className="col-span-full flex flex-col sm:flex-row gap-4 items-center">
+                        <input 
+                          type="text" 
+                          autoFocus 
+                          value={textAnswer}
+                          onChange={(e) => setTextAnswer(e.target.value)}
+                          placeholder="Type your answer..." 
+                          onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer(textAnswer)} 
+                          className="flex-1 w-full h-10 glass-input rounded-xl px-6 text-xl focus:ring-0 transition-all font-black italic uppercase tracking-tighter placeholder:text-gray-500" 
+                        />
+                        <button 
+                          onClick={() => handleSubmitAnswer(textAnswer)}
+                          className="h-10 px-8 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 whitespace-nowrap"
+                        >
+                          Submit Answer
+                        </button>
+                      </div>
                     )}
                   </div>
                 ) : (
                   <div className="space-y-6 pt-12">
-                    <p className="text-white text-5xl font-black uppercase tracking-[0.5em] italic animate-pulse">Authorized</p>
-                    <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.6em]">Awaiting Concurrent node validation ({roundData.competitors.filter(a => a.submitted_answer !== "").length}/{players.length})</p>
+                    <p className="text-white text-5xl font-black uppercase tracking-[0.5em] italic animate-pulse">Answer Sent</p>
+                    <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.6em]">Waiting for others to answer ({roundData.competitors.filter(a => a.submitted_answer !== "").length}/{players.length})</p>
                   </div>
                 )}
              </div>
              <div className="pt-8">
                 <span className="glass px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.4em] text-gray-500 border-white/5">
-                  Allocated Weight: <span className="text-white">{roundData.wager} Units</span>
+                  Wager: <span className="text-white">{roundData.wager} Points</span>
                 </span>
              </div>
           </div>
@@ -461,19 +475,27 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               
               <div className="glass p-12 sm:p-20 rounded-[4rem] max-w-4xl mx-auto shadow-2xl space-y-12 relative border-white/10 overflow-hidden">
                 <div className="space-y-4">
-                  <p className="text-gray-600 font-black uppercase text-[10px] tracking-[0.8em]">Resolved System Answer</p>
+                  <p className="text-gray-600 font-black uppercase text-[10px] tracking-[0.8em]">Correct Answer</p>
                   <p className="text-4xl sm:text-7xl font-black text-white italic uppercase tracking-tighter leading-tight">
                     &quot;{roundData.results.answer}&quot;
                   </p>
+                  {roundData.results.explanation && (
+                    <div className="mt-8 pt-8 border-t border-white/5 animate-fade-in">
+                      <p className="text-gray-500 font-black uppercase text-[9px] tracking-[0.4em] mb-3 text-center">Explanation</p>
+                      <p className="text-gray-400 text-lg sm:text-xl font-medium leading-relaxed max-w-2xl mx-auto italic">
+                        {roundData.results.explanation}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="border-t border-white/5 pt-12 flex justify-between items-center px-12 sm:px-20">
                   <div className="text-left">
-                    <p className="text-[10px] font-black uppercase text-gray-600 tracking-[0.4em] mb-4">Risk Factor</p>
+                    <p className="text-[10px] font-black uppercase text-gray-600 tracking-[0.4em] mb-4">Your Wager</p>
                     <p className="text-7xl font-black italic tracking-tighter">{roundData.wager}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-black uppercase text-gray-600 tracking-[0.4em] mb-4">State Delta</p>
+                    <p className="text-[10px] font-black uppercase text-gray-600 tracking-[0.4em] mb-4">Points Gained</p>
                     <p className={`text-9xl sm:text-[12rem] font-black italic tracking-tighter ${roundData.results.correct ? "text-white" : "text-gray-900"}`}>
                       {roundData.results.correct ? `+${roundData.wager}` : "0"}
                     </p>
@@ -481,8 +503,76 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 </div>
               </div>
 
+              {/* Detailed Player Results Ledger */}
+              <div className="w-full max-w-4xl mx-auto space-y-6 mt-8 animate-slide-up">
+                <div className="flex justify-between items-center px-8">
+                  <p className="text-gray-500 font-black uppercase text-[10px] tracking-[0.3em]">Round Summary</p>
+                  <p className="text-gray-500 font-black uppercase text-[10px] tracking-[0.3em]">{players.length} Players Answered</p>
+                </div>
+                
+                <div className="glass rounded-[2.5rem] border-white/5 overflow-hidden shadow-2xl max-h-[500px] overflow-y-auto no-scrollbar">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="sticky top-0 z-10 glass backdrop-blur-3xl border-b border-white/5">
+                      <tr>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Player</th>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Answer</th>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500 text-center">Points Risked</th>
+                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500 text-right">Result</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {players.map(p => {
+                        const submission = roundData.competitors.find(c => c.player_id === p.id);
+                        const isMe = p.id === myPlayerId;
+                        
+                        return (
+                          <tr key={p.id} className={`transition-all duration-300 ${isMe ? "bg-white/5" : "hover:bg-white/[0.02]"}`}>
+                            <td className="px-10 py-8">
+                              <div className="flex flex-col">
+                                <span className={`font-black italic uppercase tracking-tight text-xl ${isMe ? "text-white" : "text-gray-400"}`}>
+                                  {p.name}
+                                </span>
+                                {isMe && <span className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-1">You</span>}
+                              </div>
+                            </td>
+                            <td className="px-10 py-8">
+                              <span className={`font-bold text-sm uppercase tracking-tighter ${submission?.submitted_answer ? "text-gray-300" : "text-gray-700 italic"}`}>
+                                {submission?.submitted_answer || "TIMEOUT_EXPIRED"}
+                              </span>
+                            </td>
+                            <td className="px-10 py-8 text-center">
+                              <span className="font-black text-2xl italic text-white/80">
+                                {submission?.wager || "—"}
+                              </span>
+                            </td>
+                            <td className="px-10 py-8 text-right">
+                              {submission ? (
+                                <div className="flex items-center justify-end space-x-3">
+                                  <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${submission.is_correct ? "text-white" : "text-gray-700"}`}>
+                                    {submission.is_correct ? "Correct" : "Incorrect"}
+                                  </span>
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${submission.is_correct ? "border-white bg-white text-black scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]" : "border-gray-800 text-gray-800"}`}>
+                                    {submission.is_correct ? (
+                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                                    ) : (
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-800 italic">Desynced</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               {isLeader && (
-                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[1em] animate-pulse">Initializing Next Encounter...</p>
+                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[1em] animate-pulse">Preparing next round...</p>
               )}
             </div>
           </div>
@@ -502,7 +592,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                       </span>
                       <div className="text-left">
                         <p className={`text-4xl font-black tracking-tighter uppercase leading-none mb-2`}>{p.name}</p>
-                        <p className={`text-[9px] font-black uppercase tracking-[0.5em] opacity-40`}>{p.id === myPlayerId ? "Primary node" : "Linked Peer"}</p>
+                        <p className={`text-[9px] font-black uppercase tracking-[0.5em] opacity-40`}>{p.id === myPlayerId ? "You" : "Player"}</p>
                       </div>
                    </div>
                    <span className="text-7xl font-black tabular-nums italic">{p.score}</span>
@@ -511,7 +601,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             </div>
             
             <button onClick={() => window.location.href = "/"} className="mt-20 glass-button hover:bg-white hover:text-black px-32 py-10 rounded-[3rem] font-black text-3xl transition-all active:scale-95 uppercase italic tracking-[0.4em]">
-              Eject
+              Leave Battle
             </button>
           </div>
         )}

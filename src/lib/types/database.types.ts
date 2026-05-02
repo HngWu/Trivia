@@ -41,6 +41,7 @@ export type Database = {
           type: 'text' | 'boolean' | 'multiple_choice';
           options: string[] | null;
           correct_answer: string;
+          explanation: string;
         };
         Insert: Database['public']['Tables']['questions']['Row'];
         Update: Partial<Database['public']['Tables']['questions']['Row']>;

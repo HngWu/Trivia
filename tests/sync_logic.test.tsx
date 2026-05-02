@@ -210,7 +210,7 @@ describe('Sync Logic Transitions', () => {
     await renderRoom('TEST');
 
     await waitFor(() => {
-      expect(screen.getByText(/Synchronizing nodes/i)).toBeInTheDocument();
+      expect(screen.getByText(/Waiting for players/i)).toBeInTheDocument();
     });
   });
 });
