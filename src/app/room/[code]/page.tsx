@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom } from "@/lib/actions";
 import { Player, Question, Answer, GameState } from "@/lib/types/game";
 import Toast from "@/components/Toast";
+import { validateAnswer } from "@/lib/validation";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const unwrappedParams = use(params);
@@ -127,7 +128,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const handleSubmitAnswer = useCallback(async (val: string) => {
     if (roundData.answer || !currentQuestion) return;
     
-    const isCorrect = val.trim().toLowerCase() === currentQuestion.correct_answer.toLowerCase();
+    const isCorrect = validateAnswer(val, currentQuestion.correct_answer);
     const scoreDelta = isCorrect ? (roundData.wager || 0) : 0;
 
     // Optimistic Update
@@ -137,7 +138,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       : a
     ));
     
-    await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val, isCorrect, scoreDelta);
+    await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
     triggerSync();
   }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
 
@@ -386,7 +387,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         
         {/* Context Header */}
         {roomStatus !== "waiting" && roomStatus !== "final" && (
-          <header className="w-full text-center space-y-4 mb-16 animate-fade-in">
+          <header className="w-full text-center space-y-4 mb-8 sm:mb-16 animate-fade-in">
             <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-500">
                <span>Round {currentIndex + 1}</span>
                <span className="w-1 h-1 rounded-full bg-white/20"></span>
@@ -733,7 +734,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                           <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5">
                             <div>
                                <p className="text-[8px] font-black uppercase text-gray-600 tracking-widest mb-1">Answer</p>
-                               <p className={`font-bold text-xs uppercase truncate ${submission?.submitted_answer ? "text-gray-300" : "text-gray-700 italic"}`}>
+                               <p className={`font-bold text-xl  uppercase truncate ${submission?.submitted_answer ? "text-gray-300" : "text-gray-700 italic"}`}>
                                   {submission?.submitted_answer || "TIMEOUT"}
                                </p>
                             </div>
@@ -750,7 +751,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               </div>
 
               {isLeader && (
-                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.6em] sm:tracking-[1em] animate-pulse">Preparing next round...</p>
+                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.6em] sm:tracking-[1em] animate-pulse">
+                  {currentIndex === questions.length - 1 ? "Displaying final leaderboard..." : "Preparing next round..."}
+                </p>
               )}
             </div>
           </div>
@@ -759,7 +762,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         {/* Phase: Final */}
         {roomStatus === "final" && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-slide-up py-12">
-            <h2 className="text-5xl sm:text-9xl font-black text-white uppercase italic tracking-tighter mb-12 sm:mb-16 drop-shadow-[0_0_100px_rgba(255,255,255,0.2)]">TERMINATED</h2>
+            <h2 className="text-5xl sm:text-9xl font-black text-white uppercase italic tracking-tighter mb-12 sm:mb-16 drop-shadow-[0_0_100px_rgba(255,255,255,0.2)]">Final Leaderboard</h2>
             
             <div className="glass w-full rounded-[2rem] sm:rounded-[3.5rem] border-white/10 overflow-hidden shadow-2xl">
               {sortedPlayers.map((p, i) => (

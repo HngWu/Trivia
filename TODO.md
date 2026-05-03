@@ -10,3 +10,8 @@
 - [x] Task 9: Modern Dark Refresh (Fixed HSL Theme, Removal of Toggles)
 - [x] Task 10: Category Carousel & Selection View
 - [x] Task 11: Invite Link Copy & Smart Join Onboarding
+- [x] Task 12: Mobile UX Optimizations (Responsive scaling, results card view)
+- [x] Task 13: Toast Error Handling System (Replaced native alert)
+- [x] Task 14: Fuzzy Answer Matching (Numerical tolerance, ranges, partial name matches)
+- [x] Task 15: Server-Authoritative Scoring (submitAnswer refactor)
+- [x] Task 16: Comprehensive Documentation Update

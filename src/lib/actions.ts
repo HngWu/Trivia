@@ -3,6 +3,7 @@
 import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer } from "./types/game";
+import { validateAnswer } from "./validation";
 
 export async function createRoom(topic: string, leaderName: string) {
   const supabase = await createClient();
@@ -119,17 +120,27 @@ export async function submitWager(code: string, playerId: string, questionId: st
   await redis.expire(`answers:${normalizedCode}`, ROOM_TTL);
 }
 
-export async function submitAnswer(code: string, playerId: string, questionId: string, answerText: string, isCorrect: boolean, scoreDelta: number) {
+export async function submitAnswer(code: string, playerId: string, questionId: string, answerText: string) {
   const normalizedCode = code.toUpperCase();
   const key = `${playerId}:${questionId}`;
   
+  const room = await redis.get<Room>(`room:${normalizedCode}`);
+  if (!room) throw new Error("Room not found");
+  
+  const question = room.questions.find(q => q.id === questionId);
+  if (!question) throw new Error("Question not found");
+
   const existingRaw = await redis.hget<string | Answer>(`answers:${normalizedCode}`, key);
-  if (existingRaw) {
-    const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) as Answer : existingRaw;
-    existing.submitted_answer = answerText;
-    existing.is_correct = isCorrect;
-    await redis.hset(`answers:${normalizedCode}`, { [key]: JSON.stringify(existing) });
-  }
+  if (!existingRaw) throw new Error("Wager not found for this question");
+  
+  const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) as Answer : existingRaw;
+  
+  const isCorrect = validateAnswer(answerText, question.correct_answer);
+  const scoreDelta = isCorrect ? existing.wager : 0;
+  
+  existing.submitted_answer = answerText;
+  existing.is_correct = isCorrect;
+  await redis.hset(`answers:${normalizedCode}`, { [key]: JSON.stringify(existing) });
   
   if (scoreDelta > 0) {
     const playerRaw = await redis.hget<string | Player>(`players:${normalizedCode}`, playerId);

@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TriviaDuel Clone
 
-## Getting Started
+A high-stakes, real-time multiplayer trivia application built with Next.js, Gemini AI, Redis, and Supabase.
 
-First, run the development server:
+![GitHub License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Next.js 15](https://img.shields.io/badge/Next.js-15-black.svg)
+![Tailwind CSS 4](https://img.shields.io/badge/Tailwind-CSS%204-38B2AC.svg)
+
+## 🚀 Key Features
+
+- **Real-Time Multiplayer:** Instant synchronization between up to 10 players using Supabase Broadcast and Upstash Redis.
+- **AI-Powered Questions:** Dynamic trivia generation via Google Gemini AI based on any topic.
+- **Strategic Wagering:** Players pick point weights (1-10) for each round, adding a layer of strategy to the battle.
+- **Fuzzy Answer Matching:** Intelligent verification that handles numerical ranges, dates (±1 year), and partial name matches.
+- **Modern Dark Refresh:** A sleek, high-contrast UI with glassmorphism effects and smooth animations.
+- **Mobile Optimized:** Responsive design with adaptive layouts and mobile-specific results views.
+- **Server-Authoritative:** Secure scoring and validation handled via Next.js Server Actions.
+
+## 🛠️ Tech Stack
+
+- **Frontend:** Next.js 15 (App Router), TypeScript, Tailwind CSS 4, Framer Motion.
+- **AI:** Google Gemini SDK.
+- **Database:** Supabase (PostgreSQL + RLS).
+- **Cache/Sync:** Upstash Redis.
+- **Testing:** Jest & React Testing Library.
+
+## 🏁 Getting Started
+
+### Prerequisites
+
+Ensure you have the following environment variables in your `.env` file:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+GEMINI_API_KEY=...
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+### Installation
+
+```bash
+npm install
+```
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Testing
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx jest
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📖 Documentation
 
-## Learn More
+For detailed information on architecture, conventions, and systems:
 
-To learn more about Next.js, take a look at the following resources:
+- [GEMINI.md](./GEMINI.md) - Project instructions and core system details.
+- [docs/superpowers/specs/](./docs/superpowers/specs/) - Architectural design specifications.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📄 License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License.
