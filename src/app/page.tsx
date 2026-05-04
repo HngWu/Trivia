@@ -42,6 +42,20 @@ const TOPICS = [
     exampleQuestion: 'Which athlete has won the most Olympic gold medals?'
   },
   { 
+    id: 'badminton', 
+    name: 'Badminton', 
+    icon: '🏸', 
+    description: 'Smash your way through history, rules, and legendary players like Lin Dan and Lee Chong Wei.',
+    exampleQuestion: 'How many feathers are in a standard shuttlecock?'
+  },
+  { 
+    id: 'mobile-legends', 
+    name: 'Mobile Legends', 
+    icon: '🎮', 
+    description: 'Welcome to the Land of Dawn! Test your knowledge on heroes, items, and epic MLBB esports moments.',
+    exampleQuestion: 'Which hero is known as the "Son of the Dragon"?'
+  },
+  { 
     id: 'custom', 
     name: 'Custom', 
     icon: '✨', 
