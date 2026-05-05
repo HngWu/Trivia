@@ -1,75 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { createRoom, joinRoom } from '@/lib/actions';
+import React, { useState, useEffect } from 'react';
+import { createRoom, joinRoom, getTopics } from '@/lib/actions';
 import Toast from '@/components/Toast';
-
-const TOPICS = [
-// ... (keep TOPICS as is)
-  { 
-    id: 'history', 
-    name: 'History', 
-    icon: '📜', 
-    description: 'Travel through time and test your knowledge of ancient civilizations, world wars, and historical figures.',
-    exampleQuestion: 'Who was the first emperor of Rome?'
-  },
-  { 
-    id: 'science', 
-    name: 'Science', 
-    icon: '🧪', 
-    description: 'Explore the mysteries of the universe, from biology and chemistry to physics and astronomy.',
-    exampleQuestion: 'What is the chemical symbol for Gold?'
-  },
-  { 
-    id: 'pop-culture', 
-    name: 'Pop Culture', 
-    icon: '🎬', 
-    description: 'Movies, music, celebrities, and trends. Stay up to date with the latest and greatest in entertainment.',
-    exampleQuestion: 'Which movie won the first ever Oscar for Best Picture?'
-  },
-  { 
-    id: 'geography', 
-    name: 'Geography', 
-    icon: '🌍', 
-    description: 'Discover the world! From mountain ranges and rivers to countries and capitals.',
-    exampleQuestion: 'Which country has the most natural lakes?'
-  },
-  { 
-    id: 'sports', 
-    name: 'Sports', 
-    icon: '⚽', 
-    description: 'For the ultimate fans. Test your knowledge on teams, athletes, and legendary sports moments.',
-    exampleQuestion: 'Which athlete has won the most Olympic gold medals?'
-  },
-  { 
-    id: 'badminton', 
-    name: 'Badminton', 
-    icon: '🏸', 
-    description: 'Smash your way through history, rules, and legendary players like Lin Dan and Lee Chong Wei.',
-    exampleQuestion: 'How many feathers are in a standard shuttlecock?'
-  },
-  { 
-    id: 'mobile legends', 
-    name: 'Mobile Legends', 
-    icon: '🎮', 
-    description: 'Welcome to the Land of Dawn! Test your knowledge on heroes, items, and epic MLBB esports moments.',
-    exampleQuestion: 'Which hero is known as the "Son of the Dragon"?'
-  },
-  { 
-    id: 'wild rift', 
-    name: 'Wild Rift', 
-    icon: '💎', 
-    description: 'Master the Rift! Test your knowledge on LoL: Wild Rift champions, runes, and tactical teamplay.',
-    exampleQuestion: 'Which champion has the ultimate ability "Enchanted Crystal Arrow"?'
-  },
-  { 
-    id: 'custom', 
-    name: 'Custom', 
-    icon: '✨', 
-    description: 'Want something specific? Type in any topic and our AI will generate a unique battle for you.',
-    exampleQuestion: 'E.g., 90s Hip Hop, Quantum Mechanics, or Cooking Basics.'
-  },
-];
 
 export default function Home() {
   const [nickname, setNickname] = React.useState('');
@@ -79,12 +12,19 @@ export default function Home() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [showJoinInput, setShowJoinInput] = React.useState(false);
   const [toast, setToast] = React.useState<string | null>(null);
+  const [topics, setTopics] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     const savedName = localStorage.getItem('player_name');
     if (savedName) {
       setNickname(savedName);
     }
+
+    const fetchTopics = async () => {
+      const data = await getTopics();
+      setTopics(data);
+    };
+    fetchTopics();
   }, []);
 
   const showToast = (msg: string) => {
@@ -137,7 +77,7 @@ export default function Home() {
     }
   };
 
-  const selectedTopicData = TOPICS.find(t => t.id === selectedTopic);
+  const selectedTopicData = topics.find(t => t.id === selectedTopic);
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-4 sm:p-8 page-transition overflow-y-auto">
@@ -203,7 +143,7 @@ export default function Home() {
           <section className={`w-full max-w-4xl mx-auto space-y-6 ${selectedTopic ? 'hidden md:block' : ''}`}>
             <h2 className="text-center text-xs font-black uppercase tracking-[0.4em] text-gray-500">Select Category</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {TOPICS.map((topic) => (
+              {topics.map((topic) => (
                 <button
                   key={topic.id}
                   onClick={() => setSelectedTopic(topic.id)}
@@ -253,7 +193,7 @@ export default function Home() {
             <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-2">
               <span className="text-[10px] uppercase font-black tracking-widest opacity-50 block">Example Question</span>
               <p className="italic text-white font-medium text-lg leading-snug">
-                &quot;{selectedTopicData.exampleQuestion}&quot;
+                &quot;{selectedTopicData.example_question}&quot;
               </p>
             </div>
 

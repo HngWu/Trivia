@@ -159,3 +159,73 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
     }
   }
 }
+
+export async function kickPlayer(roomCode: string, playerId: string, leaderId: string) {
+  const normalizedCode = roomCode.toUpperCase();
+  
+  const roomRaw = await redis.get(`room:${normalizedCode}`);
+  const room = typeof roomRaw === "string" ? JSON.parse(roomRaw) as Room : roomRaw;
+  
+  if (!room || room.leader_id !== leaderId) {
+    throw new Error("Only the room leader can kick players.");
+  }
+
+  await redis.hdel(`players:${normalizedCode}`, playerId);
+  
+  const answersRaw = await redis.hgetall(`answers:${normalizedCode}`);
+  if (answersRaw) {
+    for (const [key] of Object.entries(answersRaw)) {
+      if (key.startsWith(`${playerId}:`)) {
+        await redis.hdel(`answers:${normalizedCode}`, key);
+      }
+    }
+  }
+}
+
+export async function getTopics() {
+  const supabase = await createClient();
+  const { data: topics, error } = await supabase
+    .from("topics")
+    .select("*")
+    .order("name");
+  
+  if (error) {
+    console.error("Error fetching topics:", error);
+    return [];
+  }
+  
+  return topics;
+}
+
+export async function addTopic(topic: { id: string, name: string, icon: string, description: string, example_question: string }) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("topics")
+    .insert([topic]);
+  
+  if (error) throw error;
+}
+
+export async function addQuestions(questions: any[]) {
+  const supabase = await createClient();
+  
+  // Duplicate check based on text
+  const texts = questions.map(q => q.text);
+  const { data: existing } = await supabase
+    .from("filler_questions")
+    .select("text")
+    .in("text", texts);
+  
+  const existingTexts = new Set(existing?.map(e => e.text) || []);
+  const newQuestions = questions.filter(q => !existingTexts.has(q.text));
+  
+  if (newQuestions.length === 0) return { count: 0, message: "All questions were duplicates." };
+
+  const { error } = await supabase
+    .from("filler_questions")
+    .insert(newQuestions);
+  
+  if (error) throw error;
+  
+  return { count: newQuestions.length, message: `Successfully added ${newQuestions.length} questions.` };
+}

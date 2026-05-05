@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use, useMemo, useRef, useCallback } from "react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom } from "@/lib/actions";
+import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, kickPlayer } from "@/lib/actions";
 import { Player, Question, Answer, GameState } from "@/lib/types/game";
 import Toast from "@/components/Toast";
 import { validateAnswer } from "@/lib/validation";
@@ -84,6 +84,13 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       const { room, players: p, allAnswers: a } = await getRoomState(roomCode);
       if (!room) return;
 
+      // Check if I'm still in the player list
+      const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
+      if (savedId && p && !p.find(player => player.id === savedId) && !isJoining) {
+        window.location.href = "/?error=kicked";
+        return;
+      }
+
       setRoomLeaderId(room.leader_id);
       setTopic(room.topic || "");
       if (p) setPlayers(p);
@@ -120,7 +127,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     } catch (err) {
       console.error("Sync error:", err);
     }
-  }, [roomCode]);
+  }, [roomCode, myPlayerId, isJoining]);
 
   const triggerSync = useCallback(() => {
     if (channelRef.current) {
@@ -131,6 +138,18 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       });
     }
   }, []);
+
+  const handleKick = useCallback(async (targetPlayerId: string) => {
+    if (!isLeader || targetPlayerId === myPlayerId) return;
+    try {
+      await kickPlayer(roomCode, targetPlayerId, myPlayerId);
+      await fetchData();
+      triggerSync();
+    } catch (e) {
+      console.error("Kick failed", e);
+      showToast("Failed to kick player.");
+    }
+  }, [isLeader, myPlayerId, roomCode, fetchData, triggerSync]);
 
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
@@ -506,7 +525,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
                  {players.map(p => (
                    <div key={p.id} className={`flex justify-between items-center p-4 sm:p-6 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white/10 border-white/30' : 'bg-white/5 border-white/5 hover:border-white/10'} text-white`}>
-                      <span className="font-black italic text-lg sm:text-xl uppercase tracking-tight">{p.id === roomLeaderId ? "● " : ""}{p.name}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-black italic text-lg sm:text-xl uppercase tracking-tight">{p.id === roomLeaderId ? "● " : ""}{p.name}</span>
+                        {isLeader && p.id !== myPlayerId && (
+                          <button 
+                            onClick={() => handleKick(p.id)}
+                            className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors"
+                          >
+                            Kick
+                          </button>
+                        )}
+                      </div>
                       <span className={`text-[9px] font-black uppercase tracking-widest opacity-60`}>{p.id === myPlayerId ? "You" : "Player"}</span>
                    </div>
                  ))}
@@ -739,9 +768,19 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                           <tr key={p.id} className={`transition-all duration-300 ${isMe ? "bg-white/5" : "hover:bg-white/[0.02]"}`}>
                             <td className="px-10 py-8">
                               <div className="flex flex-col">
-                                <span className={`font-black italic uppercase tracking-tight text-xl ${isMe ? "text-white" : "text-gray-400"}`}>
-                                  {p.name}
-                                </span>
+                                <div className="flex items-center gap-3">
+                                  <span className={`font-black italic uppercase tracking-tight text-xl ${isMe ? "text-white" : "text-gray-400"}`}>
+                                    {p.name}
+                                  </span>
+                                  {isLeader && !isMe && (
+                                    <button 
+                                      onClick={() => handleKick(p.id)}
+                                      className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors"
+                                    >
+                                      Kick
+                                    </button>
+                                  )}
+                                </div>
                                 {isMe && <span className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-1">You</span>}
                               </div>
                             </td>
@@ -789,9 +828,19 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         <div key={p.id} className={`glass p-5 rounded-2xl border-white/5 flex flex-col gap-4 ${isMe ? "border-white/20 bg-white/5" : ""}`}>
                           <div className="flex justify-between items-start">
                             <div className="flex flex-col">
-                              <span className={`font-black italic uppercase tracking-tight text-lg ${isMe ? "text-white" : "text-gray-400"}`}>
-                                {p.name}
-                              </span>
+                              <div className="flex items-center gap-3">
+                                <span className={`font-black italic uppercase tracking-tight text-lg ${isMe ? "text-white" : "text-gray-400"}`}>
+                                  {p.name}
+                                </span>
+                                {isLeader && !isMe && (
+                                  <button 
+                                    onClick={() => handleKick(p.id)}
+                                    className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors"
+                                  >
+                                    Kick
+                                  </button>
+                                )}
+                              </div>
                               {isMe && <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Your Result</span>}
                             </div>
                             {submission && (
