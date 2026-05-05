@@ -76,6 +76,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       .map(a => a.wager);
   }, [allRoomAnswers, myPlayerId]);
 
+  const currentIndexRef = useRef(0);
+
   const fetchData = useCallback(async () => {
     try {
       const { room, players: p, allAnswers: a } = await getRoomState(roomCode);
@@ -87,16 +89,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       if (room.questions) setQuestions(room.questions);
       if (a) setAllRoomAnswers(a);
 
-      if (room.current_question_index !== currentIndex) {
+      if (room.current_question_index !== currentIndexRef.current) {
         setTimer(60);
         setTextAnswer("");
+        currentIndexRef.current = room.current_question_index;
       }
       setRoomStatus(room.status as GameState);
       setCurrentIndex(room.current_question_index);
     } catch (err) {
       console.error("Sync error:", err);
     }
-  }, [roomCode, currentIndex]);
+  }, [roomCode]);
 
   const triggerSync = useCallback(() => {
     if (channelRef.current) {
@@ -217,6 +220,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       if (a) setAllRoomAnswers(a);
       setRoomStatus(room.status as GameState);
       setCurrentIndex(room.current_question_index);
+      currentIndexRef.current = room.current_question_index;
 
       const isAlreadyInRoom = p?.some((player: Player) => player.id === savedId);
 
@@ -260,7 +264,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     };
   }, [roomCode, supabase, fetchData, triggerSync]);
 
-  // 2. Timer Logic
+  // 2. Polling Fallback (Eventual Consistency)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isLoading && roomStatus !== "final") {
+        fetchData();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isLoading, roomStatus, fetchData]);
+
+  // 3. Timer Logic
   useEffect(() => {
     if (roomStatus === "waiting" || roomStatus === "final" || isLoading) return;
 
