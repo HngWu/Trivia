@@ -56,6 +56,13 @@ const TOPICS = [
     exampleQuestion: 'Which hero is known as the "Son of the Dragon"?'
   },
   { 
+    id: 'wild rift', 
+    name: 'Wild Rift', 
+    icon: '💎', 
+    description: 'Master the Rift! Test your knowledge on LoL: Wild Rift champions, runes, and tactical teamplay.',
+    exampleQuestion: 'Which champion has the ultimate ability "Enchanted Crystal Arrow"?'
+  },
+  { 
     id: 'custom', 
     name: 'Custom', 
     icon: '✨', 
@@ -162,7 +169,7 @@ export default function Home() {
                   placeholder="Your Name"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full h-10 glass-input rounded-xl px-4 font-bold placeholder:text-gray-700"
+                  className="w-full h-10 glass-input rounded-xl px-4 font-bold text-white placeholder:text-gray-700"
                 />
                 <div className="flex items-center gap-2 w-full">
                   <input

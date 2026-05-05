@@ -363,12 +363,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       if (roomStatus === "wager") {
         const wagersCount = roundData.competitors.length;
         if (wagersCount > 0 && wagersCount === players.length) {
+          setRoomStatus("question");
           await updateRoomStatus(roomCode, "question");
           triggerSync();
         }
       } else if (roomStatus === "question") {
         const answersCount = roundData.competitors.filter(a => a.submitted_answer !== "").length;
         if (answersCount > 0 && answersCount === players.length) {
+          setRoomStatus("results");
           await updateRoomStatus(roomCode, "results");
           triggerSync();
         }
@@ -437,10 +439,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           </div>
         </div>
         
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[40vw] sm:max-w-none">
           {sortedPlayers.slice(0, 3).map((p, i) => (
-            <div key={p.id} className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border transition-all ${p.id === myPlayerId ? "bg-white text-black border-white" : "border-white/10 text-gray-400"}`}>
-              #{i + 1} {p.name} • {p.score}
+            <div key={p.id} className={`px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[8px] md:text-[10px] font-black uppercase border transition-all whitespace-nowrap ${p.id === myPlayerId ? "bg-white text-black border-white" : "border-white/10 text-gray-400"}`}>
+              #{i + 1} {p.name.split(' ')[0]} • {p.score}
             </div>
           ))}
         </div>
