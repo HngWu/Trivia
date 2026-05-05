@@ -49,7 +49,7 @@ const TOPICS = [
     exampleQuestion: 'How many feathers are in a standard shuttlecock?'
   },
   { 
-    id: 'mobile-legends', 
+    id: 'mobile legends', 
     name: 'Mobile Legends', 
     icon: '🎮', 
     description: 'Welcome to the Land of Dawn! Test your knowledge on heroes, items, and epic MLBB esports moments.',
