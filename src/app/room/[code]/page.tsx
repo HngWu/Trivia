@@ -77,6 +77,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [allRoomAnswers, myPlayerId]);
 
   const currentIndexRef = useRef(0);
+  const pendingSubmissionsRef = useRef<Record<string, Answer>>({});
 
   const fetchData = useCallback(async () => {
     try {
@@ -87,12 +88,32 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       setTopic(room.topic || "");
       if (p) setPlayers(p);
       if (room.questions) setQuestions(room.questions);
-      if (a) setAllRoomAnswers(a);
+
+      // Merge server answers with local pending optimistic updates
+      if (a) {
+        const mergedAnswers = [...a];
+        Object.values(pendingSubmissionsRef.current).forEach(pending => {
+          const index = mergedAnswers.findIndex(ans => 
+            ans.player_id === pending.player_id && ans.question_id === pending.question_id
+          );
+          if (index !== -1) {
+            // Overwrite server data with pending local data if server data is still "empty"
+            if (!mergedAnswers[index].submitted_answer && pending.submitted_answer) {
+               mergedAnswers[index] = { ...mergedAnswers[index], ...pending };
+            }
+          } else {
+            mergedAnswers.push(pending);
+          }
+        });
+        setAllRoomAnswers(mergedAnswers);
+      }
 
       if (room.current_question_index !== currentIndexRef.current) {
         setTimer(60);
         setTextAnswer("");
         currentIndexRef.current = room.current_question_index;
+        // Clear pending submissions on round change
+        pendingSubmissionsRef.current = {};
       }
       setRoomStatus(room.status as GameState);
       setCurrentIndex(room.current_question_index);
@@ -114,7 +135,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
     
-    // Optimistic Update
+    const key = `${myPlayerId}:${currentQuestion.id}`;
     const optimisticAnswer: Answer = {
        player_id: myPlayerId,
        question_id: currentQuestion.id,
@@ -122,27 +143,60 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
        submitted_answer: "",
        is_correct: false
     };
-    setAllRoomAnswers(prev => [...prev, optimisticAnswer]);
 
-    await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
-    triggerSync();
+    // Register as pending
+    pendingSubmissionsRef.current[key] = optimisticAnswer;
+    
+    // Optimistic Update
+    setAllRoomAnswers(prev => {
+      const filtered = prev.filter(a => !(a.player_id === myPlayerId && a.question_id === currentQuestion.id));
+      return [...filtered, optimisticAnswer];
+    });
+
+    try {
+      await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
+      // Remove from pending once server confirms
+      delete pendingSubmissionsRef.current[key];
+      triggerSync();
+    } catch (e) {
+      delete pendingSubmissionsRef.current[key];
+      console.error("Wager failed", e);
+    }
   }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync]);
 
   const handleSubmitAnswer = useCallback(async (val: string) => {
     if (roundData.answer || !currentQuestion) return;
     
+    const key = `${myPlayerId}:${currentQuestion.id}`;
     const isCorrect = validateAnswer(val, currentQuestion.correct_answer);
-    const scoreDelta = isCorrect ? (roundData.wager || 0) : 0;
+
+    const optimisticAnswer: Answer = {
+      player_id: myPlayerId,
+      question_id: currentQuestion.id,
+      wager: roundData.wager || 0,
+      submitted_answer: val,
+      is_correct: isCorrect
+    };
+
+    // Register as pending
+    pendingSubmissionsRef.current[key] = optimisticAnswer;
 
     // Optimistic Update
     setAllRoomAnswers(prev => prev.map(a => 
       (a.player_id === myPlayerId && a.question_id === currentQuestion.id)
-      ? { ...a, submitted_answer: val, is_correct: isCorrect }
+      ? optimisticAnswer
       : a
     ));
     
-    await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
-    triggerSync();
+    try {
+      await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
+      // Remove from pending once server confirms
+      delete pendingSubmissionsRef.current[key];
+      triggerSync();
+    } catch (e) {
+      delete pendingSubmissionsRef.current[key];
+      console.error("Answer failed", e);
+    }
   }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
 
   const handleTimeUp = useCallback(() => {
