@@ -10,13 +10,21 @@ export async function createRoom(topic: string, leaderName: string) {
   const normalizedTopic = topic.toLowerCase();
   
   // 1. Try to fetch from database first
-  let { data: questions } = await supabase
+  let { data: allQuestions } = await supabase
     .from("filler_questions")
     .select("*")
-    .eq("topic", normalizedTopic)
-    .limit(10);
+    .eq("topic", normalizedTopic);
     
-  // 2. If no questions found (e.g., custom topic), fallback to AI
+  let questions = allQuestions;
+
+  // 2. If questions found, shuffle them to ensure randomness
+  if (questions && questions.length > 0) {
+    questions = questions
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 10);
+  }
+    
+  // 3. If no questions found (e.g., custom topic), fallback to AI
   if (!questions || questions.length === 0) {
     const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/generate-questions`, {
       method: 'POST',

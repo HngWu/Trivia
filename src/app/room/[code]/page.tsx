@@ -167,7 +167,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [questions.length, roomCode, triggerSync]);
 
   const handleJoin = useCallback(async () => {
-    if (!nickname.trim()) return;
+    if (isLoading || !nickname.trim()) return;
     setIsLoading(true);
     try {
       const { player } = await joinRoom(roomCode, nickname.trim());
@@ -192,7 +192,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, []);
 
   // 1. Initial Load & Subscriptions
+  const initializedRef = useRef(false);
+
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     const savedId = localStorage.getItem("player_id");
     const savedName = localStorage.getItem("player_name");
     
@@ -217,8 +222,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
       if (isAlreadyInRoom && savedId) {
         setMyPlayerId(savedId);
-      } else if (myPlayerId) {
-        // Already have a player ID in state, don't re-join
       } else {
         if (savedName) {
            try {
@@ -255,7 +258,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       supabase.removeChannel(channel); 
       channelRef.current = null;
     };
-  }, [roomCode, supabase, fetchData, triggerSync, questions.length]);
+  }, [roomCode, supabase, fetchData, triggerSync]);
 
   // 2. Timer Logic
   useEffect(() => {

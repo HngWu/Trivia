@@ -65,13 +65,20 @@ const TOPICS = [
 ];
 
 export default function Home() {
-  const [nickname, setNickname] = useState('');
-  const [roomCode, setRoomCode] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [customTopic, setCustomTopic] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [showJoinInput, setShowJoinInput] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [nickname, setNickname] = React.useState('');
+  const [roomCode, setRoomCode] = React.useState('');
+  const [selectedTopic, setSelectedTopic] = React.useState('');
+  const [customTopic, setCustomTopic] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [showJoinInput, setShowJoinInput] = React.useState(false);
+  const [toast, setToast] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const savedName = localStorage.getItem('player_name');
+    if (savedName) {
+      setNickname(savedName);
+    }
+  }, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -81,7 +88,7 @@ export default function Home() {
   };
 
   const handleCreateRoom = async () => {
-    if (!nickname || !selectedTopic) return;
+    if (isLoading || !nickname || !selectedTopic) return;
     if (selectedTopic === 'custom' && !customTopic) return;
     
     setIsLoading(true);
@@ -102,7 +109,7 @@ export default function Home() {
   };
 
   const handleJoinRoom = async () => {
-    if (!nickname || !roomCode) {
+    if (isLoading || !nickname || !roomCode) {
       showToast('Please enter both your name and a room code.');
       return;
     }
