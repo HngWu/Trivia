@@ -151,13 +151,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (!isLeader || targetPlayerId === myPlayerId) return;
     try {
       const newState = await kickPlayer(roomCode, targetPlayerId, myPlayerId);
-      applyState(newState);
       triggerSync(newState);
     } catch (e) {
       console.error("Kick failed", e);
       showToast("Failed to kick player.");
     }
-  }, [isLeader, myPlayerId, roomCode, applyState, triggerSync]);
+  }, [isLeader, myPlayerId, roomCode, triggerSync]);
 
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
@@ -181,13 +180,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     try {
       const newState = await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
       delete pendingSubmissionsRef.current[key];
-      applyState(newState);
       triggerSync(newState);
     } catch (e) {
       delete pendingSubmissionsRef.current[key];
       console.error("Wager failed", e);
     }
-  }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync, applyState]);
+  }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync]);
 
   const handleSubmitAnswer = useCallback(async (val: string) => {
     if (roundData.answer || !currentQuestion) return;
@@ -214,13 +212,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     try {
       const newState = await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
       delete pendingSubmissionsRef.current[key];
-      applyState(newState);
       triggerSync(newState);
     } catch (e) {
       delete pendingSubmissionsRef.current[key];
       console.error("Answer failed", e);
     }
-  }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync, applyState]);
+  }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
 
   const handleTimeUp = useCallback(() => {
     const availableWeights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(w => !usedWagers.includes(w));
@@ -237,16 +234,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const nextStatus = nextIndex < questions.length ? "wager" : "final";
 
     const newState = await updateRoomStatus(roomCode, nextStatus, nextIndex);
-    applyState(newState);
     triggerSync(newState);
-  }, [isLeader, currentIndex, questions.length, roomCode, triggerSync, applyState]);
+  }, [isLeader, currentIndex, questions.length, roomCode, triggerSync]);
 
   const handleStartGame = useCallback(async () => {
     if (questions.length === 0) return;
     const newState = await updateRoomStatus(roomCode, "wager");
-    applyState(newState);
     triggerSync(newState);
-  }, [questions.length, roomCode, triggerSync, applyState]);
+  }, [questions.length, roomCode, triggerSync]);
 
   const handleJoin = useCallback(async () => {
     if (isLoading || !nickname.trim()) return;
@@ -257,7 +252,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       localStorage.setItem("player_id", player.id);
       localStorage.setItem("player_name", nickname.trim());
       const state = await getRoomState(roomCode);
-      applyState(state);
+      applyState(state); // Keep this for join UX
       setIsJoining(false);
       triggerSync(state);
     } catch (err) {
