@@ -33,6 +33,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Pre-fill nickname from localStorage
+  useEffect(() => {
+    const savedName = localStorage.getItem("player_name");
+    if (savedName) setNickname(savedName);
+  }, []);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => {
@@ -92,9 +98,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const { room, players: p, allAnswers: a } = state;
     if (!room) return;
 
-    // Check if I'm still in the player list
-    const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
-    if (savedId && p && !p.find((player: Player) => player.id === savedId) && !isJoining) {
+    // Check if I'm still in the player list - only if I have joined this specific room session
+    if (myPlayerId && p && !p.find((player: Player) => player.id === myPlayerId) && !isJoining) {
       window.location.href = "/?error=kicked";
       return;
     }
@@ -281,38 +286,47 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     
     const initialFetch = async () => {
       setIsLoading(true);
-      const state = await getRoomState(roomCode);
-      const { room, players: p } = state;
-      
-      if (!room) {
-          setIsLoading(false);
-          return;
-      }
-
-      applyState(state);
-
-      const isAlreadyInRoom = p?.some((player: Player) => player.id === savedId);
-
-      if (isAlreadyInRoom && savedId) {
-        setMyPlayerId(savedId);
-      } else {
-        if (savedName) {
-           try {
-             const { player } = await joinRoom(roomCode, savedName);
-             setMyPlayerId(player.id);
-             localStorage.setItem("player_id", player.id);
-             const state = await getRoomState(roomCode);
-             applyState(state);
-             triggerSync(state);
-           } catch (e) {
-             console.error("Auto-join failed", e);
-             setIsJoining(true);
-           }
-        } else {
-           setIsJoining(true);
+      try {
+        const state = await getRoomState(roomCode);
+        const { room, players: p } = state;
+        
+        if (!room) {
+            showToast("Battle room not found.");
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 2000);
+            return;
         }
+
+        applyState(state);
+
+        const isAlreadyInRoom = p?.some((player: Player) => player.id === savedId);
+
+        if (isAlreadyInRoom && savedId) {
+          setMyPlayerId(savedId);
+        } else {
+          if (savedName) {
+             try {
+               const { player } = await joinRoom(roomCode, savedName);
+               setMyPlayerId(player.id);
+               localStorage.setItem("player_id", player.id);
+               const state = await getRoomState(roomCode);
+               applyState(state);
+               triggerSync(state);
+             } catch (e) {
+               console.error("Auto-join failed", e);
+               setIsJoining(true);
+             }
+          } else {
+             setIsJoining(true);
+          }
+        }
+      } catch (err) {
+        console.error("Initial fetch failed", err);
+        showToast("Failed to load battle data.");
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     initialFetch();
@@ -402,12 +416,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               onChange={(e) => setNickname(e.target.value)}
               placeholder="Your Nickname" 
               onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-              className="w-full h-10 glass-input rounded-xl px-6 text-xl font-black italic uppercase tracking-tighter placeholder:text-gray-600 focus:border-white transition-all text-white" 
+              className="w-full h-14 glass-input rounded-xl px-6 text-xl font-black italic uppercase tracking-tighter placeholder:text-gray-500 focus:border-white transition-all text-white" 
             />
             <button 
               onClick={handleJoin}
               disabled={!nickname.trim() || isLoading}
-              className="w-full h-10 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
+              className="w-full h-14 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
             >
               {isLoading ? "Joining..." : "Join Room"}
             </button>
