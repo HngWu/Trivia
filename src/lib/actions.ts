@@ -136,6 +136,8 @@ export async function submitWager(code: string, playerId: string, questionId: st
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
        state.room.status = "question";
        await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
+       // Re-fetch to get the state with updated room status
+       return await getFullState(normalizedCode);
     }
   }
   return state;
@@ -178,6 +180,8 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
        state.room.status = "results";
        await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
+       // Re-fetch to get the state with updated room status
+       return await getFullState(normalizedCode);
     }
   }
   return state;

@@ -84,6 +84,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   const currentIndexRef = useRef(0);
   const pendingSubmissionsRef = useRef<Record<string, Answer>>({});
+  const lastSyncTimeRef = useRef(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -97,6 +98,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const applyState = useCallback((state: any) => {
     const { room, players: p, allAnswers: a } = state;
     if (!room) return;
+
+    lastSyncTimeRef.current = Date.now();
 
     // Check if I'm still in the player list - only if I have joined this specific room session
     if (myPlayerId && p && !p.find((player: Player) => player.id === myPlayerId) && !isJoining) {
