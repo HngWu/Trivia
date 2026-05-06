@@ -163,8 +163,7 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
 export async function kickPlayer(roomCode: string, playerId: string, leaderId: string) {
   const normalizedCode = roomCode.toUpperCase();
   
-  const roomRaw = await redis.get(`room:${normalizedCode}`);
-  const room = typeof roomRaw === "string" ? JSON.parse(roomRaw) as Room : roomRaw;
+  const room = await redis.get<Room>(`room:${normalizedCode}`);
   
   if (!room || room.leader_id !== leaderId) {
     throw new Error("Only the room leader can kick players.");
