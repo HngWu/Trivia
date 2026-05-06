@@ -81,60 +81,63 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   const fetchData = useCallback(async () => {
     try {
-      const { room, players: p, allAnswers: a } = await getRoomState(roomCode);
-      if (!room) return;
-
-      // Check if I'm still in the player list
-      const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
-      if (savedId && p && !p.find(player => player.id === savedId) && !isJoining) {
-        window.location.href = "/?error=kicked";
-        return;
-      }
-
-      setRoomLeaderId(room.leader_id);
-      setTopic(room.topic || "");
-      if (p) setPlayers(p);
-      if (room.questions) setQuestions(room.questions);
-
-      // Merge server answers with local pending optimistic updates
-      if (a) {
-        const mergedAnswers = [...a];
-        Object.values(pendingSubmissionsRef.current).forEach(pending => {
-          const index = mergedAnswers.findIndex(ans => 
-            ans.player_id === pending.player_id && ans.question_id === pending.question_id
-          );
-          if (index !== -1) {
-            // Overwrite server data with pending local data if server data is still "empty"
-            if (!mergedAnswers[index].submitted_answer && pending.submitted_answer) {
-               mergedAnswers[index] = { ...mergedAnswers[index], ...pending };
-            }
-          } else {
-            mergedAnswers.push(pending);
-          }
-        });
-        setAllRoomAnswers(mergedAnswers);
-      }
-
-      if (room.current_question_index !== currentIndexRef.current) {
-        setTimer(60);
-        setTextAnswer("");
-        currentIndexRef.current = room.current_question_index;
-        // Clear pending submissions on round change
-        pendingSubmissionsRef.current = {};
-      }
-      setRoomStatus(room.status as GameState);
-      setCurrentIndex(room.current_question_index);
+      const state = await getRoomState(roomCode);
+      applyState(state);
     } catch (err) {
       console.error("Sync error:", err);
     }
-  }, [roomCode, myPlayerId, isJoining]);
+  }, [roomCode]);
 
-  const triggerSync = useCallback(() => {
+  const applyState = useCallback((state: any) => {
+    const { room, players: p, allAnswers: a } = state;
+    if (!room) return;
+
+    // Check if I'm still in the player list
+    const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
+    if (savedId && p && !p.find((player: Player) => player.id === savedId) && !isJoining) {
+      window.location.href = "/?error=kicked";
+      return;
+    }
+
+    setRoomLeaderId(room.leader_id);
+    setTopic(room.topic || "");
+    if (p) setPlayers(p);
+    if (room.questions) setQuestions(room.questions);
+
+    // Merge server answers with local pending optimistic updates
+    if (a) {
+      const mergedAnswers = [...a];
+      Object.values(pendingSubmissionsRef.current).forEach(pending => {
+        const index = mergedAnswers.findIndex(ans => 
+          ans.player_id === pending.player_id && ans.question_id === pending.question_id
+        );
+        if (index !== -1) {
+          if (!mergedAnswers[index].submitted_answer && pending.submitted_answer) {
+             mergedAnswers[index] = { ...mergedAnswers[index], ...pending };
+          }
+        } else {
+          mergedAnswers.push(pending);
+        }
+      });
+      setAllRoomAnswers(mergedAnswers);
+    }
+
+    if (room.current_question_index !== currentIndexRef.current) {
+      setTimer(60);
+      setTextAnswer("");
+      currentIndexRef.current = room.current_question_index;
+      pendingSubmissionsRef.current = {};
+    }
+    setRoomStatus(room.status as GameState);
+    setCurrentIndex(room.current_question_index);
+  }, [myPlayerId, isJoining]);
+
+  const triggerSync = useCallback((data?: any) => {
     if (channelRef.current) {
       channelRef.current.send({
         type: "broadcast",
         event: "STATE_UPDATED",
-        payload: { t: Date.now() }
+        payload: { t: Date.now(), state: data }
       });
     }
   }, []);
@@ -142,14 +145,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const handleKick = useCallback(async (targetPlayerId: string) => {
     if (!isLeader || targetPlayerId === myPlayerId) return;
     try {
-      await kickPlayer(roomCode, targetPlayerId, myPlayerId);
-      await fetchData();
-      triggerSync();
+      const newState = await kickPlayer(roomCode, targetPlayerId, myPlayerId);
+      applyState(newState);
+      triggerSync(newState);
     } catch (e) {
       console.error("Kick failed", e);
       showToast("Failed to kick player.");
     }
-  }, [isLeader, myPlayerId, roomCode, fetchData, triggerSync]);
+  }, [isLeader, myPlayerId, roomCode, applyState, triggerSync]);
 
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
@@ -163,25 +166,23 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
        is_correct: false
     };
 
-    // Register as pending
     pendingSubmissionsRef.current[key] = optimisticAnswer;
     
-    // Optimistic Update
     setAllRoomAnswers(prev => {
       const filtered = prev.filter(a => !(a.player_id === myPlayerId && a.question_id === currentQuestion.id));
       return [...filtered, optimisticAnswer];
     });
 
     try {
-      await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
-      // Remove from pending once server confirms
+      const newState = await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
       delete pendingSubmissionsRef.current[key];
-      triggerSync();
+      applyState(newState);
+      triggerSync(newState);
     } catch (e) {
       delete pendingSubmissionsRef.current[key];
       console.error("Wager failed", e);
     }
-  }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync]);
+  }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync, applyState]);
 
   const handleSubmitAnswer = useCallback(async (val: string) => {
     if (roundData.answer || !currentQuestion) return;
@@ -197,10 +198,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       is_correct: isCorrect
     };
 
-    // Register as pending
     pendingSubmissionsRef.current[key] = optimisticAnswer;
 
-    // Optimistic Update
     setAllRoomAnswers(prev => prev.map(a => 
       (a.player_id === myPlayerId && a.question_id === currentQuestion.id)
       ? optimisticAnswer
@@ -208,15 +207,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     ));
     
     try {
-      await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
-      // Remove from pending once server confirms
+      const newState = await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
       delete pendingSubmissionsRef.current[key];
-      triggerSync();
+      applyState(newState);
+      triggerSync(newState);
     } catch (e) {
       delete pendingSubmissionsRef.current[key];
       console.error("Answer failed", e);
     }
-  }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
+  }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync, applyState]);
 
   const handleTimeUp = useCallback(() => {
     const availableWeights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(w => !usedWagers.includes(w));
@@ -232,15 +231,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const nextIndex = currentIndex + 1;
     const nextStatus = nextIndex < questions.length ? "wager" : "final";
 
-    await updateRoomStatus(roomCode, nextStatus, nextIndex);
-    triggerSync();
-  }, [isLeader, currentIndex, questions.length, roomCode, triggerSync]);
+    const newState = await updateRoomStatus(roomCode, nextStatus, nextIndex);
+    applyState(newState);
+    triggerSync(newState);
+  }, [isLeader, currentIndex, questions.length, roomCode, triggerSync, applyState]);
 
   const handleStartGame = useCallback(async () => {
     if (questions.length === 0) return;
-    await updateRoomStatus(roomCode, "wager");
-    triggerSync();
-  }, [questions.length, roomCode, triggerSync]);
+    const newState = await updateRoomStatus(roomCode, "wager");
+    applyState(newState);
+    triggerSync(newState);
+  }, [questions.length, roomCode, triggerSync, applyState]);
 
   const handleJoin = useCallback(async () => {
     if (isLoading || !nickname.trim()) return;
@@ -250,16 +251,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       setMyPlayerId(player.id);
       localStorage.setItem("player_id", player.id);
       localStorage.setItem("player_name", nickname.trim());
-      await fetchData();
+      const state = await getRoomState(roomCode);
+      applyState(state);
       setIsJoining(false);
-      triggerSync();
+      triggerSync(state);
     } catch (err) {
       console.error("Join error:", err);
       showToast("Failed to join room. Please try again.");
     } finally {
       setIsLoading(false);
     }
-  }, [nickname, roomCode, fetchData, triggerSync]);
+  }, [nickname, roomCode, triggerSync, applyState, isLoading]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href);
@@ -279,21 +281,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     
     const initialFetch = async () => {
       setIsLoading(true);
-      const { room, players: p, allAnswers: a } = await getRoomState(roomCode);
+      const state = await getRoomState(roomCode);
+      const { room, players: p } = state;
       
       if (!room) {
           setIsLoading(false);
           return;
       }
 
-      setRoomLeaderId(room.leader_id);
-      setTopic(room.topic || "");
-      if (p) setPlayers(p);
-      if (room.questions) setQuestions(room.questions);
-      if (a) setAllRoomAnswers(a);
-      setRoomStatus(room.status as GameState);
-      setCurrentIndex(room.current_question_index);
-      currentIndexRef.current = room.current_question_index;
+      applyState(state);
 
       const isAlreadyInRoom = p?.some((player: Player) => player.id === savedId);
 
@@ -306,8 +302,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
              setMyPlayerId(player.id);
              localStorage.setItem("player_id", player.id);
              const state = await getRoomState(roomCode);
-             if (state.players) setPlayers(state.players);
-             triggerSync();
+             applyState(state);
+             triggerSync(state);
            } catch (e) {
              console.error("Auto-join failed", e);
              setIsJoining(true);
@@ -324,8 +320,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const channel = supabase.channel(`game:${roomCode}`, {
         config: { broadcast: { self: true } }
       })
-      .on("broadcast", { event: "STATE_UPDATED" }, () => {
-         fetchData();
+      .on("broadcast", { event: "STATE_UPDATED" }, ({ payload }) => {
+         if (payload.state) {
+           applyState(payload.state);
+         } else {
+           fetchData();
+         }
       })
       .subscribe();
 
@@ -335,7 +335,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       supabase.removeChannel(channel); 
       channelRef.current = null;
     };
-  }, [roomCode, supabase, fetchData, triggerSync]);
+  }, [roomCode, supabase, fetchData, triggerSync, applyState]);
 
   // 2. Polling Fallback (Eventual Consistency)
   useEffect(() => {
@@ -373,28 +373,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       return () => clearTimeout(timeout);
     }
   }, [timer, roomStatus, handleTimeUp]);
-
-  // 3. Leader-Only Transitions
-  useEffect(() => {
-    const checkCollectiveTransitions = async () => {
-      if (players.length === 0 || !isLeader || questions.length === 0 || !currentQuestion || isLoading) return;
-
-      if (roomStatus === "wager") {
-        const wagersCount = roundData.competitors.length;
-        if (wagersCount > 0 && wagersCount === players.length) {
-          await updateRoomStatus(roomCode, "question");
-          triggerSync();
-        }
-      } else if (roomStatus === "question") {
-        const answersCount = roundData.competitors.filter(a => a.submitted_answer !== "").length;
-        if (answersCount > 0 && answersCount === players.length) {
-          await updateRoomStatus(roomCode, "results");
-          triggerSync();
-        }
-      }
-    };
-    checkCollectiveTransitions();
-  }, [roundData.competitors, players.length, roomStatus, isLeader, roomCode, currentQuestion, isLoading, triggerSync, myPlayerId]);
 
   // 4. Automatic Timer for Next Round (Leader Only)
   useEffect(() => {
