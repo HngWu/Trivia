@@ -13,6 +13,7 @@ export default function Home() {
   const [showJoinInput, setShowJoinInput] = React.useState(false);
   const [toast, setToast] = React.useState<string | null>(null);
   const [topics, setTopics] = React.useState<any[]>([]);
+  const [isTopicsLoading, setIsTopicsLoading] = React.useState(true);
 
   React.useEffect(() => {
     const savedName = localStorage.getItem('player_name');
@@ -21,8 +22,12 @@ export default function Home() {
     }
 
     const fetchTopics = async () => {
-      const data = await getTopics();
-      setTopics(data);
+      try {
+        const data = await getTopics();
+        setTopics(data || []);
+      } finally {
+        setIsTopicsLoading(false);
+      }
     };
     fetchTopics();
   }, []);
@@ -142,31 +147,41 @@ export default function Home() {
         {!showJoinInput && (
           <section className={`w-full max-w-4xl mx-auto space-y-6 ${selectedTopic ? 'hidden md:block' : ''}`}>
             <h2 className="text-center text-xs font-black uppercase tracking-[0.4em] text-gray-500">Select Category</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {topics.map((topic) => (
-                <button
-                  key={topic.id}
-                  onClick={() => setSelectedTopic(topic.id)}
-                  className={`group relative p-4 sm:p-6 glass rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 border border-white/5 hover:border-white/20 ${
-                    selectedTopic === topic.id 
-                      ? 'border-white bg-white/10 scale-[1.02] shadow-[0_0_40px_rgba(255,255,255,0.1)]' 
-                      : 'hover:bg-white/5 opacity-80 hover:opacity-100'
-                  }`}
-                >
-                  {/* Selection Indicator */}
-                  {selectedTopic === topic.id && (
-                    <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]" />
-                  )}
-                  
-                  <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
-                  <span className="font-black uppercase tracking-[0.2em] text-xs text-white">{topic.name}</span>
-                  
-                  <div className="absolute inset-0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
-                  </div>
-                </button>
-              ))}
-            </div>
+            {isTopicsLoading ? (
+              <div className="flex justify-center py-12">
+                 <div className="h-8 w-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              </div>
+            ) : topics.length === 0 ? (
+              <div className="text-center py-12 glass rounded-[2rem] border-white/5">
+                <p className="text-gray-500 font-black uppercase tracking-widest text-[10px]">No topics found in database.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {topics.map((topic) => (
+                  <button
+                    key={topic.id}
+                    onClick={() => setSelectedTopic(topic.id)}
+                    className={`group relative p-4 sm:p-6 glass rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 border border-white/5 hover:border-white/20 ${
+                      selectedTopic === topic.id 
+                        ? 'border-white bg-white/10 scale-[1.02] shadow-[0_0_40px_rgba(255,255,255,0.1)]' 
+                        : 'hover:bg-white/5 opacity-80 hover:opacity-100'
+                    }`}
+                  >
+                    {/* Selection Indicator */}
+                    {selectedTopic === topic.id && (
+                      <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]" />
+                    )}
+                    
+                    <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
+                    <span className="font-black uppercase tracking-[0.2em] text-xs text-white">{topic.name}</span>
+                    
+                    <div className="absolute inset-0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
