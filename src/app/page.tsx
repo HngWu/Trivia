@@ -85,8 +85,22 @@ export default function Home() {
   const selectedTopicData = topics.find(t => t.id === selectedTopic);
 
   return (
-    <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-4 sm:p-8 page-transition overflow-y-auto">
+    <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-4 sm:p-8 page-transition overflow-y-auto relative">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      
+      {/* Admin Access Button */}
+      <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
+        <button 
+          onClick={() => window.location.href = '/admin'}
+          className="p-3 glass rounded-xl border-white/5 hover:border-white/20 transition-all group"
+          title="Admin Login"
+        >
+          <svg className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 21a10.003 10.003 0 008.384-4.51l.054.09m-4.283-9.958L17.163 2m-3.733 3.103c.181.013.362.019.544.019a10.003 10.003 0 008.384-4.51c.054.09.11.178.163.266m-12.115 1.5l-1.077 1.077a2 2 0 000 2.828l1.077 1.077m2.828 0l1.077-1.077a2 2 0 000-2.828l-1.077-1.077M9 10a1 1 0 112 0 1 1 0 01-2 0zm5 2a1 1 0 112 0 1 1 0 01-2 0z" />
+          </svg>
+        </button>
+      </div>
+
       <div className="max-w-4xl w-full space-y-12 relative z-10 py-12">
         <header className={`text-center space-y-4 ${selectedTopic ? 'hidden md:block' : ''}`}>
           <h1 className="text-6xl sm:text-8xl font-black tracking-tighter text-foreground uppercase italic animate-fade-in">

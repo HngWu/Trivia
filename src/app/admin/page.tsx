@@ -123,7 +123,10 @@ export default function AdminPage() {
       <header className="flex justify-between items-center max-w-6xl mx-auto">
         <h1 className="text-4xl font-black uppercase italic tracking-tighter">Control Center</h1>
         <button 
-          onClick={() => supabase.auth.signOut().then(() => setUser(null))}
+          onClick={() => supabase.auth.signOut().then(() => {
+            setUser(null);
+            window.location.href = "/";
+          })}
           className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 hover:text-white transition-colors"
         >
           Sign Out

@@ -382,14 +382,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       if (roomStatus === "wager") {
         const wagersCount = roundData.competitors.length;
         if (wagersCount > 0 && wagersCount === players.length) {
-          setRoomStatus("question");
           await updateRoomStatus(roomCode, "question");
           triggerSync();
         }
       } else if (roomStatus === "question") {
         const answersCount = roundData.competitors.filter(a => a.submitted_answer !== "").length;
         if (answersCount > 0 && answersCount === players.length) {
-          setRoomStatus("results");
           await updateRoomStatus(roomCode, "results");
           triggerSync();
         }
