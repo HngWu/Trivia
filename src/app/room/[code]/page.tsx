@@ -26,6 +26,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [roomLeaderId, setRoomLeaderId] = useState<string | null>(null);
   const [topic, setTopic] = useState("");
   const [textAnswer, setTextAnswer] = useState("");
+  const [statusUpdatedAt, setStatusUpdatedAt] = useState<number>(0);
 
   // --- UI STATE ---
   const [isJoining, setIsJoining] = useState(false);
@@ -131,13 +132,13 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     }
 
     if (room.current_question_index !== currentIndexRef.current) {
-      setTimer(60);
       setTextAnswer("");
       currentIndexRef.current = room.current_question_index;
       pendingSubmissionsRef.current = {};
     }
     setRoomStatus(room.status as GameState);
     setCurrentIndex(room.current_question_index);
+    setStatusUpdatedAt(room.status_updated_at || Date.now());
   }, [myPlayerId, isJoining]);
 
   const triggerSync = useCallback((data?: any) => {
@@ -352,29 +353,29 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   // 2. Polling Fallback (Eventual Consistency)
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isLoading && roomStatus !== "final") {
+      const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
+      if (!isLoading && roomStatus !== "final" && timeSinceLastSync > 3000) {
         fetchData();
       }
     }, 5000);
     return () => clearInterval(interval);
   }, [isLoading, roomStatus, fetchData]);
 
-  // 3. Timer Logic
+  // 3. Server-Authoritative Timer Logic
   useEffect(() => {
-    if (roomStatus === "waiting" || roomStatus === "final" || isLoading) return;
+    if (roomStatus === "waiting" || roomStatus === "final" || isLoading || !statusUpdatedAt) return;
 
-    const interval = setInterval(() => {
-      setTimer(prev => {
-        if (prev <= 0) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const updateTimer = () => {
+      const elapsed = Math.floor((Date.now() - statusUpdatedAt) / 1000);
+      const remaining = Math.max(0, 60 - elapsed);
+      setTimer(remaining);
+    };
+
+    updateTimer(); // Run immediately
+    const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [roomStatus, isLoading, currentIndex]);
+  }, [roomStatus, isLoading, currentIndex, statusUpdatedAt]);
 
   // Handle Time Up separately from timer decrement to avoid side-effects in setState
   useEffect(() => {

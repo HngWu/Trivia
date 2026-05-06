@@ -74,6 +74,7 @@ export async function createRoom(topic: string, leaderName: string) {
     current_question_index: 0,
     leader_id: player.id, 
     questions: finalQuestions,
+    status_updated_at: Date.now()
   };
   
   await redis.set(`room:${code}`, roomData, { ex: ROOM_TTL });
@@ -111,6 +112,7 @@ export async function updateRoomStatus(code: string, status: string, index?: num
   if (!room) throw new Error("Room not found");
   
   room.status = status;
+  room.status_updated_at = Date.now();
   if (index !== undefined) room.current_question_index = index;
   
   await redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL });
@@ -135,8 +137,8 @@ export async function submitWager(code: string, playerId: string, questionId: st
     const qAnswers = state.allAnswers.filter(a => a.question_id === questionId);
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
        state.room.status = "question";
+       state.room.status_updated_at = Date.now();
        await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
-       // Re-fetch to get the state with updated room status
        return await getFullState(normalizedCode);
     }
   }
@@ -179,8 +181,8 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
     const qAnswers = state.allAnswers.filter(a => a.question_id === questionId && a.submitted_answer !== "");
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
        state.room.status = "results";
+       state.room.status_updated_at = Date.now();
        await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
-       // Re-fetch to get the state with updated room status
        return await getFullState(normalizedCode);
     }
   }

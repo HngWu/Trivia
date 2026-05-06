@@ -32,4 +32,5 @@ export type Room = {
   current_question_index: number;
   leader_id: string;
   questions: Question[];
+  status_updated_at?: number;
 };
