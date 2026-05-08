@@ -17,7 +17,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   // --- CORE SYSTEM STATE ---
   const [roomStatus, setRoomStatus] = useState<GameState>("waiting");
   const [displayStatus, setDisplayStatus] = useState<GameState>("waiting");
-  const scheduledUpdateRef = useRef<NodeJS.Timeout | null>(null);
+  const scheduledUpdateRef = useRef<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -35,6 +35,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [nickname, setNickname] = useState("");
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Cleanup for scheduled updates
+  useEffect(() => {
+    return () => {
+      if (scheduledUpdateRef.current !== null) {
+        cancelAnimationFrame(scheduledUpdateRef.current);
+      }
+    };
+  }, []);
 
   // Pre-fill nickname from localStorage
   useEffect(() => {
@@ -142,17 +151,26 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     setCurrentIndex(room.current_question_index);
     setStatusUpdatedAt(room.status_updated_at || Date.now());
 
-    // Task 2: Client-Side Scheduled State
-    if (scheduledUpdateRef.current) {
-      clearTimeout(scheduledUpdateRef.current);
+    // Task 1: High-Precision Sync Loop
+    if (scheduledUpdateRef.current !== null) {
+      cancelAnimationFrame(scheduledUpdateRef.current);
+      scheduledUpdateRef.current = null;
     }
-    const delay = Math.max(0, (room.status_updated_at || Date.now()) - Date.now());
-    if (delay === 0) {
+
+    const targetTime = room.status_updated_at || Date.now();
+    
+    if (Date.now() >= targetTime) {
       setDisplayStatus(room.status as GameState);
     } else {
-      scheduledUpdateRef.current = setTimeout(() => {
-        setDisplayStatus(room.status as GameState);
-      }, delay);
+      const syncLoop = () => {
+        if (Date.now() >= targetTime) {
+          setDisplayStatus(room.status as GameState);
+          scheduledUpdateRef.current = null;
+        } else {
+          scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
+        }
+      };
+      scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
     }
   }, [myPlayerId, isJoining]);
 
