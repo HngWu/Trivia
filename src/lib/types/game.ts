@@ -28,9 +28,10 @@ export type GameState = "waiting" | "wager" | "question" | "results" | "final";
 export type Room = {
   code: string;
   topic: string;
-  status: string;
+  status: GameState;
   current_question_index: number;
   leader_id: string;
   questions: Question[];
   status_updated_at?: number;
+  version: number;
 };

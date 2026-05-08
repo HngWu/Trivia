@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use, useMemo, useRef, useCallback } from "react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, kickPlayer } from "@/lib/actions";
+import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, kickPlayer, getServerTime } from "@/lib/actions";
 import { Player, Question, Answer, GameState } from "@/lib/types/game";
 import Toast from "@/components/Toast";
 import { validateAnswer } from "@/lib/validation";
@@ -30,12 +30,16 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [topic, setTopic] = useState("");
   const [textAnswer, setTextAnswer] = useState("");
   const [statusUpdatedAt, setStatusUpdatedAt] = useState<number>(0);
+  const [serverOffset, setServerOffset] = useState(0);
 
   // --- UI STATE ---
   const [isJoining, setIsJoining] = useState(false);
   const [nickname, setNickname] = useState("");
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // --- REFS ---
+  const currentVersionRef = useRef(0);
 
   // Cleanup for scheduled updates
   useEffect(() => {
@@ -52,6 +56,23 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (savedName) setNickname(savedName);
   }, []);
 
+  // Task 2: NTP-Lite Clock Synchronization
+  useEffect(() => {
+    const syncClock = async () => {
+      try {
+        const start = Date.now();
+        const serverNow = await getServerTime();
+        const end = Date.now();
+        const latency = (end - start) / 2;
+        const offset = serverNow - (start + latency);
+        setServerOffset(offset);
+      } catch (e) {
+        console.error("Clock sync failed", e);
+      }
+    };
+    syncClock();
+  }, []);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => {
@@ -63,6 +84,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const currentQuestion = useMemo(() => questions[currentIndex], [questions, currentIndex]);
   
   const myPlayer = useMemo(() => players.find(p => p.id === myPlayerId), [players, myPlayerId]);
+  
+  const isLocked = useMemo(() => roomStatus !== displayStatus, [roomStatus, displayStatus]);
   
   const isLeader = useMemo(() => {
     const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
@@ -103,6 +126,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const { room, players: p, allAnswers: a } = state;
     if (!room) return;
 
+    // Task 2: Version Guard
+    if (room.version && room.version <= currentVersionRef.current) {
+      return;
+    }
+    currentVersionRef.current = room.version || 0;
+
     lastSyncTimeRef.current = Date.now();
 
     // Check if I'm still in the player list - only if I have joined this specific room session
@@ -141,7 +170,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     }
     setRoomStatus(room.status as GameState);
     setCurrentIndex(room.current_question_index);
-    setStatusUpdatedAt(room.status_updated_at || Date.now());
+    setStatusUpdatedAt(room.status_updated_at || (Date.now() + serverOffset));
 
     // Task 1: High-Precision Sync Loop
     if (scheduledUpdateRef.current !== null) {
@@ -149,13 +178,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       scheduledUpdateRef.current = null;
     }
 
-    const targetTime = room.status_updated_at || Date.now();
+    const targetTime = room.status_updated_at || (Date.now() + serverOffset);
+    const now = Date.now() + serverOffset;
     
-    if (Date.now() >= targetTime) {
+    if (now >= targetTime) {
       setDisplayStatus(room.status as GameState);
     } else {
       const syncLoop = () => {
-        if (Date.now() >= targetTime) {
+        const currentTime = Date.now() + serverOffset;
+        if (currentTime >= targetTime) {
           setDisplayStatus(room.status as GameState);
           scheduledUpdateRef.current = null;
         } else {
@@ -164,7 +195,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       };
       scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
     }
-  }, [myPlayerId, isJoining]);
+  }, [myPlayerId, isJoining, serverOffset]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -308,12 +339,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, []);
 
   // 1. Initial Load & Subscriptions
-  const initializedRef = useRef(false);
-
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
     const savedId = localStorage.getItem("player_id");
     const savedName = localStorage.getItem("player_name");
     
@@ -400,7 +426,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (roomStatus === "waiting" || roomStatus === "final" || isLoading || !statusUpdatedAt) return;
 
     const updateTimer = () => {
-      const elapsed = Math.floor((Date.now() - statusUpdatedAt) / 1000);
+      const now = Date.now() + serverOffset;
+      const elapsed = Math.floor((now - statusUpdatedAt) / 1000);
       const remaining = Math.max(0, 60 - elapsed);
       setTimer(remaining);
     };
@@ -409,7 +436,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [roomStatus, isLoading, currentIndex, statusUpdatedAt]);
+  }, [roomStatus, isLoading, currentIndex, statusUpdatedAt, serverOffset]);
 
   // Handle Time Up separately from timer decrement to avoid side-effects in setState
   useEffect(() => {
@@ -525,6 +552,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           statusUpdatedAt={statusUpdatedAt}
           displayStatus={displayStatus}
           timer={timer}
+          serverOffset={serverOffset}
+          isLocked={isLocked}
         />
 
         {/* Phase: Lobby */}
@@ -557,8 +586,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         <span className="font-black italic text-lg sm:text-xl uppercase tracking-tight">{p.id === roomLeaderId ? "● " : ""}{p.name}</span>
                         {isLeader && p.id !== myPlayerId && (
                           <button 
+                            disabled={isLocked}
                             onClick={() => handleKick(p.id)}
-                            className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors"
+                            className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                           >
                             Kick
                           </button>
@@ -574,9 +604,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               <div className="w-full flex flex-col items-center space-y-4">
                 {isLeader ? (
                   <button 
-                    disabled={questions.length === 0} 
+                    disabled={questions.length === 0 || isLocked} 
                     onClick={handleStartGame} 
-                    className="w-full max-w-md bg-gray-400 text-black hover:bg-white disabled:opacity-20 py-6 sm:py-8 rounded-2xl sm:rounded-[2rem] font-black text-2xl sm:text-3xl shadow-[0_0_40px_rgba(255,255,255,0.03)] transition-all active:scale-95 uppercase tracking-[0.3em] italic"
+                    className="w-full max-w-md bg-gray-400 text-black hover:bg-white disabled:opacity-20 disabled:cursor-not-allowed py-6 sm:py-8 rounded-2xl sm:rounded-[2rem] font-black text-2xl sm:text-3xl shadow-[0_0_40px_rgba(255,255,255,0.03)] transition-all active:scale-95 uppercase tracking-[0.3em] italic"
                   >
                     {questions.length === 0 ? "Loading..." : "Start Battle"}
                   </button>
@@ -626,10 +656,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 return (
                   <button 
                     key={weight} 
-                    disabled={isUsed} 
+                    disabled={isUsed || isLocked} 
                     onClick={() => handleSelectWager(weight)} 
                     className={`h-24 sm:h-44 rounded-2xl sm:rounded-3xl font-black text-5xl sm:text-7xl transition-all border-2 relative overflow-hidden group ${
-                      isUsed 
+                      isUsed || isLocked
                       ? "bg-transparent border-white/5 text-gray-900 cursor-not-allowed" 
                       : "glass hover:bg-white hover:text-black hover:border-white shadow-2xl active:scale-95"
                     }`}
@@ -679,8 +709,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                     {currentQuestion?.type === "multiple_choice" && currentQuestion.options?.map((option, i) => (
                       <button 
                         key={i} 
+                        disabled={isLocked}
                         onClick={() => handleSubmitAnswer(option)} 
-                        className="p-8 rounded-[2rem] text-left border-2 border-white/5 bg-white/5 transition-all font-black text-xl hover:bg-white hover:text-black hover:border-white active:scale-95 group"
+                        className="p-8 rounded-[2rem] text-left border-2 border-white/5 bg-white/5 transition-all font-black text-xl hover:bg-white hover:text-black hover:border-white active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-white disabled:hover:border-white/5"
                       >
                         <span className="mr-4 opacity-20 font-black text-2xl group-hover:opacity-100 transition-opacity">{String.fromCharCode(65 + i)}</span> 
                         {option}
@@ -689,9 +720,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                     {currentQuestion?.type === "boolean" && ["True", "False"].map(val => (
                       <button 
                         key={val} 
-                        // eslint-disable-next-line react-hooks/refs
+                        disabled={isLocked}
                         onClick={() => handleSubmitAnswer(val)} 
-                        className="p-12 rounded-[2.5rem] font-black text-3xl border-2 border-white/5 bg-white/5 transition-all hover:bg-white hover:text-black active:scale-95 tracking-tighter"
+                        className="p-12 rounded-[2.5rem] font-black text-3xl border-2 border-white/5 bg-white/5 transition-all hover:bg-white hover:text-black active:scale-95 tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-white"
                       >
                         {val}
                       </button>
@@ -701,15 +732,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         <input 
                           type="text" 
                           autoFocus 
+                          disabled={isLocked}
                           value={textAnswer}
                           onChange={(e) => setTextAnswer(e.target.value)}
                           placeholder="Type your answer..." 
                           onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer(textAnswer)} 
-                          className="flex-1 w-full py-5 sm:py-4 glass-input rounded-xl px-6 text-lg focus:ring-0 transition-all font-black italic tracking-tighter placeholder:text-gray-500 leading-none" 
+                          className="flex-1 w-full py-5 sm:py-4 glass-input rounded-xl px-6 text-lg focus:ring-0 transition-all font-black italic tracking-tighter placeholder:text-gray-500 leading-none disabled:opacity-50 disabled:cursor-not-allowed" 
                         />
                         <button 
                           onClick={() => handleSubmitAnswer(textAnswer)}
-                          className="w-full sm:w-auto py-5 sm:py-4 px-8 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 whitespace-nowrap border border-transparent leading-none"
+                          disabled={isLocked}
+                          className="w-full sm:w-auto py-5 sm:py-4 px-8 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 whitespace-nowrap border border-transparent leading-none disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-black"
                         >
                           Submit Answer
                         </button>
@@ -802,8 +835,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                                   </span>
                                   {isLeader && !isMe && (
                                     <button 
+                                      disabled={isLocked}
                                       onClick={() => handleKick(p.id)}
-                                      className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors"
+                                      className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                                     >
                                       Kick
                                     </button>
@@ -863,8 +897,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                                 </span>
                                 {isLeader && !isMe && (
                                   <button 
+                                    disabled={isLocked}
                                     onClick={() => handleKick(p.id)}
-                                    className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors"
+                                    className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                                   >
                                     Kick
                                   </button>

@@ -5,7 +5,11 @@ import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer } from "./types/game";
 import { validateAnswer } from "./validation";
 
-const SYNC_BUFFER_MS = 500;
+const SYNC_BUFFER_MS = 1500;
+
+export async function getServerTime() {
+  return Date.now();
+}
 
 // Helper for consistent state retrieval
 async function getFullState(code: string) {
@@ -20,6 +24,13 @@ async function getFullState(code: string) {
   const allAnswers: Answer[] = answersMap ? Object.values(answersMap).map(a => typeof a === "string" ? JSON.parse(a) : a) : [];
   
   return { room, players, allAnswers };
+}
+
+// Internal helper for consistent room state transitions
+function advanceRoomState(room: Room, updates: Partial<Room>) {
+  Object.assign(room, updates);
+  room.version = (room.version || 0) + 1;
+  room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
 }
 
 export async function createRoom(topic: string, leaderName: string) {
@@ -76,7 +87,8 @@ export async function createRoom(topic: string, leaderName: string) {
     current_question_index: 0,
     leader_id: player.id, 
     questions: finalQuestions,
-    status_updated_at: Date.now()
+    status_updated_at: Date.now(),
+    version: 1
   };
   
   await redis.set(`room:${code}`, roomData, { ex: ROOM_TTL });
@@ -108,14 +120,15 @@ export async function getRoomState(code: string) {
   return await getFullState(code);
 }
 
-export async function updateRoomStatus(code: string, status: string, index?: number) {
+export async function updateRoomStatus(code: string, status: GameState, index?: number) {
   const normalizedCode = code.toUpperCase();
   const room = await redis.get<Room>(`room:${normalizedCode}`);
   if (!room) throw new Error("Room not found");
   
-  room.status = status;
-  room.status_updated_at = Date.now() + SYNC_BUFFER_MS; // Buffer for sync
-  if (index !== undefined) room.current_question_index = index;
+  advanceRoomState(room, { 
+    status, 
+    ...(index !== undefined && { current_question_index: index })
+  });
   
   await redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL });
   return await getFullState(normalizedCode);
@@ -138,8 +151,7 @@ export async function submitWager(code: string, playerId: string, questionId: st
   if (state.room && state.room.status === "wager") {
     const qAnswers = state.allAnswers.filter(a => a.question_id === questionId);
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
-       state.room.status = "question";
-       state.room.status_updated_at = Date.now() + SYNC_BUFFER_MS; // Buffer for sync
+       advanceRoomState(state.room, { status: "question" });
        await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
        return await getFullState(normalizedCode);
     }
@@ -182,8 +194,7 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
   if (state.room && state.room.status === "question") {
     const qAnswers = state.allAnswers.filter(a => a.question_id === questionId && a.submitted_answer !== "");
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
-       state.room.status = "results";
-       state.room.status_updated_at = Date.now() + SYNC_BUFFER_MS; // Buffer for sync
+       advanceRoomState(state.room, { status: "results" });
        await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
        return await getFullState(normalizedCode);
     }
