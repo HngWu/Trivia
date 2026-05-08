@@ -1,6 +1,6 @@
 -- supabase/migrations/0004_add_wild_rift.sql
 
-INSERT INTO filler_questions (topic, summary, text, type, options, correct_answer, explanation) VALUES
+`INSERT INTO filler_questions (topic, summary, text, type, options, correct_answer, explanation) VALUES
 ('wild rift', 'Champions', 'Which champion has the ultimate ability "Enchanted Crystal Arrow"?', 'multiple_choice', '["Ezreal", "Ashe", "Jinx", "Draven"]', 'Ashe', 'Ashe fires a giant ice arrow that stuns the first enemy hit.'),
 ('wild rift', 'Items', 'Which item provides the "Stasis" active effect?', 'multiple_choice', '["Guardian Angel", "Zhonya''s Lace", "Quicksilver Enchant", "Stasis Enchant"]', 'Stasis Enchant', 'Stasis Enchant makes the user untargetable and invulnerable for 2.5 seconds.'),
 ('wild rift', 'Objectives', 'The Elder Dragon spawn provides a permanent buff.', 'boolean', NULL, 'False', 'Elder Dragon buff is temporary and provides a burn and execute effect.'),

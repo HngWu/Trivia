@@ -7,6 +7,7 @@ import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, ki
 import { Player, Question, Answer, GameState } from "@/lib/types/game";
 import Toast from "@/components/Toast";
 import { validateAnswer } from "@/lib/validation";
+import FluidTimer from "./FluidTimer";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const unwrappedParams = use(params);
@@ -98,15 +99,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const pendingSubmissionsRef = useRef<Record<string, Answer>>({});
   const lastSyncTimeRef = useRef(0);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const state = await getRoomState(roomCode);
-      applyState(state);
-    } catch (err) {
-      console.error("Sync error:", err);
-    }
-  }, [roomCode]);
-
   const applyState = useCallback((state: any) => {
     const { room, players: p, allAnswers: a } = state;
     if (!room) return;
@@ -173,6 +165,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
     }
   }, [myPlayerId, isJoining]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const state = await getRoomState(roomCode);
+      applyState(state);
+    } catch (err) {
+      console.error("Sync error:", err);
+    }
+  }, [roomCode, applyState]);
 
   const triggerSync = useCallback((data?: any) => {
     if (channelRef.current) {
@@ -507,6 +508,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                <span>Round {currentIndex + 1}</span>
                <span className="w-1 h-1 rounded-full bg-white/20"></span>
                <span>{topic || "General Trivia"}</span>
+               {roomStatus !== displayStatus && (
+                 <>
+                   <span className="w-1 h-1 rounded-full bg-white/20"></span>
+                   <span className="text-white animate-pulse">Finalizing...</span>
+                 </>
+               )}
             </div>
             <h2 className="text-4xl sm:text-7xl font-black uppercase italic tracking-tighter">
                {currentQuestion?.summary || "Get Ready"}
@@ -514,38 +521,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           </header>
         )}
 
-        {/* Global Timer Overlay */}
-        {displayStatus !== "waiting" && displayStatus !== "final" && (
-          <div className="fixed bottom-12 right-12 z-40 flex items-center justify-center animate-fade-in">
-            <div className="relative w-20 h-20 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  stroke="rgba(255,255,255,0.05)"
-                  strokeWidth="8"
-                  fill="transparent"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  stroke={timer < 10 ? "#ef4444" : "white"}
-                  strokeWidth="8"
-                  fill="transparent"
-                  strokeDasharray="251.2"
-                  strokeDashoffset={251.2 - (251.2 * timer) / 60}
-                  strokeLinecap="round"
-                  className="transition-all duration-1000 linear"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className={`w-2 h-2 rounded-full transition-all duration-500 ${timer < 10 ? "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] scale-150" : "bg-white/40"}`} />
-              </div>
-            </div>
-          </div>
-        )}
+        <FluidTimer 
+          statusUpdatedAt={statusUpdatedAt}
+          displayStatus={displayStatus}
+          timer={timer}
+        />
 
         {/* Phase: Lobby */}
         {displayStatus === "waiting" && (
