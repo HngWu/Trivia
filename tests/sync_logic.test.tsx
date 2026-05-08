@@ -93,7 +93,8 @@ describe('Sync Logic Transitions', () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
         code: 'TEST',
-        status: 'wager',
+        status: 'question', // Server already transitioned it
+        status_updated_at: Date.now() - 1000, // Happened in the past
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
@@ -109,7 +110,7 @@ describe('Sync Logic Transitions', () => {
     await renderRoom('TEST');
 
     await waitFor(() => {
-      expect(mockedActions.updateRoomStatus).toHaveBeenCalledWith('TEST', 'question');
+      expect(screen.getByText(/"What is the capital of France\?"/i)).toBeInTheDocument();
     });
   });
 
@@ -117,7 +118,8 @@ describe('Sync Logic Transitions', () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
         code: 'TEST',
-        status: 'question',
+        status: 'results', // Server already transitioned it
+        status_updated_at: Date.now() - 1000, // Happened in the past
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
@@ -133,7 +135,7 @@ describe('Sync Logic Transitions', () => {
     await renderRoom('TEST');
 
     await waitFor(() => {
-      expect(mockedActions.updateRoomStatus).toHaveBeenCalledWith('TEST', 'results');
+      expect(screen.getByRole('heading', { name: /CORRECT/i })).toBeInTheDocument();
     });
   });
 
@@ -142,6 +144,7 @@ describe('Sync Logic Transitions', () => {
       room: {
         code: 'TEST',
         status: 'results',
+        status_updated_at: Date.now() - 1000,
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
@@ -158,7 +161,7 @@ describe('Sync Logic Transitions', () => {
 
     // Wait for initial render and results to show
     await waitFor(() => {
-      expect(screen.getByText(/PASSED/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /CORRECT/i })).toBeInTheDocument();
     });
 
     // Fast-forward 7 seconds

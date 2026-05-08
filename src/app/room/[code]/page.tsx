@@ -451,7 +451,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       {/* Navigation */}
-      <nav className="glass sticky top-0 z-50 px-6 py-4 flex justify-between items-center border-x-0 border-t-0 rounded-none backdrop-blur-3xl">
+      <nav className="glass sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center border-x-0 border-t-0 rounded-none backdrop-blur-3xl">
         <div className="flex items-center space-x-8">
           <button onClick={() => window.location.href = "/"} className="text-gray-500 hover:text-white transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
@@ -479,11 +479,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       </nav>
 
       {/* Main Content Area */}
-      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-4 sm:p-12 max-w-6xl mx-auto w-full relative">
+      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-12 max-w-6xl mx-auto w-full relative">
+
         
         {/* Context Header */}
         {displayStatus !== "waiting" && displayStatus !== "final" && (
-          <header className="w-full text-center space-y-4 mb-8 sm:mb-16 animate-fade-in">
+          <header className="w-full text-center space-y-4 mb-6 sm:mb-12 animate-fade-in">
             <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-500">
                <span>Round {currentIndex + 1}</span>
                <span className="w-1 h-1 rounded-full bg-white/20"></span>
@@ -676,7 +677,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                 </h2>
 
                 {!roundData.answer ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     {currentQuestion?.type === "multiple_choice" && currentQuestion.options?.map((option, i) => (
                       <button 
                         key={i} 
@@ -734,10 +735,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         {/* Phase 3: Results */}
         {displayStatus === "results" && roundData.results && (
-          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-8 sm:py-12">
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-4 sm:py-12">
             <div className="text-center space-y-12 sm:space-y-16 w-full">
-              <h2 className={`text-5xl sm:text-[10rem] font-black italic tracking-tighter leading-none transition-all drop-shadow-[0_0_80px_rgba(255,255,255,0.1)] ${roundData.results.correct ? "text-white scale-105" : "text-gray-800"}`}>
-                {roundData.results.correct ? "PASSED" : "FAILED"}
+              <h2 className={`text-5xl sm:text-8xl font-black italic tracking-tighter leading-none transition-all drop-shadow-[0_0_80px_rgba(255,255,255,0.1)] ${roundData.results.correct ? "text-white scale-105" : "text-gray-800"}`}>
+                {roundData.results.correct ? "CORRECT" : "WRONG"}
               </h2>
               
               <div className="glass p-8 sm:p-20 rounded-[2.5rem] sm:rounded-[4rem] max-w-4xl mx-auto shadow-2xl space-y-8 sm:space-y-12 relative border-white/10 overflow-hidden">
@@ -854,8 +855,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                       const isMe = p.id === myPlayerId;
                       
                       return (
-                        <div key={p.id} className={`glass p-5 rounded-2xl border-white/5 flex flex-col gap-4 ${isMe ? "border-white/20 bg-white/5" : ""}`}>
+                        <div key={p.id} className={`glass p-4 rounded-xl border-white/5 flex flex-col gap-3 ${isMe ? "border-white/20 bg-white/5" : ""}`}>
                           <div className="flex justify-between items-start">
+
                             <div className="flex flex-col">
                               <div className="flex items-center gap-3">
                                 <span className={`font-black italic uppercase tracking-tight text-lg ${isMe ? "text-white" : "text-gray-400"}`}>
@@ -882,7 +884,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                               </div>
                             )}
                           </div>
-                          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/5">
+                          <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-white/5">
                             <div>
                                <p className="text-[8px] font-black uppercase text-gray-600 tracking-widest mb-1">Answer</p>
                                <p className={`font-bold text-xl  uppercase truncate ${submission?.submitted_answer ? "text-gray-300" : "text-gray-700 italic"}`}>

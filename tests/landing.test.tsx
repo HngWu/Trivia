@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import React from 'react';
 
@@ -21,24 +21,35 @@ jest.mock('../src/lib/gemini', () => ({
 jest.mock('../src/lib/actions', () => ({
   createRoom: jest.fn(),
   joinRoom: jest.fn(),
+  getTopics: jest.fn().mockResolvedValue([
+    { id: 'history', name: 'History', icon: '📜', description: 'Past events', example_question: 'Who was the first president?' }
+  ]),
 }));
 
 import Home from '../src/app/page'
 
 describe('Landing Page', () => {
-  it('renders landing page with main actions', () => {
-    render(<Home />);
+  it('renders landing page with main actions', async () => {
+    await act(async () => {
+      render(<Home />);
+    });
     expect(screen.getByRole('button', { name: /Join a Battle/i })).toBeInTheDocument();
     expect(screen.getByText(/Select Category/i)).toBeInTheDocument();
   });
 
   it('displays topic selection and reveals create flow on click', async () => {
-    render(<Home />);
+    await act(async () => {
+      render(<Home />);
+    });
     
-    expect(screen.getByText('History')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('History')).toBeInTheDocument();
+    });
     
     // Click History category
-    fireEvent.click(screen.getByText('History'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('History'));
+    });
     
     // Now nickname and create button should appear
     expect(screen.getByPlaceholderText(/Enter Nickname/i)).toBeInTheDocument();
