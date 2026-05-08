@@ -16,6 +16,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   
   // --- CORE SYSTEM STATE ---
   const [roomStatus, setRoomStatus] = useState<GameState>("waiting");
+  const [displayStatus, setDisplayStatus] = useState<GameState>("waiting");
+  const scheduledUpdateRef = useRef<NodeJS.Timeout | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
@@ -139,6 +141,19 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     setRoomStatus(room.status as GameState);
     setCurrentIndex(room.current_question_index);
     setStatusUpdatedAt(room.status_updated_at || Date.now());
+
+    // Task 2: Client-Side Scheduled State
+    if (scheduledUpdateRef.current) {
+      clearTimeout(scheduledUpdateRef.current);
+    }
+    const delay = Math.max(0, (room.status_updated_at || Date.now()) - Date.now());
+    if (delay === 0) {
+      setDisplayStatus(room.status as GameState);
+    } else {
+      scheduledUpdateRef.current = setTimeout(() => {
+        setDisplayStatus(room.status as GameState);
+      }, delay);
+    }
   }, [myPlayerId, isJoining]);
 
   const triggerSync = useCallback((data?: any) => {
@@ -467,7 +482,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-4 sm:p-12 max-w-6xl mx-auto w-full relative">
         
         {/* Context Header */}
-        {roomStatus !== "waiting" && roomStatus !== "final" && (
+        {displayStatus !== "waiting" && displayStatus !== "final" && (
           <header className="w-full text-center space-y-4 mb-8 sm:mb-16 animate-fade-in">
             <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-500">
                <span>Round {currentIndex + 1}</span>
@@ -481,15 +496,40 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {/* Global Timer Overlay */}
-        {roomStatus !== "waiting" && roomStatus !== "final" && (
-          <div className={`fixed bottom-12 right-12 w-20 h-20 rounded-full border-2 flex flex-col items-center justify-center font-black transition-all z-40 glass backdrop-blur-xl ${timer < 10 ? "border-red-500 text-red-500 scale-110 shadow-[0_0_30px_rgba(239,68,68,0.2)]" : "border-white/20 text-white"}`}>
-            <span className="text-[10px] uppercase opacity-50 mb-[-4px]">Sec</span>
-            <span className="text-3xl tracking-tighter">{timer}</span>
+        {displayStatus !== "waiting" && displayStatus !== "final" && (
+          <div className="fixed bottom-12 right-12 z-40 flex items-center justify-center animate-fade-in">
+            <div className="relative w-20 h-20 flex items-center justify-center">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="rgba(255,255,255,0.05)"
+                  strokeWidth="8"
+                  fill="transparent"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke={timer < 10 ? "#ef4444" : "white"}
+                  strokeWidth="8"
+                  fill="transparent"
+                  strokeDasharray="251.2"
+                  strokeDashoffset={251.2 - (251.2 * timer) / 60}
+                  strokeLinecap="round"
+                  className="transition-all duration-1000 linear"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className={`w-2 h-2 rounded-full transition-all duration-500 ${timer < 10 ? "bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] scale-150" : "bg-white/40"}`} />
+              </div>
+            </div>
           </div>
         )}
 
         {/* Phase: Lobby */}
-        {roomStatus === "waiting" && (
+        {displayStatus === "waiting" && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-12">
             <div className="text-center space-y-4 mb-12">
               <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-600">
@@ -574,7 +614,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {/* Phase 1: Wager Selection */}
-        {roomStatus === "wager" && !roundData.wager && (
+        {displayStatus === "wager" && !roundData.wager && (
           <div className="w-full max-w-5xl space-y-12 sm:space-y-16 animate-slide-up text-center py-6 sm:py-8">
             <div className="space-y-2 sm:space-y-4">
               <p className="text-gray-500 font-black uppercase tracking-[0.6em] text-[9px] sm:text-[10px]">Pick Your Wager</p>
@@ -604,7 +644,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {/* Status: Wager Committed */}
-        {roomStatus === "wager" && !!roundData.wager && (
+        {displayStatus === "wager" && !!roundData.wager && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-12">
              <div className="text-center space-y-10">
                 <div className="inline-block px-12 py-6 glass border-white/20 rounded-[2rem] shadow-2xl">
@@ -626,7 +666,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {/* Phase 2: Answering */}
-        {roomStatus === "question" && (
+        {displayStatus === "question" && (
           <div className="w-full max-w-5xl space-y-12 animate-fade-in text-center py-8">
              <div className="glass p-10 sm:p-20 rounded-[4rem] shadow-2xl space-y-16 relative overflow-hidden border-white/10">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
@@ -693,7 +733,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {/* Phase 3: Results */}
-        {roomStatus === "results" && roundData.results && (
+        {displayStatus === "results" && roundData.results && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-8 sm:py-12">
             <div className="text-center space-y-12 sm:space-y-16 w-full">
               <h2 className={`text-5xl sm:text-[10rem] font-black italic tracking-tighter leading-none transition-all drop-shadow-[0_0_80px_rgba(255,255,255,0.1)] ${roundData.results.correct ? "text-white scale-105" : "text-gray-800"}`}>
@@ -871,7 +911,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {/* Phase: Final */}
-        {roomStatus === "final" && (
+        {displayStatus === "final" && (
           <div className="flex-1 flex flex-col items-center justify-center w-full animate-slide-up py-12">
             <h2 className="text-5xl sm:text-9xl font-black text-white uppercase italic tracking-tighter mb-12 sm:mb-16 drop-shadow-[0_0_100px_rgba(255,255,255,0.2)]">Final Leaderboard</h2>
             
