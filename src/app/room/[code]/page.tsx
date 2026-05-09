@@ -69,7 +69,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const isLocked = useMemo(() => roomStatus !== displayStatus, [roomStatus, displayStatus]);
   const isLeader = useMemo(() => {
     const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
-    return (myPlayer?.is_leader || (roomLeaderId && savedId === roomLeaderId));
+    return !!(myPlayer?.is_leader || (roomLeaderId && savedId === roomLeaderId));
   }, [myPlayer, roomLeaderId, myPlayerId]);
 
   const roundData = useMemo(() => {
