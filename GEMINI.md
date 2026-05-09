@@ -79,10 +79,19 @@ The game follows a strict phase-based sequence:
 5. **`final` (End):** Final leaderboard and standings.
 
 ### Database Schema
-Managed via Supabase migrations in `supabase/migrations/`:
-- `topics`: Metadata and information about different trivia categories.
-- `questions`: The main pool of high-quality questions (replaces `filler_questions`).
+Managed via consolidated migrations in `supabase/migrations/`:
+- `0001_schema.sql`: Table definitions for `topics` and `questions` with associated RLS policies.
+- `0002_data.sql`: Initial seed data including core topics and a large pool of high-quality questions.
 - *Note: Active game state (rooms, players, wagers) is managed entirely in Redis for performance and consistency.*
+
+### Project Structure
+The codebase follows a modular architecture for improved maintainability:
+- `src/app/`: Next.js App Router pages and layouts.
+- `src/components/home/`: Components for the landing page experience (Topic selection, Join Game).
+- `src/components/room/`: Components for the real-time game loop (Lobby, Wagers, Question, Results).
+- `src/components/admin/`: Tools for managing the trivia domain.
+- `src/components/shared/`: Globally reused UI elements (Toast, Background).
+- `src/lib/`: Core logic, including AI fallback, server actions, and fuzzy validation.
 
 ### AI Generation Strategy
 The application employs a resilient multi-model approach for generating trivia questions and custom topics:
