@@ -2,7 +2,7 @@
 
 import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
-import { Room, Player, Question, Answer } from "./types/game";
+import { Room, Player, Question, Answer, GameState } from "./types/game";
 import { validateAnswer } from "./validation";
 
 const SYNC_BUFFER_MS = 1500;
