@@ -1,62 +1,49 @@
 export type Database = {
   public: {
     Tables: {
-      rooms: {
+      topics: {
         Row: {
           id: string;
-          code: string;
-          status: string;
-          leader_id: string;
-          current_question_index: number;
-          topic: string;
+          name: string;
+          icon: string;
+          description: string | null;
+          example_question: string | null;
+          created_at: string;
         };
         Insert: {
-          id?: string;
-          code: string;
-          status?: string;
-          leader_id: string;
-          current_question_index?: number;
-          topic: string;
-        };
-        Update: Partial<Database['public']['Tables']['rooms']['Insert']>;
-      };
-      players: {
-        Row: {
           id: string;
-          room_id: string;
           name: string;
-          score: number;
-          available_weights: number[];
-          is_leader: boolean;
+          icon: string;
+          description?: string | null;
+          example_question?: string | null;
+          created_at?: string;
         };
-        Insert: Omit<Database['public']['Tables']['players']['Row'], 'id' | 'score' | 'available_weights'>;
-        Update: Partial<Database['public']['Tables']['players']['Row']>;
+        Update: Partial<Database['public']['Tables']['topics']['Insert']>;
       };
       questions: {
         Row: {
           id: string;
-          room_id: string;
+          topic: string;
           summary: string;
           text: string;
           type: 'text' | 'boolean' | 'multiple_choice';
           options: string[] | null;
           correct_answer: string;
-          explanation: string;
+          explanation: string | null;
+          created_at: string;
         };
-        Insert: Database['public']['Tables']['questions']['Row'];
-        Update: Partial<Database['public']['Tables']['questions']['Row']>;
-      };
-      answers: {
-        Row: {
-          id: string;
-          question_id: string;
-          player_id: string;
-          wager: number;
-          submitted_answer: string;
-          is_correct: boolean;
+        Insert: {
+          id?: string;
+          topic: string;
+          summary: string;
+          text: string;
+          type: 'text' | 'boolean' | 'multiple_choice';
+          options?: string[] | null;
+          correct_answer: string;
+          explanation?: string | null;
+          created_at?: string;
         };
-        Insert: Database['public']['Tables']['answers']['Row'];
-        Update: Partial<Database['public']['Tables']['answers']['Row']>;
+        Update: Partial<Database['public']['Tables']['questions']['Insert']>;
       };
     };
   };

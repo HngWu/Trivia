@@ -9,19 +9,18 @@ A high-stakes, real-time multiplayer trivia application built with Next.js, Gemi
 ## 🚀 Key Features
 
 - **Real-Time Multiplayer:** Instant synchronization between up to 10 players using Supabase Broadcast and Upstash Redis.
-- **AI-Powered Questions:** Dynamic trivia generation via Google Gemini AI based on any topic.
-- **Strategic Wagering:** Players pick point weights (1-10) for each round, adding a layer of strategy to the battle.
+- **Resilient AI Generation:** Dynamic trivia generation with a multi-model fallback strategy (Google Gemini → DeepSeek) for maximum reliability.
+- **Strategic Wagering:** Players pick point weights (1-10) for each round, adding a layer of strategy to the game.
 - **Fuzzy Answer Matching:** Intelligent verification that handles numerical ranges, dates (±1 year), and partial name matches.
-- **Modern Dark Refresh:** A sleek, high-contrast UI with glassmorphism effects and smooth animations.
-- **Mobile Optimized:** Responsive design with adaptive layouts and mobile-specific results views.
-- **Server-Authoritative:** Secure scoring and validation handled via Next.js Server Actions.
+- **Liquidglass UI System:** A premium, Apple-inspired aesthetic featuring deep blurs, muted contrast, and smooth fluid animations.
+- **Mobile-First Design:** Optimized for all devices with zero-zoom inputs, generous touch targets, and adaptive typography.
+- **Server-Authoritative:** Secure scoring and validation handled via authoritative Next.js Server Actions.
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Next.js 15 (App Router), TypeScript, Tailwind CSS 4, Framer Motion.
-- **AI:** Google Gemini SDK.
-- **Database:** Supabase (PostgreSQL + RLS).
-- **Cache/Sync:** Upstash Redis.
+- **Framework:** Next.js 16 (App Router), TypeScript, Tailwind CSS 4.
+- **AI Integration:** Google Gemini SDK & DeepSeek API.
+- **Infrastructure:** Upstash Redis (Active State) & Supabase (Persistence + RLS).
 - **Testing:** Jest & React Testing Library.
 
 ## 🏁 Getting Started

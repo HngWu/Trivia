@@ -80,11 +80,15 @@ The game follows a strict phase-based sequence:
 
 ### Database Schema
 Managed via Supabase migrations in `supabase/migrations/`:
-- `rooms`: Metadata and status.
-- `players`: Participant scores and identity.
-- `questions`: Specific questions for the active match.
-- `answers`: Player wagers and responses.
-- `filler_questions`: Seed data for offline/fallback mode.
+- `topics`: Metadata and information about different trivia categories.
+- `questions`: The main pool of high-quality questions (replaces `filler_questions`).
+- *Note: Active game state (rooms, players, wagers) is managed entirely in Redis for performance and consistency.*
+
+### AI Generation Strategy
+The application employs a resilient multi-model approach for generating trivia questions and custom topics:
+1. **Primary Provider:** Google Gemini (models like `gemini-2.0-flash`).
+2. **Fallback Provider:** DeepSeek (`deepseek-chat`). If Gemini fails due to rate limits or errors, the system automatically falls back to DeepSeek to ensure uninterrupted gameplay.
+3. **Database Fallback:** If all AI providers fail, the system selects from the pre-populated `questions` pool in the database.
 
 ### Testing Practices
 - **TDD:** New features should include a test case in `tests/`.

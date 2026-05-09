@@ -62,7 +62,7 @@ export default function Home() {
 
   const handleJoinRoom = async () => {
     if (isLoading || !nickname || !roomCode) {
-      showToast('Please enter both your name and a room code.');
+      showToast('Enter your name and the room code.');
       return;
     }
     
@@ -76,7 +76,7 @@ export default function Home() {
       window.location.href = `/room/${room.code}`;
     } catch (error) {
       console.error('Error joining room:', error);
-      showToast('Room not found or failed to join.');
+      showToast('Room not found or closed.');
     } finally {
       setIsLoading(false);
     }
@@ -85,50 +85,48 @@ export default function Home() {
   const selectedTopicData = topics.find(t => t.id === selectedTopic);
 
   return (
-    <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-4 sm:p-8 page-transition overflow-y-auto relative">
+    <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-4 sm:p-8 md:p-12 page-transition overflow-y-auto relative selection:bg-white/20">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       
-      {/* Admin Access Button */}
-      <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-50">
         <button 
           onClick={() => window.location.href = '/admin'}
-          className="p-3 glass rounded-xl border-white/5 hover:border-white/20 transition-all group"
-          title="Admin Login"
+          className="p-2 glass rounded-xl border-white/5 hover:border-white/20 transition-all group"
+          title="Admin Settings"
         >
-          <svg className="w-5 h-5 text-gray-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-500 group-hover:text-foreground transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 21a10.003 10.003 0 008.384-4.51l.054.09m-4.283-9.958L17.163 2m-3.733 3.103c.181.013.362.019.544.019a10.003 10.003 0 008.384-4.51c.054.09.11.178.163.266m-12.115 1.5l-1.077 1.077a2 2 0 000 2.828l1.077 1.077m2.828 0l1.077-1.077a2 2 0 000-2.828l-1.077-1.077M9 10a1 1 0 112 0 1 1 0 01-2 0zm5 2a1 1 0 112 0 1 1 0 01-2 0z" />
           </svg>
         </button>
       </div>
 
-      <div className="max-w-4xl w-full space-y-12 relative z-10 py-12">
-        <header className={`text-center space-y-4 ${selectedTopic ? 'hidden md:block' : ''}`}>
-          <h1 className="text-6xl sm:text-8xl font-black tracking-tighter text-foreground uppercase italic animate-fade-in">
-            Trivia<span className="text-gray-500 font-light not-italic">Duel</span>
+      <div className="max-w-4xl w-full space-y-8 sm:space-y-12 relative z-10 py-6 sm:py-10">
+        <header className={`text-center space-y-3 ${selectedTopic ? 'hidden lg:block' : ''}`}>
+          <h1 className="text-fluid-h1 font-bold tracking-tight text-foreground animate-fade-in">
+            Trivia<span className="text-gray-500 font-normal">Duel</span>
           </h1>
-          <p className="text-gray-500 font-medium tracking-[0.2em] uppercase text-[10px] sm:text-xs">
-            High-Stakes Real-Time Competition
+          <p className="text-gray-500 font-medium tracking-widest text-[9px] sm:text-xs">
+            Test your knowledge against friends
           </p>
         </header>
 
-        {/* Top Section: Join Battle */}
-        <section className={`w-full max-w-md mx-auto space-y-4 text-center ${selectedTopic ? 'hidden md:block' : ''}`}>
+        <section className={`w-full max-w-md mx-auto space-y-4 text-center ${selectedTopic ? 'hidden lg:block' : ''}`}>
           {!showJoinInput ? (
             <button 
               onClick={() => setShowJoinInput(true)}
-              className="glass-button px-12 py-4 rounded-2xl font-black uppercase tracking-widest text-lg hover:bg-white hover:text-black transition-all active:scale-95"
+              className="glass-button w-full px-10 py-4 rounded-2xl font-bold text-lg hover:bg-white hover:text-black transition-all"
             >
-              Join a Battle
+              Join a Game
             </button>
           ) : (
             <div className="space-y-4 animate-fade-in glass p-6 rounded-2xl">
-              <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex flex-col gap-3">
                 <input
                   type="text"
                   placeholder="Your Name"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full h-10 glass-input rounded-xl px-4 font-bold text-white placeholder:text-gray-700"
+                  className="w-full h-11 glass-input rounded-xl px-4 font-semibold text-base"
                 />
                 <div className="flex items-center gap-2 w-full">
                   <input
@@ -136,12 +134,12 @@ export default function Home() {
                     placeholder="Room Code"
                     value={roomCode}
                     onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                    className="flex-1 h-10 glass-input rounded-xl px-4 font-black tracking-widest placeholder:text-gray-700 uppercase"
+                    className="flex-1 h-11 glass-input rounded-xl px-4 font-bold tracking-widest uppercase text-base"
                   />
                   <button 
                     onClick={handleJoinRoom}
                     disabled={isLoading}
-                    className="h-10 glass-button px-6 rounded-xl font-black uppercase text-sm whitespace-nowrap"
+                    className="h-11 glass-button px-6 rounded-xl font-bold text-sm whitespace-nowrap bg-white/10"
                   >
                     Join
                   </button>
@@ -149,49 +147,35 @@ export default function Home() {
               </div>
               <button 
                 onClick={() => setShowJoinInput(false)}
-                className="text-[10px] uppercase font-black tracking-widest opacity-50 hover:opacity-100 transition-opacity"
+                className="text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground transition-colors"
               >
-                Back to Creation
+                Create a new game
               </button>
-            </div>
-          )}
-        </section>
-
-        {/* Middle Section: Category Grid */}
-        {!showJoinInput && (
-          <section className={`w-full max-w-4xl mx-auto space-y-6 ${selectedTopic ? 'hidden md:block' : ''}`}>
-            <h2 className="text-center text-xs font-black uppercase tracking-[0.4em] text-gray-500">Select Category</h2>
-            {isTopicsLoading ? (
-              <div className="flex justify-center py-12">
-                 <div className="h-8 w-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
               </div>
-            ) : topics.length === 0 ? (
-              <div className="text-center py-12 glass rounded-[2rem] border-white/5">
-                <p className="text-gray-500 font-black uppercase tracking-widest text-[10px]">No topics found in database.</p>
+              )}
+              </section>
+
+              {!showJoinInput && (
+              <section className={`w-full max-w-4xl mx-auto space-y-6 ${selectedTopic ? 'hidden lg:block' : ''}`}>
+              <h2 className="text-center text-[10px] font-bold tracking-[0.4em] text-gray-600">Select a topic</h2>
+            {isTopicsLoading ? (
+              <div className="flex justify-center py-10">
+                 <div className="h-8 w-8 border-2 border-white/10 border-t-white rounded-full animate-spin" />
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {topics.map((topic) => (
                   <button
                     key={topic.id}
                     onClick={() => setSelectedTopic(topic.id)}
-                    className={`group relative p-4 sm:p-6 glass rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all duration-300 border border-white/5 hover:border-white/20 ${
+                    className={`group relative p-5 glass rounded-[1.5rem] flex flex-col items-center justify-center gap-3 transition-all duration-300 border border-white/[0.02] ${
                       selectedTopic === topic.id 
-                        ? 'border-white bg-white/10 scale-[1.02] shadow-[0_0_40px_rgba(255,255,255,0.1)]' 
-                        : 'hover:bg-white/5 opacity-80 hover:opacity-100'
+                        ? 'border-white bg-white/10 scale-105 shadow-xl' 
+                        : 'hover:bg-white/[0.04] opacity-80 hover:opacity-100'
                     }`}
                   >
-                    {/* Selection Indicator */}
-                    {selectedTopic === topic.id && (
-                      <div className="absolute top-4 right-4 w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]" />
-                    )}
-                    
-                    <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
-                    <span className="font-black uppercase tracking-[0.2em] text-xs text-white">{topic.name}</span>
-                    
-                    <div className="absolute inset-0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
-                    </div>
+                    <span className="text-3xl sm:text-4xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
+                    <span className="font-bold text-[13px] text-foreground tracking-wide">{topic.name}</span>
                   </button>
                 ))}
               </div>
@@ -199,55 +183,54 @@ export default function Home() {
           </section>
         )}
 
-        {/* Bottom Section: Selection View (Dynamic) */}
         {!showJoinInput && selectedTopicData && (
-          <section className="glass w-full max-w-2xl mx-auto p-8 sm:p-10 rounded-[2.5rem] animate-slide-up space-y-8 border-white/20">
+          <section className="glass w-full max-w-2xl mx-auto p-6 sm:p-10 rounded-[2.5rem] animate-slide-up space-y-6 border-white/10 shadow-xl relative overflow-hidden">
             <button 
               onClick={() => setSelectedTopic('')}
-              className="md:hidden flex items-center gap-2 text-[10px] uppercase font-black tracking-widest opacity-50 hover:opacity-100 mb-2"
+              className="lg:hidden flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground mb-2 transition-colors"
             >
-              ← Back to Categories
+              ← Back to topics
             </button>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <span className="text-4xl">{selectedTopicData.icon}</span>
-                <h3 className="text-3xl font-black uppercase italic tracking-tighter text-white">{selectedTopicData.name}</h3>
+                <h3 className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight">{selectedTopicData.name}</h3>
               </div>
-              <p className="text-sm leading-relaxed font-medium">
+              <p className="text-sm font-medium text-gray-400 leading-snug">
                 {selectedTopicData.description}
               </p>
             </div>
 
-            <div className="p-6 bg-white/5 rounded-2xl border border-white/10 space-y-2">
-              <span className="text-[10px] uppercase font-black tracking-widest opacity-50 block">Example Question</span>
-              <p className="italic text-white font-medium text-lg leading-snug">
+            <div className="p-5 bg-white/[0.02] rounded-2xl border border-white/5 space-y-2">
+              <span className="text-[9px] font-bold tracking-[0.2em] text-gray-600 block">Example question</span>
+              <p className="italic text-foreground font-semibold text-base sm:text-lg leading-tight">
                 &quot;{selectedTopicData.example_question}&quot;
               </p>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 pt-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {selectedTopic === 'custom' && (
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 pl-1">Topic</label>
+                    <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1">Topic name</label>
                     <input
                       type="text"
-                      placeholder="Enter Topic (e.g. 80s Rock)"
+                      placeholder="e.g. 90s Music"
                       value={customTopic}
                       onChange={(e) => setCustomTopic(e.target.value)}
-                      className="w-full h-10 glass-input rounded-xl px-4 font-bold text-white placeholder:text-gray-700"
+                      className="w-full h-11 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
                     />
                   </div>
                 )}
                 <div className={`space-y-2 ${selectedTopic !== 'custom' ? 'sm:col-span-2' : ''}`}>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 pl-1">Your Name</label>
+                  <label className="text-[10px] font-bold tracking-widest text-gray-700 ml-1">Your name</label>
                   <input
                     type="text"
-                    placeholder="Enter Nickname"
+                    placeholder="Enter nickname"
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    className="w-full h-10 glass-input rounded-xl px-4 font-bold text-white placeholder:text-gray-700"
+                    className="w-full h-11 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
                   />
                 </div>
               </div>
@@ -255,17 +238,17 @@ export default function Home() {
               <button
                 disabled={!nickname || (selectedTopic === 'custom' && !customTopic) || isLoading}
                 onClick={handleCreateRoom}
-                className="w-full glass-button py-5 rounded-2xl font-black uppercase tracking-[0.2em] text-lg hover:bg-white hover:text-black disabled:opacity-20 active:scale-[0.98] transition-all"
+                className="w-full glass-button py-4 rounded-xl font-bold text-lg hover:bg-white hover:text-black transition-all bg-white/5"
               >
-                {isLoading ? 'Generating Battle...' : 'Create Battle'}
+                {isLoading ? 'Starting game...' : 'Create room'}
               </button>
             </div>
           </section>
         )}
 
         <footer className="text-center pt-8">
-          <p className="text-gray-600 text-[10px] font-black uppercase tracking-[1.5em] opacity-30">
-            Redis Distributed State Secure • Protocol v3.0
+          <p className="text-gray-700 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">
+            TriviaDuel • v4.1-GLASS
           </p>
         </footer>
       </div>

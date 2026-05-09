@@ -38,7 +38,7 @@ export async function createRoom(topic: string, leaderName: string) {
   const normalizedTopic = topic.toLowerCase();
   
   let { data: allQuestions } = await supabase
-    .from("filler_questions")
+    .from("questions")
     .select("*")
     .eq("topic", normalizedTopic);
     
@@ -100,9 +100,15 @@ export async function createRoom(topic: string, leaderName: string) {
 
 export async function joinRoom(code: string, playerName: string) {
   const normalizedCode = code.toUpperCase();
-  const room = await redis.get<Room>(`room:${normalizedCode}`);
+  const { room, players } = await getFullState(normalizedCode);
   
   if (!room) throw new Error("Room not found");
+  
+  // Prevent duplicate joins with same name
+  const existingPlayer = players.find(p => p.name.toLowerCase() === playerName.toLowerCase());
+  if (existingPlayer) {
+    return { room, player: existingPlayer };
+  }
   
   const player: Player = {
     id: crypto.randomUUID(),
@@ -111,7 +117,13 @@ export async function joinRoom(code: string, playerName: string) {
     is_leader: false,
   };
   
-  await redis.hset(`players:${normalizedCode}`, { [player.id]: JSON.stringify(player) });
+  // Increment room version to trigger UI sync
+  advanceRoomState(room, {});
+  
+  await Promise.all([
+    redis.hset(`players:${normalizedCode}`, { [player.id]: JSON.stringify(player) }),
+    redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL })
+  ]);
   
   return { room, player };
 }
@@ -152,9 +164,12 @@ export async function submitWager(code: string, playerId: string, questionId: st
     const qAnswers = state.allAnswers.filter(a => a.question_id === questionId);
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
        advanceRoomState(state.room, { status: "question" });
-       await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
-       return await getFullState(normalizedCode);
+    } else {
+       // Increment version even without state change to sync player counts
+       advanceRoomState(state.room, {});
     }
+    await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
+    return await getFullState(normalizedCode);
   }
   return state;
 }
@@ -195,16 +210,19 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
     const qAnswers = state.allAnswers.filter(a => a.question_id === questionId && a.submitted_answer !== "");
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
        advanceRoomState(state.room, { status: "results" });
-       await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
-       return await getFullState(normalizedCode);
+    } else {
+       // Increment version even without state change to sync player counts
+       advanceRoomState(state.room, {});
     }
+    await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
+    return await getFullState(normalizedCode);
   }
   return state;
 }
 
 export async function kickPlayer(roomCode: string, playerId: string, leaderId: string) {
   const normalizedCode = roomCode.toUpperCase();
-  const room = await redis.get<Room>(`room:${normalizedCode}`);
+  const { room } = await getFullState(normalizedCode);
   if (!room || room.leader_id !== leaderId) throw new Error("Unauthorized");
 
   await redis.hdel(`players:${normalizedCode}`, playerId);
@@ -217,6 +235,11 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
       }
     }
   }
+
+  // Increment room version to trigger UI sync for everyone (especially the kicked player)
+  advanceRoomState(room, {});
+  await redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL });
+
   return await getFullState(normalizedCode);
 }
 
@@ -235,11 +258,11 @@ export async function addTopic(topic: any) {
 export async function addQuestions(questions: any[]) {
   const supabase = await createClient();
   const texts = questions.map(q => q.text);
-  const { data: existing } = await supabase.from("filler_questions").select("text").in("text", texts);
+  const { data: existing } = await supabase.from("questions").select("text").in("text", texts);
   const existingTexts = new Set(existing?.map(e => e.text) || []);
   const newQuestions = questions.filter(q => !existingTexts.has(q.text));
   if (newQuestions.length === 0) return { count: 0, message: "Duplicates only." };
-  const { error } = await supabase.from("filler_questions").insert(newQuestions);
+  const { error } = await supabase.from("questions").insert(newQuestions);
   if (error) throw error;
   return { count: newQuestions.length, message: `Added ${newQuestions.length} questions.` };
 }

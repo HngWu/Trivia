@@ -32,11 +32,23 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [statusUpdatedAt, setStatusUpdatedAt] = useState<number>(0);
   const [serverOffset, setServerOffset] = useState(0);
 
+  // --- UI DISPLAY STATE (Delayed updates for smoothness) ---
+  const [displayedPlayers, setDisplayedPlayers] = useState<Player[]>([]);
+
   // --- UI STATE ---
   const [isJoining, setIsJoining] = useState(false);
   const [nickname, setNickname] = useState("");
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Sync displayedPlayers based on phase transitions
+  useEffect(() => {
+    // Always update displayedPlayers when in lobby or results to show latest scores/participants
+    if (displayStatus === "waiting" || displayStatus === "results" || displayStatus === "final" || displayedPlayers.length === 0) {
+      setDisplayedPlayers(players);
+    }
+    // During wager and question phases, we keep the previous scores in the navbar
+  }, [players, displayStatus, displayedPlayers.length]);
 
   // --- REFS ---
   const currentVersionRef = useRef(0);
@@ -94,10 +106,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   // All data for the CURRENT active round
   const roundData = useMemo(() => {
-    if (!currentQuestion) return { wager: null, answer: "", results: null as { correct: boolean; answer: string; explanation?: string; qId: string } | null, competitors: [] as Answer[] };
+    if (!currentQuestion) return { wager: null, answer: "", results: null as { correct: boolean; answer: string; explanation?: string; qId: string } | null, competitors: [] as Answer[], wagerCount: 0, answerCount: 0 };
 
     const qAnswers = allRoomAnswers.filter(a => a.question_id === currentQuestion.id);
     const myAns = qAnswers.find(a => a.player_id === myPlayerId);
+    
+    // Exact counts for the UI progress bars
+    const wagerCount = qAnswers.filter(a => a.wager > 0).length;
+    const answerCount = qAnswers.filter(a => a.submitted_answer !== "").length;
 
     return {
       wager: myAns?.wager || null,
@@ -108,7 +124,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         explanation: currentQuestion.explanation,
         qId: currentQuestion.id
       } : null,
-      competitors: qAnswers
+      competitors: qAnswers,
+      wagerCount,
+      answerCount
     };
   }, [allRoomAnswers, currentQuestion, myPlayerId, roomStatus]);
 
@@ -459,14 +477,16 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [roomStatus, isLeader, handleNextRound, questions.length]);
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  const displayedSortedPlayers = [...displayedPlayers].sort((a, b) => b.score - a.score);
+  const displayedMyPlayer = useMemo(() => displayedPlayers.find(p => p.id === myPlayerId), [displayedPlayers, myPlayerId]);
 
   if (isJoining) {
     return (
       <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-3xl flex items-center justify-center p-6">
         <div className="glass p-12 rounded-[3rem] w-full max-w-lg space-y-8 animate-slide-up border-white/10 shadow-2xl">
           <div className="text-center space-y-4">
-            <h2 className="text-5xl font-black uppercase italic tracking-tighter text-white">Enter Battle</h2>
-            <p className="text-gray-500 font-bold tracking-[0.3em] uppercase text-[10px]">Identify yourself to join</p>
+            <h2 className="text-5xl font-bold tracking-tight text-foreground">Enter game</h2>
+            <p className="text-gray-500 font-bold tracking-widest text-[10px]">Identify yourself to join</p>
           </div>
           <div className="space-y-6">
             <input 
@@ -476,14 +496,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               onChange={(e) => setNickname(e.target.value)}
               placeholder="Your Nickname" 
               onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-              className="w-full h-14 glass-input rounded-xl px-6 text-xl font-black italic uppercase tracking-tighter placeholder:text-gray-500 focus:border-white transition-all text-white" 
+              className="w-full h-14 glass-input rounded-xl px-6 text-xl font-semibold tracking-tight placeholder:text-gray-500 focus:border-white transition-all text-foreground" 
             />
             <button 
               onClick={handleJoin}
               disabled={!nickname.trim() || isLoading}
-              className="w-full h-14 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
+              className="w-full h-14 bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all active:scale-95 disabled:opacity-50"
             >
-              {isLoading ? "Joining..." : "Join Room"}
+              {isLoading ? "Joining..." : "Join room"}
             </button>
           </div>
         </div>
@@ -491,58 +511,59 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     );
   }
 
-  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-black uppercase tracking-widest animate-pulse text-center p-8 text-white">Loading Room...</div>;
+  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse text-center p-8 text-foreground">Loading room...</div>;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20">
+    <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20 overflow-y-auto">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      
       {/* Navigation */}
-      <nav className="glass sticky top-0 z-50 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center border-x-0 border-t-0 rounded-none backdrop-blur-3xl">
-        <div className="flex items-center space-x-8">
-          <button onClick={() => window.location.href = "/"} className="text-gray-500 hover:text-white transition-colors">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+      <nav className="glass sticky top-0 z-50 px-4 sm:px-8 py-3 sm:py-4 flex justify-between items-center border-x-0 border-t-0 rounded-none backdrop-blur-xl shadow-lg">
+        <div className="flex items-center space-x-6 sm:space-x-8">
+          <button onClick={() => window.location.href = "/"} className="text-foreground transition-all transform hover:scale-105">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           </button>
           <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-500">Your Score</span>
-            <span className="text-sm font-black uppercase italic tracking-tighter">{myPlayer?.score || 0}</span>
+            <span className="text-[9px] font-bold tracking-wider text-gray-600">Score</span>
+            <span className="text-xl font-bold tracking-tight text-foreground tabular-nums leading-none">{displayedMyPlayer?.score || 0}</span>
           </div>
         </div>
         
-        <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[50vw] sm:max-w-none">
-          {sortedPlayers.map((p, i) => (
-            <div key={p.id} className={`px-2 md:px-4 py-1.5 rounded-lg md:rounded-xl text-[8px] md:text-[10px] font-black uppercase border transition-all whitespace-nowrap ${p.id === myPlayerId ? "bg-white text-black border-white" : "border-white/10 text-gray-400"}`}>
+        <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[45vw] sm:max-w-none px-2">
+          {displayedSortedPlayers.map((p, i) => (
+            <div key={p.id} className={`px-3 py-1.5 rounded-xl text-[9px] font-bold border transition-all whitespace-nowrap ${p.id === myPlayerId ? "bg-foreground text-background border-foreground shadow-md" : "border-white/5 text-gray-500 bg-white/[0.02]"}`}>
               #{i + 1} {p.name.split(' ')[0]} • {p.score}
             </div>
           ))}
         </div>
 
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-4 sm:space-x-6">
            <div className="text-right hidden sm:block">
-              <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em]">Room Code</p>
-              <p className="font-mono font-black text-xs uppercase tracking-widest">{roomCode}</p>
+              <p className="text-[9px] text-gray-600 font-bold tracking-widest">Room code</p>
+              <p className="font-mono font-bold text-xs uppercase text-foreground">{roomCode}</p>
            </div>
         </div>
       </nav>
 
       {/* Main Content Area */}
-      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-12 max-w-6xl mx-auto w-full relative">
+      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-4 sm:p-8 md:p-12 max-w-6xl mx-auto w-full relative">
 
         
         {/* Context Header */}
         {displayStatus !== "waiting" && displayStatus !== "final" && (
-          <header className="w-full text-center space-y-4 mb-6 sm:mb-12 animate-fade-in">
-            <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-500">
+          <header className="w-full text-center space-y-3 mb-6 sm:mb-10 animate-fade-in">
+            <div className="flex items-center justify-center space-x-4 text-[10px] font-bold tracking-widest text-gray-600">
                <span>Round {currentIndex + 1}</span>
-               <span className="w-1 h-1 rounded-full bg-white/20"></span>
-               <span>{topic || "General Trivia"}</span>
-               {roomStatus !== displayStatus && (
+               <span className="w-1 h-1 rounded-full bg-white/10"></span>
+               <span>{topic || "General Knowledge"}</span>
+               {(roomStatus !== displayStatus || isLocked) && (
                  <>
-                   <span className="w-1 h-1 rounded-full bg-white/20"></span>
-                   <span className="text-white animate-pulse">Finalizing...</span>
+                   <span className="w-1 h-1 rounded-full bg-white/10"></span>
+                   <span className="text-foreground animate-pulse italic">Syncing...</span>
                  </>
                )}
             </div>
-            <h2 className="text-4xl sm:text-7xl font-black uppercase italic tracking-tighter">
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-foreground drop-shadow-sm">
                {currentQuestion?.summary || "Get Ready"}
             </h2>
           </header>
@@ -556,82 +577,96 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           isLocked={isLocked}
         />
 
-        {/* Phase: Lobby */}
-        {displayStatus === "waiting" && (
-          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-12">
-            <div className="text-center space-y-4 mb-12">
-              <div className="flex items-center justify-center space-x-4 text-[10px] font-black uppercase tracking-[0.5em] text-gray-600">
-                <span>Selected Topic</span>
+        {/* Phase: Transition to Wager (Syncing) */}
+        {roomStatus === "wager" && displayStatus !== "wager" && (
+           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 py-16">
+              <div className="relative group">
+                 <div className="w-24 h-24 border-4 border-white/[0.03] border-t-white rounded-full animate-spin" />
               </div>
-              <h2 className="text-4xl sm:text-8xl font-black uppercase italic tracking-tighter text-gray-400">
+              <div className="text-center space-y-3">
+                 <h2 className="text-3xl sm:text-5xl font-bold text-foreground">Preparing Next Round</h2>
+                 <p className="text-gray-600 font-bold tracking-wider text-[10px] animate-pulse italic">Setting the stage...</p>
+              </div>
+           </div>
+        )}
+
+        {/* Phase: Lobby */}
+        {displayStatus === "waiting" && roomStatus === "waiting" && (
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-6">
+            <div className="text-center space-y-4 mb-10">
+              <div className="flex items-center justify-center space-x-4 text-[10px] font-bold tracking-widest text-gray-700">
+                <span>Selected topic</span>
+              </div>
+              <h2 className="text-3xl sm:text-6xl font-bold tracking-tight text-gray-400">
                 {topic || "General"}
               </h2>
             </div>
             
-            <div className="glass p-6 sm:p-12 rounded-[2.5rem] sm:rounded-[3rem] w-full max-w-xl space-y-8">
-               <div className="flex justify-between items-center border-b border-white/5 pb-6">
+            <div className="glass p-6 sm:p-10 rounded-[2.5rem] w-full max-w-xl space-y-8 border-white/[0.03] shadow-xl relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+               <div className="flex justify-between items-center border-b border-white/[0.03] pb-6">
                   <div className="flex flex-col">
-                    <p className="text-gray-500 uppercase text-[10px] font-black tracking-[0.3em]">Players Online ({players.length}/10)</p>
+                    <p className="text-gray-600 text-[10px] font-bold tracking-widest">Players joined ({players.length}/10)</p>
                     <div className="flex items-center mt-2 space-x-2">
-                      <span className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">Code:</span>
-                      <span className="text-xs font-black text-white tracking-widest font-mono">{roomCode}</span>
+                      <span className="text-[9px] font-bold text-gray-700">Room:</span>
+                      <span className="text-xs font-bold text-foreground tracking-widest font-mono bg-white/[0.03] px-2 py-0.5 rounded-lg border border-white/5">{roomCode}</span>
                     </div>
                   </div>
-                  <div className="h-2 w-2 rounded-full bg-white animate-pulse shadow-[0_0_15px_white]" />
+                  <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
                </div>
                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
                  {players.map(p => (
-                   <div key={p.id} className={`flex justify-between items-center p-4 sm:p-6 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white/10 border-white/30' : 'bg-white/5 border-white/5 hover:border-white/10'} text-white`}>
+                   <div key={p.id} className={`flex justify-between items-center p-4 sm:p-5 rounded-2xl transition-all border ${p.id === myPlayerId ? 'bg-white/10 border-white/20' : 'bg-white/[0.02] border-white/[0.03] hover:border-white/10'} text-foreground`}>
                       <div className="flex items-center gap-3">
-                        <span className="font-black italic text-lg sm:text-xl uppercase tracking-tight">{p.id === roomLeaderId ? "● " : ""}{p.name}</span>
+                        <span className="font-bold text-base sm:text-lg">{p.id === roomLeaderId ? "• " : ""}{p.name}</span>
                         {isLeader && p.id !== myPlayerId && (
                           <button 
                             disabled={isLocked}
                             onClick={() => handleKick(p.id)}
-                            className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                            className="text-[9px] text-red-500 font-bold tracking-wider hover:text-red-400 ml-2"
                           >
-                            Kick
+                            Remove
                           </button>
                         )}
                       </div>
-                      <span className={`text-[9px] font-black uppercase tracking-widest opacity-60`}>{p.id === myPlayerId ? "You" : "Player"}</span>
+                      <span className={`text-[9px] font-bold opacity-40`}>{p.id === myPlayerId ? "You" : "Player"}</span>
                    </div>
                  ))}
                </div>
             </div>
             
-            <div className="mt-12 sm:mt-16 flex flex-col items-center space-y-8 sm:space-y-12 w-full max-w-xl">
+            <div className="mt-12 flex flex-col items-center space-y-8 w-full max-w-xl">
               <div className="w-full flex flex-col items-center space-y-4">
                 {isLeader ? (
                   <button 
                     disabled={questions.length === 0 || isLocked} 
                     onClick={handleStartGame} 
-                    className="w-full max-w-md bg-gray-400 text-black hover:bg-white disabled:opacity-20 disabled:cursor-not-allowed py-6 sm:py-8 rounded-2xl sm:rounded-[2rem] font-black text-2xl sm:text-3xl shadow-[0_0_40px_rgba(255,255,255,0.03)] transition-all active:scale-95 uppercase tracking-[0.3em] italic"
+                    className="w-full max-w-md glass-button py-5 rounded-2xl font-bold text-xl sm:text-2xl bg-white/10 border-white/20"
                   >
-                    {questions.length === 0 ? "Loading..." : "Start Battle"}
+                    {questions.length === 0 ? "Loading questions..." : "Start game"}
                   </button>
                 ) : (
-                  <div className="glass px-8 sm:px-12 py-4 sm:py-6 rounded-2xl sm:rounded-3xl animate-pulse">
-                    <p className="text-gray-400 font-black uppercase tracking-[0.3em] text-[10px] sm:text-xs italic">Waiting for leader...</p>
+                  <div className="glass px-8 py-4 rounded-2xl animate-pulse border-white/5">
+                    <p className="text-gray-500 font-bold text-[10px] text-center italic">Waiting for host to start...</p>
                   </div>
                 )}
               </div>
 
-              <div className="w-full flex flex-col items-center space-y-4 sm:space-y-6">
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-gray-600">Invite Participants</p>
-                <div className="glass flex items-center justify-between pl-6 sm:pl-8 pr-2 sm:pr-3 py-3 sm:py-4 rounded-2xl sm:rounded-[2rem] w-full border-white/10 shadow-2xl">
-                  <span className="text-sm sm:text-base font-mono text-white/50 truncate mr-4 sm:mr-6 tracking-tight">
+              <div className="w-full flex flex-col items-center space-y-4">
+                <p className="text-[9px] font-bold tracking-widest text-gray-700">Invite others</p>
+                <div className="glass flex items-center justify-between pl-6 pr-2 py-2.5 rounded-2xl w-full border-white/[0.03] shadow-lg">
+                  <span className="text-xs font-mono text-foreground/40 truncate mr-6">
                     {typeof window !== 'undefined' ? window.location.href : `.../room/${roomCode}`}
                   </span>
                   <button 
                     onClick={handleCopyLink}
-                    className="h-10 sm:h-12 px-6 sm:px-8 bg-white text-black hover:bg-gray-200 rounded-xl sm:rounded-2xl transition-all shadow-lg group flex items-center space-x-2 sm:space-x-3 shrink-0"
+                    className="h-10 px-6 bg-white text-black hover:bg-gray-200 rounded-xl transition-all shadow-md group flex items-center space-x-2 shrink-0"
                   >
-                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest">
-                      {copied ? "Copied" : "Copy Link"}
+                    <span className="text-[10px] font-bold tracking-wider">
+                      {copied ? "Copied" : "Copy"}
                     </span>
                     {!copied && (
-                      <svg className="w-3 h-3 sm:w-4 sm:h-4 text-black group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                       </svg>
                     )}
@@ -644,13 +679,13 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         {/* Phase 1: Wager Selection */}
         {displayStatus === "wager" && !roundData.wager && (
-          <div className="w-full max-w-5xl space-y-12 sm:space-y-16 animate-slide-up text-center py-6 sm:py-8">
-            <div className="space-y-2 sm:space-y-4">
-              <p className="text-gray-500 font-black uppercase tracking-[0.6em] text-[9px] sm:text-[10px]">Pick Your Wager</p>
-              <h2 className="text-2xl sm:text-5xl font-black uppercase italic tracking-tight">How many points at stake?</h2>
+          <div className="w-full max-w-5xl space-y-10 sm:space-y-12 animate-slide-up text-center py-4">
+            <div className="space-y-2">
+              <p className="text-gray-600 font-bold tracking-widest text-[10px]">Points at stake</p>
+              <h2 className="text-3xl sm:text-5xl font-bold text-foreground tracking-tight">How many points?</h2>
             </div>
             
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-8">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(weight => {
                 const isUsed = usedWagers.includes(weight);
                 return (
@@ -658,13 +693,13 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                     key={weight} 
                     disabled={isUsed || isLocked} 
                     onClick={() => handleSelectWager(weight)} 
-                    className={`h-24 sm:h-44 rounded-2xl sm:rounded-3xl font-black text-5xl sm:text-7xl transition-all border-2 relative overflow-hidden group ${
+                    className={`h-24 sm:h-36 rounded-2xl sm:rounded-3xl font-bold text-4xl sm:text-6xl transition-all border-2 relative overflow-hidden group shadow-lg ${
                       isUsed || isLocked
                       ? "bg-transparent border-white/5 text-gray-900 cursor-not-allowed" 
-                      : "glass hover:bg-white hover:text-black hover:border-white shadow-2xl active:scale-95"
+                      : "glass hover:bg-white hover:text-black hover:border-white active:scale-95"
                     }`}
                   >
-                    <span className={isUsed ? "line-through decoration-white/20" : ""}>{weight}</span>
+                    <span className={isUsed ? "line-through opacity-20" : ""}>{weight}</span>
                   </button>
                 );
               })}
@@ -674,19 +709,19 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         {/* Status: Wager Committed */}
         {displayStatus === "wager" && !!roundData.wager && (
-          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-12">
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-12 py-10">
              <div className="text-center space-y-10">
-                <div className="inline-block px-12 py-6 glass border-white/20 rounded-[2rem] shadow-2xl">
-                   <p className="text-white text-4xl font-black uppercase tracking-[0.4em] italic animate-pulse">Wager Locked</p>
+                <div className="inline-block px-12 py-6 glass border-white/10 rounded-[2rem] shadow-xl relative overflow-hidden">
+                   <p className="text-foreground text-3xl sm:text-5xl font-bold tracking-tight animate-pulse italic">Point stake locked</p>
                 </div>
-                <div className="space-y-4">
-                  <p className="text-gray-500 font-black uppercase text-[10px] tracking-[0.5em]">
-                    Waiting for players ({roundData.competitors.length}/{players.length})
+                <div className="space-y-6">
+                  <p className="text-gray-600 font-bold text-[10px] tracking-widest">
+                    Waiting for others ({roundData.wagerCount}/{players.length})
                   </p>
-                  <div className="h-1 w-64 bg-white/5 rounded-full mx-auto overflow-hidden">
+                  <div className="h-1.5 w-64 bg-white/[0.03] rounded-full mx-auto overflow-hidden border border-white/[0.05]">
                     <div 
-                      className="h-full bg-white transition-all duration-700 ease-out" 
-                      style={{ width: `${(roundData.competitors.length / players.length) * 100}%` }}
+                      className="h-full bg-white transition-all duration-1000 ease-out shadow-[0_0_10px_white]" 
+                      style={{ width: `${(roundData.wagerCount / players.length) * 100}%` }}
                     />
                   </div>
                 </div>
@@ -696,11 +731,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         {/* Phase 2: Answering */}
         {displayStatus === "question" && (
-          <div className="w-full max-w-5xl space-y-12 animate-fade-in text-center py-8">
-             <div className="glass p-10 sm:p-20 rounded-[4rem] shadow-2xl space-y-16 relative overflow-hidden border-white/10">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+          <div className="w-full max-w-5xl space-y-10 animate-fade-in text-center py-4">
+             <div className="glass p-8 sm:p-16 rounded-[3.5rem] shadow-2xl space-y-12 relative overflow-hidden border-white/[0.05]">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
                 
-                <h2 className="text-2xl sm:text-4xl font-black tracking-tight leading-tight italic text-white">
+                <h2 className="text-2xl sm:text-4xl font-bold tracking-tight leading-tight text-foreground">
                    &quot;{currentQuestion?.text}&quot;
                 </h2>
 
@@ -711,9 +746,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         key={i} 
                         disabled={isLocked}
                         onClick={() => handleSubmitAnswer(option)} 
-                        className="p-8 rounded-[2rem] text-left border-2 border-white/5 bg-white/5 transition-all font-black text-xl hover:bg-white hover:text-black hover:border-white active:scale-95 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-white disabled:hover:border-white/5"
+                        className="p-6 sm:p-8 rounded-[1.5rem] text-left border border-white/10 bg-white/[0.02] transition-all font-bold text-lg sm:text-xl hover:bg-white hover:text-black hover:border-white active:scale-95 group disabled:opacity-50"
                       >
-                        <span className="mr-4 opacity-20 font-black text-2xl group-hover:opacity-100 transition-opacity">{String.fromCharCode(65 + i)}</span> 
+                        <span className="mr-4 opacity-20 font-bold group-hover:opacity-100 transition-all">{String.fromCharCode(65 + i)}</span> 
                         {option}
                       </button>
                     ))}
@@ -722,7 +757,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                         key={val} 
                         disabled={isLocked}
                         onClick={() => handleSubmitAnswer(val)} 
-                        className="p-12 rounded-[2.5rem] font-black text-3xl border-2 border-white/5 bg-white/5 transition-all hover:bg-white hover:text-black active:scale-95 tracking-tighter disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-white"
+                        className="p-10 rounded-[2rem] font-bold text-3xl border border-white/10 bg-white/[0.02] transition-all hover:bg-white hover:text-black active:scale-95 disabled:opacity-50"
                       >
                         {val}
                       </button>
@@ -737,65 +772,65 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                           onChange={(e) => setTextAnswer(e.target.value)}
                           placeholder="Type your answer..." 
                           onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer(textAnswer)} 
-                          className="flex-1 w-full py-5 sm:py-4 glass-input rounded-xl px-6 text-lg focus:ring-0 transition-all font-black italic tracking-tighter placeholder:text-gray-500 leading-none disabled:opacity-50 disabled:cursor-not-allowed" 
+                          className="flex-1 w-full py-4 glass-input rounded-xl px-6 text-lg font-semibold focus:ring-0 transition-all placeholder:text-gray-800" 
                         />
                         <button 
                           onClick={() => handleSubmitAnswer(textAnswer)}
                           disabled={isLocked}
-                          className="w-full sm:w-auto py-5 sm:py-4 px-8 bg-white text-black rounded-xl font-black uppercase italic tracking-tighter hover:bg-gray-200 transition-all active:scale-95 whitespace-nowrap border border-transparent leading-none disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-black"
+                          className="w-full sm:w-auto py-4 px-10 bg-white text-black rounded-xl font-bold text-lg hover:bg-gray-200 transition-all active:scale-95"
                         >
-                          Submit Answer
+                          Submit
                         </button>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-6 pt-12">
-                    <p className="text-white text-3xl sm:text-4xl font-black uppercase tracking-[0.5em] italic animate-pulse">Answer Sent</p>
-                    <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.6em]">Waiting for others to answer ({roundData.competitors.filter(a => a.submitted_answer !== "").length}/{players.length})</p>
+                  <div className="space-y-6 pt-10">
+                    <p className="text-foreground text-3xl sm:text-5xl font-bold tracking-tight animate-pulse italic">Answer submitted</p>
+                    <p className="text-gray-600 text-[10px] font-bold tracking-widest">Waiting for everyone ({roundData.answerCount}/{players.length})</p>
                   </div>
                 )}
              </div>
              <div className="pt-6 sm:pt-10">
-                <span className="glass px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.4em] text-gray-500 border-white/5">
-                  Wager: <span className="text-white">{roundData.wager} Points</span>
+                <span className="glass px-8 py-3 rounded-full text-[10px] font-bold tracking-wider text-gray-500 border-white/[0.03]">
+                  Your wager: <span className="text-foreground">{roundData.wager} Points</span>
                 </span>
              </div>
           </div>
         )}
 
         {/* Phase 3: Results */}
-        {displayStatus === "results" && roundData.results && (
-          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-4 sm:py-12">
+        {displayStatus === "results" && roomStatus === "results" && roundData.results && (
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-6 sm:py-12">
             <div className="text-center space-y-12 sm:space-y-16 w-full">
-              <h2 className={`text-5xl sm:text-8xl font-black italic tracking-tighter leading-none transition-all drop-shadow-[0_0_80px_rgba(255,255,255,0.1)] ${roundData.results.correct ? "text-white scale-105" : "text-gray-800"}`}>
-                {roundData.results.correct ? "CORRECT" : "WRONG"}
+              <h2 className={`text-5xl sm:text-7xl font-bold tracking-tight leading-none transition-all drop-shadow-xl ${roundData.results.correct ? "text-foreground scale-105" : "text-gray-800"}`}>
+                {roundData.results.correct ? "Correct!" : "Incorrect"}
               </h2>
               
-              <div className="glass p-8 sm:p-20 rounded-[2.5rem] sm:rounded-[4rem] max-w-4xl mx-auto shadow-2xl space-y-8 sm:space-y-12 relative border-white/10 overflow-hidden">
-                <div className="space-y-4">
-                  <p className="text-gray-600 font-black uppercase text-[9px] sm:text-[10px] tracking-[0.6em] sm:tracking-[0.8em]">Correct Answer</p>
-                  <p className="text-3xl sm:text-5xl font-black text-white italic tracking-tighter leading-tight">
+              <div className="glass p-8 sm:p-16 rounded-[3rem] sm:rounded-[4rem] max-w-4xl mx-auto shadow-2xl space-y-8 sm:space-y-10 relative border-white/[0.05] overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                <div className="space-y-6">
+                  <p className="text-gray-700 font-bold text-[10px] tracking-widest">The right answer</p>
+                  <p className="text-3xl sm:text-5xl font-bold text-foreground leading-tight">
                     &quot;{roundData.results.answer}&quot;
                   </p>
                   {roundData.results.explanation && (
-                    <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-white/5 animate-fade-in">
-                      <p className="text-gray-500 font-black uppercase text-[8px] sm:text-[9px] tracking-[0.4em] mb-2 sm:mb-3 text-center">Explanation</p>
-                      <p className="text-gray-400 text-sm sm:text-xl font-medium leading-relaxed max-w-2xl mx-auto italic">
+                    <div className="mt-8 pt-8 border-t border-white/[0.02] animate-fade-in">
+                      <p className="text-gray-500 text-sm sm:text-lg font-medium leading-relaxed max-w-2xl mx-auto italic text-gray-400">
                         {roundData.results.explanation}
                       </p>
                     </div>
                   )}
                 </div>
                 
-                <div className="border-t border-white/5 pt-8 sm:pt-12 flex justify-between items-center px-4 sm:px-20">
-                  <div className="text-left">
-                    <p className="text-[9px] sm:text-[10px] font-black uppercase text-gray-600 tracking-[0.4em] mb-2 sm:mb-4">Your Wager</p>
-                    <p className="text-3xl sm:text-5xl font-black italic tracking-tighter">{roundData.wager}</p>
+                <div className="border-t border-white/[0.02] pt-10 flex justify-between items-center px-6 sm:px-16">
+                  <div className="text-left space-y-1">
+                    <p className="text-[9px] font-bold text-gray-700 tracking-wider">Your stake</p>
+                    <p className="text-2xl sm:text-4xl font-bold text-foreground/60 tabular-nums">{roundData.wager}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[9px] sm:text-[10px] font-black uppercase text-gray-600 tracking-[0.4em] mb-2 sm:mb-4">Points Gained</p>
-                    <p className={`text-3xl sm:text-5xl font-black italic tracking-tighter ${roundData.results.correct ? "text-white" : "text-gray-900"}`}>
+                  <div className="text-right space-y-1">
+                    <p className="text-[9px] font-bold text-gray-700 tracking-wider">Points gained</p>
+                    <p className={`text-2xl sm:text-4xl font-bold tabular-nums ${roundData.results.correct ? "text-foreground" : "text-gray-900 opacity-30"}`}>
                       {roundData.results.correct ? `+${roundData.wager}` : "0"}
                     </p>
                   </div>
@@ -803,75 +838,55 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               </div>
 
               {/* Detailed Player Results Ledger */}
-              <div className="w-full max-w-4xl mx-auto space-y-6 sm:space-y-8 mt-12 sm:mt-24 animate-slide-up px-4 sm:px-0">
-                <div className="flex justify-between items-center px-2 sm:px-8">
-                  <p className="text-gray-500 font-black uppercase text-[9px] sm:text-[10px] tracking-[0.3em]">Round Summary</p>
-                  <p className="text-gray-500 font-black uppercase text-[9px] sm:text-[10px] tracking-[0.3em]">{players.length} Players</p>
+              <div className="w-full max-w-4xl mx-auto space-y-8 mt-16 sm:mt-24 animate-slide-up px-4 sm:px-0">
+                <div className="flex justify-between items-center px-4 sm:px-10">
+                  <p className="text-gray-700 font-bold text-[9px] tracking-widest">Round recap</p>
+                  <p className="text-gray-700 font-bold text-[9px] tracking-widest">{players.length} Players</p>
                 </div>
                 
-                <div className="sm:glass sm:rounded-[2.5rem] sm:border-white/5 sm:overflow-hidden sm:shadow-2xl sm:max-h-[500px] sm:overflow-y-auto no-scrollbar">
+                <div className="sm:glass sm:rounded-[2.5rem] sm:border-white/[0.02] sm:overflow-hidden sm:shadow-xl sm:max-h-[450px] sm:overflow-y-auto no-scrollbar">
                   {/* Desktop Table View */}
                   <table className="hidden sm:table w-full text-left border-collapse">
                     <thead className="sticky top-0 z-10 glass backdrop-blur-3xl border-b border-white/5">
                       <tr>
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Player</th>
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500">Answer</th>
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500 text-center">Wager</th>
-                        <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-gray-500 text-right">Result</th>
+                        <th className="px-10 py-6 text-[10px] font-bold text-gray-500 tracking-widest">Player</th>
+                        <th className="px-10 py-6 text-[10px] font-bold text-gray-500 tracking-widest">Answer</th>
+                        <th className="px-10 py-6 text-[10px] font-bold text-gray-500 tracking-widest text-center">Wager</th>
+                        <th className="px-10 py-6 text-[10px] font-bold text-gray-500 tracking-widest text-right">Result</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-white/[0.02]">
                       {players.map(p => {
                         const submission = roundData.competitors.find(c => c.player_id === p.id);
                         const isMe = p.id === myPlayerId;
                         
                         return (
-                          <tr key={p.id} className={`transition-all duration-300 ${isMe ? "bg-white/5" : "hover:bg-white/[0.02]"}`}>
-                            <td className="px-10 py-8">
+                          <tr key={p.id} className={`transition-all duration-300 ${isMe ? "bg-white/[0.02]" : "hover:bg-white/[0.01]"}`}>
+                            <td className="px-10 py-6">
                               <div className="flex flex-col">
-                                <div className="flex items-center gap-3">
-                                  <span className={`font-black italic uppercase tracking-tight text-xl ${isMe ? "text-white" : "text-gray-400"}`}>
-                                    {p.name}
-                                  </span>
-                                  {isLeader && !isMe && (
-                                    <button 
-                                      disabled={isLocked}
-                                      onClick={() => handleKick(p.id)}
-                                      className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                                    >
-                                      Kick
-                                    </button>
-                                  )}
-                                </div>
-                                {isMe && <span className="text-[8px] font-black uppercase tracking-widest text-white/40 mt-1">You</span>}
+                                <span className={`font-bold text-lg ${isMe ? "text-foreground" : "text-gray-500"}`}>
+                                  {p.name}
+                                </span>
+                                {isMe && <span className="text-[8px] font-bold tracking-widest text-foreground/20">You</span>}
                               </div>
                             </td>
-                            <td className="px-10 py-8">
-                              <span className={`font-bold text-sm uppercase tracking-tighter ${submission?.submitted_answer ? "text-gray-300" : "text-gray-700 italic"}`}>
-                                {submission?.submitted_answer || "TIMEOUT"}
+                            <td className="px-10 py-6">
+                              <span className={`font-semibold text-sm truncate max-w-[150px] block ${submission?.submitted_answer ? "text-gray-400" : "text-gray-800 italic"}`}>
+                                {submission?.submitted_answer || "No answer"}
                               </span>
                             </td>
-                            <td className="px-10 py-8 text-center">
-                              <span className="font-black text-2xl italic text-white/80">
+                            <td className="px-10 py-6 text-center">
+                              <span className="font-bold text-xl text-foreground/50 tabular-nums">
                                 {submission?.wager || "—"}
                               </span>
                             </td>
-                            <td className="px-10 py-8 text-right">
+                            <td className="px-10 py-6 text-right">
                               {submission ? (
-                                <div className="flex items-center justify-end space-x-3">
-                                  <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${submission.is_correct ? "text-white" : "text-gray-700"}`}>
-                                    {submission.is_correct ? "Correct" : "Incorrect"}
-                                  </span>
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${submission.is_correct ? "border-white bg-white text-black scale-110 shadow-[0_0_15px_rgba(255,255,255,0.3)]" : "border-gray-800 text-gray-800"}`}>
-                                    {submission.is_correct ? (
-                                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
-                                    ) : (
-                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M6 18L18 6M6 6l12 12" /></svg>
-                                    )}
-                                  </div>
+                                <div className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold tracking-wider ${submission.is_correct ? "bg-white text-black" : "text-gray-800 border border-gray-900"}`}>
+                                   {submission.is_correct ? "Correct" : "Wrong"}
                                 </div>
                               ) : (
-                                <span className="text-[9px] font-black uppercase tracking-widest text-gray-800 italic">Desynced</span>
+                                <span className="text-[9px] font-bold opacity-20">Waiting</span>
                               )}
                             </td>
                           </tr>
@@ -887,46 +902,25 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
                       const isMe = p.id === myPlayerId;
                       
                       return (
-                        <div key={p.id} className={`glass p-4 rounded-xl border-white/5 flex flex-col gap-3 ${isMe ? "border-white/20 bg-white/5" : ""}`}>
-                          <div className="flex justify-between items-start">
-
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-3">
-                                <span className={`font-black italic uppercase tracking-tight text-lg ${isMe ? "text-white" : "text-gray-400"}`}>
-                                  {p.name}
-                                </span>
-                                {isLeader && !isMe && (
-                                  <button 
-                                    disabled={isLocked}
-                                    onClick={() => handleKick(p.id)}
-                                    className="text-[10px] text-red-500 font-black uppercase tracking-widest hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                                  >
-                                    Kick
-                                  </button>
-                                )}
-                              </div>
-                              {isMe && <span className="text-[8px] font-black uppercase tracking-widest text-white/40">Your Result</span>}
-                            </div>
+                        <div key={p.id} className={`glass p-5 rounded-2xl border-white/[0.02] flex flex-col gap-4 ${isMe ? "bg-white/[0.03] border-white/10" : ""}`}>
+                          <div className="flex justify-between items-center">
+                            <span className={`font-bold text-lg ${isMe ? "text-foreground" : "text-gray-500"}`}>{p.name}</span>
                             {submission && (
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${submission.is_correct ? "border-white bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]" : "border-gray-800 text-gray-800"}`}>
-                                {submission.is_correct ? (
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
-                                ) : (
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M6 18L18 6M6 6l12 12" /></svg>
-                                )}
+                              <div className={`text-[10px] font-bold tracking-widest ${submission.is_correct ? "text-foreground" : "text-gray-800"}`}>
+                                 {submission.is_correct ? "Correct" : "Incorrect"}
                               </div>
                             )}
                           </div>
-                          <div className="grid grid-cols-2 gap-3 pt-2.5 border-t border-white/5">
+                          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/[0.02]">
                             <div>
-                               <p className="text-[8px] font-black uppercase text-gray-600 tracking-widest mb-1">Answer</p>
-                               <p className={`font-bold text-xl  uppercase truncate ${submission?.submitted_answer ? "text-gray-300" : "text-gray-700 italic"}`}>
-                                  {submission?.submitted_answer || "TIMEOUT"}
+                               <p className="text-[8px] font-bold text-gray-700 tracking-wider">Answer</p>
+                               <p className={`font-bold text-base truncate ${submission?.submitted_answer ? "text-gray-300" : "text-gray-800 italic"}`}>
+                                  {submission?.submitted_answer || "None"}
                                </p>
                             </div>
                             <div className="text-right">
-                               <p className="text-[8px] font-black uppercase text-gray-600 tracking-widest mb-1">Wager</p>
-                               <p className="font-black text-xl italic text-white/80">{submission?.wager || "—"}</p>
+                               <p className="text-[8px] font-bold text-gray-700 tracking-wider">Wager</p>
+                               <p className="font-bold text-xl text-foreground/70 tabular-nums">{submission?.wager || "—"}</p>
                             </div>
                           </div>
                         </div>
@@ -937,8 +931,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               </div>
 
               {isLeader && (
-                <p className="text-gray-600 text-[10px] font-black uppercase tracking-[0.6em] sm:tracking-[1em] animate-pulse">
-                  {currentIndex === questions.length - 1 ? "Displaying final leaderboard..." : "Preparing next round..."}
+                <p className="text-gray-700 text-[10px] font-bold tracking-widest animate-pulse">
+                  {currentIndex === questions.length - 1 ? "Finishing up..." : "Next round starting soon..."}
                 </p>
               )}
             </div>
@@ -947,35 +941,35 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         {/* Phase: Final */}
         {displayStatus === "final" && (
-          <div className="flex-1 flex flex-col items-center justify-center w-full animate-slide-up py-12">
-            <h2 className="text-5xl sm:text-9xl font-black text-white uppercase italic tracking-tighter mb-12 sm:mb-16 drop-shadow-[0_0_100px_rgba(255,255,255,0.2)]">Final Leaderboard</h2>
+          <div className="flex-1 flex flex-col items-center justify-center w-full animate-slide-up py-10">
+            <h2 className="text-4xl sm:text-fluid-h1 font-bold text-foreground tracking-tight mb-12 sm:mb-16">Leaderboard</h2>
             
-            <div className="glass w-full rounded-[2rem] sm:rounded-[3.5rem] border-white/10 overflow-hidden shadow-2xl">
+            <div className="glass w-full max-w-3xl rounded-[2.5rem] border-white/[0.03] overflow-hidden shadow-2xl">
               {sortedPlayers.map((p, i) => (
-                <div key={p.id} className={`flex items-center justify-between p-6 sm:p-14 transition-colors ${i === 0 ? "bg-white/10 border-b border-white/20" : "border-b border-white/5 last:border-0"}`}>
-                   <div className="flex items-center space-x-4 sm:space-x-12">
-                      <span className={`text-4xl sm:text-7xl font-black italic ${i === 0 ? "text-white" : "text-white/20"}`}>
+                <div key={p.id} className={`flex items-center justify-between p-6 sm:p-10 transition-all ${i === 0 ? "bg-white/[0.05] border-b border-white/10" : "border-b border-white/[0.02] last:border-0"}`}>
+                   <div className="flex items-center space-x-6 sm:space-x-10">
+                      <span className={`text-4xl sm:text-6xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/10"}`}>
                         #{i + 1}
                       </span>
                       <div className="text-left">
-                        <p className="text-xl sm:text-4xl font-black tracking-tighter uppercase leading-none mb-1 sm:mb-2 text-white">{p.name}</p>
-                        <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-[0.5em] text-white/40">{p.id === myPlayerId ? "You" : "Player"}</p>
+                        <p className="text-xl sm:text-3xl font-bold tracking-tight text-foreground">{p.name}</p>
+                        <p className="text-[9px] font-bold tracking-wider text-foreground/30">{p.id === myPlayerId ? "You" : "Player"}</p>
                       </div>
                    </div>
-                   <span className="text-4xl sm:text-7xl font-black tabular-nums italic text-white">{p.score}</span>
+                   <span className="text-4xl sm:text-6xl font-bold tabular-nums text-foreground">{p.score}</span>
                 </div>
               ))}
             </div>
             
-            <button onClick={() => window.location.href = "/"} className="mt-12 sm:mt-20 glass-button hover:bg-white hover:text-black px-16 sm:px-32 py-6 sm:py-10 rounded-2xl sm:rounded-[3rem] font-black text-2xl sm:text-3xl transition-all active:scale-95 uppercase italic tracking-[0.4em]">
-              Leave Battle
+            <button onClick={() => window.location.href = "/"} className="mt-16 sm:mt-24 glass-button px-16 sm:px-32 py-5 rounded-2xl font-bold text-xl sm:text-2xl transition-all active:scale-95 bg-white/5 border-white/10 hover:bg-white hover:text-black">
+              Leave Game
             </button>
           </div>
         )}
       </main>
       
-      <footer className="p-12 text-center text-gray-700 text-[9px] font-black uppercase tracking-[2em] opacity-30 pointer-events-none">
-        Distributed Real-Time System • v4.0.0-GLASS
+      <footer className="p-12 text-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">
+        TriviaDuel • v4.1-GLASS
       </footer>
     </div>
   );

@@ -45,7 +45,7 @@ export default function BackgroundNetwork() {
         if (!ctx) return;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.fill();
       }
     }
@@ -74,7 +74,7 @@ export default function BackgroundNetwork() {
 
           if (dist < connectionDistance) {
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - dist / connectionDistance)})`;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.05 * (1 - dist / connectionDistance)})`;
             ctx.lineWidth = 0.5;
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
@@ -104,8 +104,8 @@ export default function BackgroundNetwork() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0 opacity-40"
-      style={{ filter: 'blur(1px)' }}
+      className="fixed inset-0 pointer-events-none z-0 opacity-20"
+      style={{ filter: 'blur(2px)' }}
     />
   );
 }
