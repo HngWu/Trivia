@@ -8,25 +8,30 @@ export default function DataStreamBackground() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    let w = canvas.width = window.innerWidth;
-    let h = canvas.height = window.innerHeight;
+    let w = 0, h = 0;
     let mouse = { x: -1000, y: -1000 };
+    let particles: { x: number; y: number; size: number; speed: number }[] = [];
 
-    const particles = Array.from({ length: 80 }, () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      size: Math.random() * 2 + 1,
-      speed: Math.random() * 1.5 + 0.5
-    }));
-
-    const handleResize = () => {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
+    const init = () => {
+      const dpr = window.devicePixelRatio || 1;
+      w = canvas.width = window.innerWidth * dpr;
+      h = canvas.height = window.innerHeight * dpr;
+      ctx.scale(dpr, dpr);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      
+      particles = Array.from({ length: 100 }, () => ({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        size: Math.random() * 2 + 1,
+        speed: Math.random() * 1.5 + 0.5
+      }));
     };
 
+    const handleResize = () => init();
     const handleMouseMove = (e: MouseEvent) => {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
@@ -34,31 +39,36 @@ export default function DataStreamBackground() {
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
+    init();
 
     let animationFrame: number;
     const animate = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
       ctx.fillStyle = '#050505';
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillRect(0, 0, width, height);
 
       particles.forEach(p => {
         const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y);
-        const acceleration = dist < 100 ? 4 : 1;
+        const isActive = dist < 120;
+        const acceleration = isActive ? 5 : 1;
         
         p.y -= p.speed * acceleration;
 
         if (p.y < -10) {
-          p.y = h + 10;
-          p.x = Math.random() * w;
+          p.y = height + 10;
+          p.x = Math.random() * width;
         }
 
-        ctx.fillStyle = dist < 100 ? '#fff' : 'rgba(255, 255, 255, 0.2)';
+        ctx.fillStyle = isActive ? '#fbbf24' : 'rgba(255, 255, 255, 0.2)';
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
 
-        if (dist < 100) {
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = '#fff';
+        if (isActive) {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = '#fbbf24';
         } else {
           ctx.shadowBlur = 0;
         }
@@ -79,7 +89,7 @@ export default function DataStreamBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-0 pointer-events-none"
+      className="fixed inset-0 z-[-10] pointer-events-none"
     />
   );
 }
