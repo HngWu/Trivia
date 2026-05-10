@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: hsl(220 15% 8%); /* Lighter shade of black */
+  --background: #050505; /* Matches interactive canvas background */
   --foreground: hsl(210 10% 85%); /* Darker shade of white */
   --accent: #E2E8F0;
   --glass-bg: rgba(255, 255, 255, 0.04);
