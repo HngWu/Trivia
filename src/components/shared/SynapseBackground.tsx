@@ -62,7 +62,7 @@ export default function SynapseBackground() {
         
         ctx.beginPath();
         ctx.arc(p.x, p.y, isActive ? 2 : 1, 0, Math.PI * 2);
-        ctx.fillStyle = isActive ? '#fbbf24' : '#222'; // Gold when active
+        ctx.fillStyle = isActive ? '#3b82f6' : '#222'; // Blue when active
         ctx.fill();
 
         for (let j = i + 1; j < points.length; j++) {
@@ -73,7 +73,7 @@ export default function SynapseBackground() {
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
             const opacity = (1 - d/150) * (isActive ? 0.4 : 0.1);
-            ctx.strokeStyle = `rgba(251, 191, 36, ${opacity})`; // Gold connections
+            ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`; // Blue connections
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }
@@ -95,7 +95,7 @@ export default function SynapseBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-[-10] pointer-events-none"
+      className="fixed inset-0 z-0 pointer-events-none"
     />
   );
 }

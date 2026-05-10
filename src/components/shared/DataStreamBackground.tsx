@@ -61,14 +61,14 @@ export default function DataStreamBackground() {
           p.x = Math.random() * width;
         }
 
-        ctx.fillStyle = isActive ? '#fbbf24' : 'rgba(255, 255, 255, 0.2)';
+        ctx.fillStyle = isActive ? '#fff' : 'rgba(255, 255, 255, 0.2)';
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
 
         if (isActive) {
           ctx.shadowBlur = 15;
-          ctx.shadowColor = '#fbbf24';
+          ctx.shadowColor = '#fff';
         } else {
           ctx.shadowBlur = 0;
         }
@@ -89,7 +89,7 @@ export default function DataStreamBackground() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 z-[-10] pointer-events-none"
+      className="fixed inset-0 z-0 pointer-events-none"
     />
   );
 }

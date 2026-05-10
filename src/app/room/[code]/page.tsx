@@ -344,7 +344,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const displayedSortedPlayers = [...displayedPlayers].sort((a, b) => b.score - a.score);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20 overflow-y-auto">
+    <div className="min-h-screen text-foreground flex flex-col page-transition selection:bg-white/20 overflow-y-auto relative z-10">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} />
 
