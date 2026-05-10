@@ -3,13 +3,13 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { topic, provider, count } = await req.json();
+    const { topic, provider, count, excluded } = await req.json();
 
     if (!topic) {
       return NextResponse.json({ error: "Topic is required" }, { status: 400 });
     }
 
-    const questions = await generateAIQuestions(topic, provider, count);
+    const questions = await generateAIQuestions(topic, provider, count, excluded || []);
     return NextResponse.json({ questions });
   } catch (error) {
     console.error("AI Generation Error:", error);

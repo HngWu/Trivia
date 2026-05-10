@@ -6,52 +6,39 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-const PROMPT_TEMPLATE = (topic: string, count: number) => `Generate ${count} trivia questions about the topic: "${topic}". 
-The output must be a valid JSON array of objects. 
-Each object must have the following properties:
-- id: a unique string for the question (e.g. "q1", "q2", etc.)
-- summary: a very short description of the question (e.g. "Space Exploration")
-- text: the full question text
-- type: one of "multiple_choice", "boolean", or "text"
-- options: an array of 4 strings for "multiple_choice", or null for others
-- correct_answer: the correct answer as a string
-- explanation: a brief, clear explanation of why the answer is correct
+// Extremely concise prompt to minimize token usage
+const SYSTEM_PROMPT = `You generate trivia questions in a valid JSON array of objects. 
+Properties: id (string), summary (short), text (full), type (multiple_choice/boolean/text), options (4 strings or null), correct_answer, explanation.`;
 
-Ensure a mix of question types. Respond ONLY with the JSON array.`;
+const USER_PROMPT = (topic: string, count: number, excluded: string[]) => 
+  `Topic: "${topic}". Generate ${count} NEW unique questions.
+  ${excluded.length > 0 ? `DO NOT duplicate these existing questions: ${excluded.slice(0, 40).join(' | ')}` : ''}
+  Respond ONLY with the JSON array.`;
 
-async function generateWithGemini(topic: string, count: number): Promise<Question[] | null> {
+async function generateWithGemini(topic: string, count: number, excluded: string[]): Promise<Question[] | null> {
   if (!GEMINI_API_KEY) return null;
-  
-  const models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
-  const prompt = PROMPT_TEMPLATE(topic, count);
-
-  for (const modelName of models) {
-    try {
-      console.log(`[AI] Attempting Gemini model: ${modelName}`);
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent(prompt);
-      const text = result.response.text();
-      const match = text.match(/\[[\s\S]*\]/);
-      if (match) {
-        return JSON.parse(match[0]) as Question[];
-      }
-    } catch (err) {
-      console.warn(`[AI] Gemini ${modelName} failed:`, err);
-    }
-  }
-  return null;
-}
-
-async function generateWithDeepSeek(topic: string, count: number): Promise<Question[] | null> {
-  if (!DEEPSEEK_API_KEY) {
-    console.warn("[AI] DeepSeek API key missing");
-    return null;
-  }
-
-  const prompt = PROMPT_TEMPLATE(topic, count);
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-2.0-flash",
+    systemInstruction: SYSTEM_PROMPT 
+  });
 
   try {
-    console.log("[AI] Attempting DeepSeek fallback...");
+    console.log(`[AI] Gemini generating ${count} for ${topic}...`);
+    const result = await model.generateContent(USER_PROMPT(topic, count, excluded));
+    const text = result.response.text();
+    const match = text.match(/\[[\s\S]*\]/);
+    return match ? JSON.parse(match[0]) as Question[] : null;
+  } catch (err) {
+    console.warn(`[AI] Gemini failed:`, err);
+    return null;
+  }
+}
+
+async function generateWithDeepSeek(topic: string, count: number, excluded: string[]): Promise<Question[] | null> {
+  if (!DEEPSEEK_API_KEY) return null;
+
+  try {
+    console.log(`[AI] DeepSeek fallback for ${topic}...`);
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
@@ -61,59 +48,53 @@ async function generateWithDeepSeek(topic: string, count: number): Promise<Quest
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { role: "system", content: "You are a trivia question generator. Always output valid JSON." },
-          { role: "user", content: prompt }
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: USER_PROMPT(topic, count, excluded) }
         ],
         response_format: { type: "json_object" }
       })
     });
 
     const data = await response.json();
+    if (!response.ok) return null;
     
-    if (!response.ok) {
-      console.error("[AI] DeepSeek API Error:", data.error || data);
-      return null;
-    }
-
-    if (!data.choices || !data.choices[0]?.message?.content) {
-      console.error("[AI] DeepSeek returned invalid response structure:", data);
-      return null;
-    }
-
     const content = data.choices[0].message.content;
     const match = content.match(/\[[\s\S]*\]/);
-    if (match) {
-      return JSON.parse(match[0]) as Question[];
-    }
+    return match ? JSON.parse(match[0]) as Question[] : null;
   } catch (err) {
     console.error("[AI] DeepSeek failed:", err);
+    return null;
   }
-  return null;
 }
 
 export type AIProvider = "gemini" | "deepseek" | "auto";
 
-export async function generateAIQuestions(topic: string, provider: AIProvider = "auto", count: number = 10): Promise<Question[]> {
+export async function generateAIQuestions(
+  topic: string, 
+  provider: AIProvider = "auto", 
+  count: number = 10,
+  excluded: string[] = []
+): Promise<Question[]> {
   // 1. Explicit Gemini
   if (provider === "gemini") {
-    const res = await generateWithGemini(topic, count);
+    const res = await generateWithGemini(topic, count, excluded);
     if (res) return res;
-    throw new Error("Gemini failed to generate questions");
+    throw new Error("Gemini failed");
   }
 
   // 2. Explicit DeepSeek
   if (provider === "deepseek") {
-    const res = await generateWithDeepSeek(topic, count);
+    const res = await generateWithDeepSeek(topic, count, excluded);
     if (res) return res;
-    throw new Error("DeepSeek failed to generate questions");
+    throw new Error("DeepSeek failed");
   }
 
   // 3. Auto Fallback (Default)
-  const geminiResult = await generateWithGemini(topic, count);
+  const geminiResult = await generateWithGemini(topic, count, excluded);
   if (geminiResult) return geminiResult;
 
-  const deepSeekResult = await generateWithDeepSeek(topic, count);
+  const deepSeekResult = await generateWithDeepSeek(topic, count, excluded);
   if (deepSeekResult) return deepSeekResult;
 
-  throw new Error("All AI providers failed to generate questions");
+  throw new Error("AI generation failed");
 }
