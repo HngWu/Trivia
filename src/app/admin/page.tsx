@@ -49,19 +49,19 @@ export default function AdminPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleGenerateAI = async (provider: string) => {
+  const handleGenerateAI = async (provider: string, count: number) => {
     if (!targetTopic) return;
     setIsGenerating(true);
     try {
       const response = await fetch('/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: targetTopic, provider }),
+        body: JSON.stringify({ topic: targetTopic, provider, count }),
       });
       const data = await response.json();
       if (data.error) throw new Error(data.error);
       setBatchJson(JSON.stringify(data.questions, null, 2));
-      showToast(`Generated 10 questions for ${targetTopic}`);
+      showToast(`Generated ${data.questions.length} questions for ${targetTopic}`);
     } catch (e: any) {
       showToast("Generation failed: " + e.message);
     } finally {
@@ -138,12 +138,12 @@ export default function AdminPage() {
     } catch (e: any) { showToast(e.message); }
   };
 
-  if (isLoading) return <div className="min-h-screen bg-black text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse">Loading...</div>;
+  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse">Loading...</div>;
 
   if (!user) return <AdminLogin email={email} setEmail={setEmail} password={password} setPassword={setPassword} onLogin={handleLogin} />;
 
   return (
-    <main className="min-h-screen bg-black text-foreground p-4 sm:p-8 space-y-8 page-transition selection:bg-white/20">
+    <main className="min-h-screen bg-background text-foreground p-4 sm:p-8 space-y-8 page-transition selection:bg-white/20">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <header className="flex justify-between items-center max-w-6xl mx-auto">
         <div className="space-y-1">

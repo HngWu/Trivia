@@ -6,7 +6,7 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-const PROMPT_TEMPLATE = (topic: string) => `Generate 10 trivia questions about the topic: "${topic}". 
+const PROMPT_TEMPLATE = (topic: string, count: number) => `Generate ${count} trivia questions about the topic: "${topic}". 
 The output must be a valid JSON array of objects. 
 Each object must have the following properties:
 - id: a unique string for the question (e.g. "q1", "q2", etc.)
@@ -19,11 +19,11 @@ Each object must have the following properties:
 
 Ensure a mix of question types. Respond ONLY with the JSON array.`;
 
-async function generateWithGemini(topic: string): Promise<Question[] | null> {
+async function generateWithGemini(topic: string, count: number): Promise<Question[] | null> {
   if (!GEMINI_API_KEY) return null;
   
-  const models = ["gemini-3.1-flash-preview", "gemini-3.1-pro-preview"];
-  const prompt = PROMPT_TEMPLATE(topic);
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const prompt = PROMPT_TEMPLATE(topic, count);
 
   for (const modelName of models) {
     try {
@@ -42,13 +42,13 @@ async function generateWithGemini(topic: string): Promise<Question[] | null> {
   return null;
 }
 
-async function generateWithDeepSeek(topic: string): Promise<Question[] | null> {
+async function generateWithDeepSeek(topic: string, count: number): Promise<Question[] | null> {
   if (!DEEPSEEK_API_KEY) {
     console.warn("[AI] DeepSeek API key missing");
     return null;
   }
 
-  const prompt = PROMPT_TEMPLATE(topic);
+  const prompt = PROMPT_TEMPLATE(topic, count);
 
   try {
     console.log("[AI] Attempting DeepSeek fallback...");
@@ -93,26 +93,26 @@ async function generateWithDeepSeek(topic: string): Promise<Question[] | null> {
 
 export type AIProvider = "gemini" | "deepseek" | "auto";
 
-export async function generateAIQuestions(topic: string, provider: AIProvider = "auto"): Promise<Question[]> {
+export async function generateAIQuestions(topic: string, provider: AIProvider = "auto", count: number = 10): Promise<Question[]> {
   // 1. Explicit Gemini
   if (provider === "gemini") {
-    const res = await generateWithGemini(topic);
+    const res = await generateWithGemini(topic, count);
     if (res) return res;
     throw new Error("Gemini failed to generate questions");
   }
 
   // 2. Explicit DeepSeek
   if (provider === "deepseek") {
-    const res = await generateWithDeepSeek(topic);
+    const res = await generateWithDeepSeek(topic, count);
     if (res) return res;
     throw new Error("DeepSeek failed to generate questions");
   }
 
   // 3. Auto Fallback (Default)
-  const geminiResult = await generateWithGemini(topic);
+  const geminiResult = await generateWithGemini(topic, count);
   if (geminiResult) return geminiResult;
 
-  const deepSeekResult = await generateWithDeepSeek(topic);
+  const deepSeekResult = await generateWithDeepSeek(topic, count);
   if (deepSeekResult) return deepSeekResult;
 
   throw new Error("All AI providers failed to generate questions");

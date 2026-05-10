@@ -36,7 +36,7 @@ export default function LobbyView({
         <div className="flex items-center justify-center space-x-3 text-[10px] font-bold tracking-widest text-gray-700 uppercase">
           <span>Selected Topic</span>
         </div>
-        <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-gray-400">
+        <h2 className="text-3xl sm:text-5xl font-bold tracking-tight capitalize text-gray-400">
           {topic || "General"}
         </h2>
       </div>

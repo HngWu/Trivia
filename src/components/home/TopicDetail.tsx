@@ -17,6 +17,10 @@ interface TopicDetailProps {
   onBack: () => void;
   onCreate: () => void;
   isLoading: boolean;
+  aiProvider: string;
+  setAIProvider: (val: any) => void;
+  questionCount: number;
+  setQuestionCount: (val: number) => void;
 }
 
 export default function TopicDetail({ 
@@ -29,8 +33,10 @@ export default function TopicDetail({
   onCreate, 
   isLoading,
   aiProvider,
-  setAIProvider
-}: TopicDetailProps & { aiProvider: string; setAIProvider: (val: any) => void }) {
+  setAIProvider,
+  questionCount,
+  setQuestionCount
+}: TopicDetailProps) {
   return (
     <section className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden">
       <button 
@@ -82,6 +88,21 @@ export default function TopicDetail({
                   <option value="gemini" className="bg-background">Google Gemini</option>
                   <option value="deepseek" className="bg-background">DeepSeek Chat</option>
                 </select>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Number of questions</label>
+                <div className="flex items-center gap-4">
+                   <input 
+                     type="range" 
+                     min="5" 
+                     max="20" 
+                     step="1"
+                     value={questionCount}
+                     onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+                     className="flex-1 accent-foreground"
+                   />
+                   <span className="text-sm font-bold text-foreground w-12 text-center">{questionCount}</span>
+                </div>
               </div>
             </>
           )}

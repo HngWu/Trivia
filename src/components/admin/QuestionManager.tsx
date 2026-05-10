@@ -8,7 +8,7 @@ interface QuestionManagerProps {
   batchJson: string;
   setBatchJson: (val: string) => void;
   isGenerating: boolean;
-  onGenerate: (provider: string) => void;
+  onGenerate: (provider: string, count: number) => void;
   onUpload: () => void;
   questions: any[];
   onDeleteQuestion: (id: string) => void;
@@ -29,6 +29,7 @@ export default function QuestionManager({
   onUpdateQuestion
 }: QuestionManagerProps) {
   const [aiProvider, setAIProvider] = React.useState('auto');
+  const [aiCount, setAiCount] = React.useState(10);
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
   const handleEdit = (q: any) => {
@@ -54,19 +55,33 @@ export default function QuestionManager({
         <h2 className="text-lg font-bold text-gray-500 tracking-tight">{editingId ? 'Edit question' : 'Add questions'}</h2>
         {!editingId && (
           <div className="flex gap-2 items-center">
-             <select 
-               value={aiProvider}
-               onChange={(e) => setAIProvider(e.target.value)}
-               className="text-[9px] font-bold bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-gray-400 appearance-none outline-none"
-             >
-               <option value="auto">Auto AI</option>
-               <option value="gemini">Gemini</option>
-               <option value="deepseek">DeepSeek</option>
-             </select>
+             <div className="flex flex-col gap-1">
+                <label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest ml-1">Provider</label>
+                <select 
+                  value={aiProvider}
+                  onChange={(e) => setAIProvider(e.target.value)}
+                  className="text-[9px] font-bold bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-gray-400 outline-none"
+                >
+                  <option value="auto">Auto AI</option>
+                  <option value="gemini">Gemini</option>
+                  <option value="deepseek">DeepSeek</option>
+                </select>
+             </div>
+             <div className="flex flex-col gap-1">
+                <label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest ml-1">Count</label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  max="50"
+                  value={aiCount}
+                  onChange={(e) => setAiCount(parseInt(e.target.value) || 10)}
+                  className="w-12 h-8 glass-input rounded-lg px-2 font-bold text-[10px] text-foreground outline-none"
+                />
+             </div>
              <button 
-                onClick={() => onGenerate(aiProvider)}
+                onClick={() => onGenerate(aiProvider, aiCount)}
                 disabled={!targetTopic || isGenerating}
-                className={`text-[9px] font-bold tracking-widest px-4 py-2 rounded-full transition-all active:scale-95 border ${isGenerating ? 'bg-white/5 text-gray-500 border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
+                className={`text-[9px] font-bold tracking-widest px-4 py-2 rounded-full transition-all active:scale-95 border mt-3 ${isGenerating ? 'bg-white/5 text-gray-500 border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
               >
                 {isGenerating ? "Generating..." : "Generate AI"}
               </button>

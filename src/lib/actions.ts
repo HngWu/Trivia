@@ -34,7 +34,7 @@ function advanceRoomState(room: Room, updates: Partial<Room>) {
   room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
 }
 
-export async function createRoom(topic: string, leaderName: string, provider: AIProvider = "auto") {
+export async function createRoom(topic: string, leaderName: string, provider: AIProvider = "auto", count: number = 10) {
   const supabase = await createClient();
   const normalizedTopic = topic.toLowerCase();
   
@@ -48,14 +48,14 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
   if (questions && questions.length > 0) {
     questions = questions
       .sort(() => Math.random() - 0.5)
-      .slice(0, 10);
+      .slice(0, count);
   }
     
   if (!questions || questions.length === 0) {
     const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/generate-questions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, provider }),
+      body: JSON.stringify({ topic, provider, count }),
     });
     const aiData = await aiResponse.json();
     questions = aiData.questions;

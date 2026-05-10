@@ -10,7 +10,7 @@ interface AdminLoginProps {
 
 export default function AdminLogin({ email, setEmail, password, setPassword, onLogin }: AdminLoginProps) {
   return (
-    <main className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 page-transition">
+    <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 page-transition">
       <div className="glass p-8 sm:p-12 rounded-[2rem] w-full max-w-md space-y-6 border-white/10 shadow-xl">
         <div className="text-center space-y-1.5">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Admin login</h1>
