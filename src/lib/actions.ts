@@ -258,14 +258,41 @@ export async function addTopic(topic: any) {
 
 export async function addQuestions(questions: any[]) {
   const supabase = await createClient();
+  
+  // 1. Identify which questions already exist in the DB by their text
   const texts = questions.map(q => q.text);
   const { data: existing } = await supabase.from("questions").select("text").in("text", texts);
   const existingTexts = new Set(existing?.map(e => e.text) || []);
-  const newQuestions = questions.filter(q => !existingTexts.has(q.text));
-  if (newQuestions.length === 0) return { count: 0, message: "Duplicates only." };
-  const { error } = await supabase.from("questions").insert(newQuestions);
-  if (error) throw error;
-  return { count: newQuestions.length, message: `Added ${newQuestions.length} questions.` };
+  
+  // 2. Filter out duplicates and sanitize for insertion
+  const sanitizedQuestions = questions
+    .filter(q => !existingTexts.has(q.text))
+    .map(q => ({
+      topic: q.topic,
+      summary: q.summary,
+      text: q.text,
+      type: q.type,
+      options: q.options || null,
+      correct_answer: q.correct_answer,
+      explanation: q.explanation || "No explanation provided."
+    }));
+
+  if (sanitizedQuestions.length === 0) {
+    return { count: 0, message: "All questions in this batch are already in the database." };
+  }
+
+  // 3. Perform batch insert
+  const { error } = await supabase.from("questions").insert(sanitizedQuestions);
+  
+  if (error) {
+    console.error("Database Insert Error:", error);
+    throw new Error(`Failed to upload questions: ${error.message}`);
+  }
+
+  return { 
+    count: sanitizedQuestions.length, 
+    message: `Successfully added ${sanitizedQuestions.length} new questions.` 
+  };
 }
 
 export async function deleteTopic(id: string) {

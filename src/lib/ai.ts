@@ -22,7 +22,7 @@ Ensure a mix of question types. Respond ONLY with the JSON array.`;
 async function generateWithGemini(topic: string, count: number): Promise<Question[] | null> {
   if (!GEMINI_API_KEY) return null;
   
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const models = ["gemini-3-flash-preview", "gemini-3.1-pro-preview"];
   const prompt = PROMPT_TEMPLATE(topic, count);
 
   for (const modelName of models) {
