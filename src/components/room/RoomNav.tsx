@@ -35,18 +35,25 @@ export default function RoomNav({
       </div>
       
       <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[40vw] sm:max-w-none px-2">
-        {displayedSortedPlayers.map((p, i) => (
-          <div 
-            key={p.id} 
-            className={`px-3 py-1.5 rounded-xl text-[9px] font-bold border transition-all whitespace-nowrap ${
-              p.id === myPlayerId 
-                ? "bg-foreground text-background border-foreground shadow-md" 
-                : "border-white/5 text-gray-500 bg-white/[0.02]"
-            }`}
-          >
-            #{i + 1} {p.name.split(' ')[0]} • {p.score}
-          </div>
-        ))}
+        {displayedSortedPlayers.map((p, i) => {
+          // Calculate rank with tie handling
+          const rank = i > 0 && p.score === displayedSortedPlayers[i - 1].score 
+            ? displayedSortedPlayers.slice(0, i).findIndex(prev => prev.score === p.score) + 1
+            : i + 1;
+            
+          return (
+            <div 
+              key={p.id} 
+              className={`px-3 py-1.5 rounded-xl text-[9px] font-bold border transition-all whitespace-nowrap ${
+                p.id === myPlayerId 
+                  ? "bg-foreground text-background border-foreground shadow-md" 
+                  : "border-white/5 text-gray-500 bg-white/[0.02]"
+              }`}
+            >
+              #{rank} {p.name.split(' ')[0]} • {p.score}
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex items-center space-x-4 sm:space-x-6">

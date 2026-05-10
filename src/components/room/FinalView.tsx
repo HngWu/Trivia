@@ -50,20 +50,27 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
       </div>
       
       <div className="glass w-full max-w-2xl rounded-[2.5rem] border-white/[0.03] overflow-hidden shadow-2xl">
-        {sortedPlayers.map((p, i) => (
-          <div key={p.id} className={`flex items-center justify-between p-6 sm:p-10 transition-all ${i === 0 ? "bg-white/[0.05] border-b border-white/10" : "border-b border-white/[0.02] last:border-0"}`}>
-             <div className="flex items-center space-x-6 sm:space-x-10">
-                <span className={`text-4xl sm:text-6xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/10"}`}>
-                  #{i + 1}
-                </span>
-                <div className="text-left">
-                  <p className="text-xl sm:text-3xl font-bold uppercase tracking-tight text-foreground">{p.name}</p>
-                  <p className="text-[9px] font-bold tracking-wider text-foreground/30 uppercase">{p.id === myPlayerId ? "You" : "Player"}</p>
-                </div>
-             </div>
-             <span className="text-4xl sm:text-6xl font-bold tabular-nums text-foreground">{p.score}</span>
-          </div>
-        ))}
+        {sortedPlayers.map((p, i) => {
+          // Calculate rank with tie handling
+          const rank = i > 0 && p.score === sortedPlayers[i - 1].score 
+            ? sortedPlayers.slice(0, i).findIndex(prev => prev.score === p.score) + 1
+            : i + 1;
+
+          return (
+            <div key={p.id} className={`flex items-center justify-between p-6 sm:p-10 transition-all ${i === 0 ? "bg-white/[0.05] border-b border-white/10" : "border-b border-white/[0.02] last:border-0"}`}>
+               <div className="flex items-center space-x-6 sm:space-x-10">
+                  <span className={`text-4xl sm:text-6xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/10"}`}>
+                    #{rank}
+                  </span>
+                  <div className="text-left">
+                    <p className="text-xl sm:text-3xl font-bold uppercase tracking-tight text-foreground">{p.name}</p>
+                    <p className="text-[9px] font-bold tracking-wider text-foreground/30 uppercase">{p.id === myPlayerId ? "You" : "Player"}</p>
+                  </div>
+               </div>
+               <span className="text-4xl sm:text-6xl font-bold tabular-nums text-foreground">{p.score}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* ROAST SECTION */}

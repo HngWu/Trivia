@@ -26,8 +26,15 @@ async function generateWithGemini(topic: string, count: number, excluded: string
     console.log(`[AI] Gemini generating ${count} for ${topic}...`);
     const result = await model.generateContent(USER_PROMPT(topic, count, excluded));
     const text = result.response.text();
-    const match = text.match(/\[[\s\S]*\]/);
-    return match ? JSON.parse(match[0]) as Question[] : null;
+    
+    // Robust extraction: find the first '[' and last ']'
+    const start = text.indexOf('[');
+    const end = text.lastIndexOf(']');
+    if (start !== -1 && end !== -1 && end > start) {
+      const jsonStr = text.substring(start, end + 1);
+      return JSON.parse(jsonStr) as Question[];
+    }
+    return null;
   } catch (err) {
     console.warn(`[AI] Gemini failed:`, err);
     return null;
@@ -55,12 +62,22 @@ async function generateWithDeepSeek(topic: string, count: number, excluded: stri
       })
     });
 
-    const data = await response.json();
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.warn(`[AI] DeepSeek API error: ${response.status}`);
+      return null;
+    }
     
-    const content = data.choices[0].message.content;
-    const match = content.match(/\[[\s\S]*\]/);
-    return match ? JSON.parse(match[0]) as Question[] : null;
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    const start = content.indexOf('[');
+    const end = content.lastIndexOf(']');
+    if (start !== -1 && end !== -1 && end > start) {
+      const jsonStr = content.substring(start, end + 1);
+      return JSON.parse(jsonStr) as Question[];
+    }
+    return null;
   } catch (err) {
     console.error("[AI] DeepSeek failed:", err);
     return null;
@@ -82,11 +99,15 @@ export async function generateRoasts(playerHistory: { name: string, wrongAnswers
   // Try Gemini first
   if (GEMINI_API_KEY) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
       const result = await model.generateContent(prompt);
       const text = result.response.text();
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) return JSON.parse(match[0]);
+      
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) {
+        return JSON.parse(text.substring(start, end + 1));
+      }
     } catch (e) { console.warn("[Roast] Gemini failed", e); }
   }
 
@@ -102,11 +123,16 @@ export async function generateRoasts(playerHistory: { name: string, wrongAnswers
           response_format: { type: "json_object" }
         })
       });
-      const data = await response.json();
       if (response.ok) {
-        const content = data.choices[0].message.content;
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) return JSON.parse(match[0]);
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          const start = content.indexOf('{');
+          const end = content.lastIndexOf('}');
+          if (start !== -1 && end !== -1 && end > start) {
+            return JSON.parse(content.substring(start, end + 1));
+          }
+        }
       }
     } catch (e) { console.error("[Roast] DeepSeek failed", e); }
   }

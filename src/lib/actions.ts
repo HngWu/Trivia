@@ -5,6 +5,7 @@ import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer, GameState } from "./types/game";
 import { validateAnswer } from "./validation";
 import { AIProvider } from "./ai";
+import crypto from "crypto";
 
 const SYNC_BUFFER_MS = 1500;
 
@@ -52,16 +53,33 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
   }
     
   if (!questions || questions.length === 0) {
-    const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/generate-questions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, provider, count }),
-    });
-    const aiData = await aiResponse.json();
-    questions = aiData.questions;
+    try {
+      const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/generate-questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, provider, count }),
+      });
+      if (aiResponse.ok) {
+        const aiData = await aiResponse.json();
+        questions = aiData.questions;
+      }
+    } catch (e) {
+      console.error("AI fetch failed in createRoom:", e);
+    }
   }
 
-  if (!questions || questions.length === 0) throw new Error("Failed to generate or retrieve questions");
+  // Final Fallback: if still no questions, pick ANY random questions from the DB
+  if (!questions || questions.length === 0) {
+    console.warn("AI and Topic specific fetch failed. Falling back to global question pool.");
+    const { data: fallback } = await supabase.from("questions").select("*").limit(count * 2);
+    if (fallback && fallback.length > 0) {
+      questions = fallback.sort(() => Math.random() - 0.5).slice(0, count);
+    }
+  }
+
+  if (!questions || questions.length === 0) {
+    throw new Error("Critical Failure: No questions available in database or via AI.");
+  }
 
   const finalQuestions: Question[] = questions.map((q: any, idx: number) => ({
     id: q.id || `q-${idx}-${crypto.randomUUID()}`,
