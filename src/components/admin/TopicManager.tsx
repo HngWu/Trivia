@@ -33,7 +33,7 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
   };
 
   return (
-    <section className="glass p-6 sm:p-8 rounded-[2rem] border-white/[0.03] space-y-6 shadow-xl">
+    <section className="glass p-6 sm:p-8 rounded-[2rem] border-white/[0.03] space-y-6 shadow-xl h-full flex flex-col">
       <h2 className="text-lg font-bold text-gray-500 tracking-tight">{editingId ? 'Edit topic' : 'Manage topics'}</h2>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -64,7 +64,7 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
           placeholder="Description" 
           value={newTopic.description}
           onChange={e => setNewTopic({...newTopic, description: e.target.value})}
-          className="w-full h-20 glass-input rounded-xl p-4 font-semibold text-sm resize-none text-foreground"
+          className="w-full h-24 glass-input rounded-xl p-4 font-semibold text-sm resize-none text-foreground"
         />
         <input 
           type="text" 

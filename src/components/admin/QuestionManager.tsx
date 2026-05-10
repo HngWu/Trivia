@@ -34,6 +34,7 @@ export default function QuestionManager({
 
   const handleEdit = (q: any) => {
     setEditingId(q.id);
+    // User-friendly JSON formatting (2 spaces indentation)
     setBatchJson(JSON.stringify([q], null, 2));
   };
 
@@ -45,60 +46,75 @@ export default function QuestionManager({
       setEditingId(null);
       setBatchJson('');
     } catch (e) {
-      alert("Invalid JSON");
+      alert("Invalid JSON format. Please check your syntax.");
     }
   };
 
+  const handleTemplateLoad = () => {
+    const template = [
+      {
+        "summary": "Protocol Test",
+        "text": "Is this a test question?",
+        "type": "boolean",
+        "correct_answer": "True",
+        "explanation": "System operational."
+      }
+    ];
+    setBatchJson(JSON.stringify(template, null, 2));
+  };
+
   return (
-    <section className="glass p-6 sm:p-8 rounded-[2rem] border-white/[0.03] space-y-6 shadow-xl">
+    <section className="glass p-6 sm:p-8 rounded-[2rem] border-white/[0.03] space-y-6 shadow-xl h-full flex flex-col">
       <div className="flex justify-between items-center">
         <h2 className="text-lg font-bold text-gray-500 tracking-tight">{editingId ? 'Edit question' : 'Add questions'}</h2>
         {!editingId && (
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-3 items-end">
              <div className="flex flex-col gap-1">
                 <label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest ml-1">Provider</label>
                 <select 
                   value={aiProvider}
                   onChange={(e) => setAIProvider(e.target.value)}
-                  className="text-[9px] font-bold bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-gray-400 outline-none"
+                  className="h-9 min-w-[80px] text-[10px] font-bold glass-input rounded-xl px-2 outline-none appearance-none cursor-pointer"
                 >
-                  <option value="auto">Auto AI</option>
-                  <option value="gemini">Gemini</option>
-                  <option value="deepseek">DeepSeek</option>
+                  <option value="auto" className="bg-background">Auto AI</option>
+                  <option value="gemini" className="bg-background">Gemini</option>
+                  <option value="deepseek" className="bg-background">DeepSeek</option>
                 </select>
              </div>
              <div className="flex flex-col gap-1">
-                <label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest ml-1">Count</label>
-                <input 
-                  type="number" 
-                  min="1" 
-                  max="50"
-                  value={aiCount}
-                  onChange={(e) => setAiCount(parseInt(e.target.value) || 10)}
-                  className="w-12 h-8 glass-input rounded-lg px-2 font-bold text-[10px] text-foreground outline-none"
-                />
+                <label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest ml-1">Count ({aiCount})</label>
+                <div className="flex items-center gap-2 h-9 bg-white/5 border border-white/10 rounded-xl px-3 group focus-within:border-white/20 transition-all">
+                   <input 
+                     type="range" 
+                     min="1" 
+                     max="50"
+                     value={aiCount}
+                     onChange={(e) => setAiCount(parseInt(e.target.value) || 10)}
+                     className="w-16 h-1 accent-foreground cursor-pointer"
+                   />
+                </div>
              </div>
              <button 
                 onClick={() => onGenerate(aiProvider, aiCount)}
                 disabled={!targetTopic || isGenerating}
-                className={`text-[9px] font-bold tracking-widest px-4 py-2 rounded-full transition-all active:scale-95 border mt-3 ${isGenerating ? 'bg-white/5 text-gray-500 border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
+                className={`h-9 font-bold tracking-widest px-4 rounded-xl transition-all active:scale-95 border text-[10px] uppercase ${isGenerating ? 'bg-white/5 text-gray-500 border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
               >
-                {isGenerating ? "Generating..." : "Generate AI"}
+                {isGenerating ? "..." : "Generate AI"}
               </button>
           </div>
         )}
       </div>
       
-      <div className="space-y-5">
+      <div className="space-y-4">
         {!editingId && (
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold tracking-widest text-gray-700 ml-1 uppercase">Select topic</label>
             <select 
               value={targetTopic}
               onChange={e => setTargetTopic(e.target.value)}
-              className="w-full h-11 glass-input rounded-xl px-4 font-bold text-sm bg-transparent border-white/5 text-foreground"
+              className="w-full h-11 glass-input rounded-xl px-4 font-bold text-sm bg-transparent border-white/5 text-foreground appearance-none cursor-pointer"
             >
-              <option value="" className="bg-background">Choose...</option>
+              <option value="" className="bg-background">Choose a topic...</option>
               {topics.map(t => (
                 <option key={t.id} value={t.id} className="bg-background">{t.name}</option>
               ))}
@@ -111,15 +127,7 @@ export default function QuestionManager({
             <label className="text-[10px] font-bold tracking-widest text-gray-700 uppercase">JSON Data</label>
             {!editingId && (
               <button 
-                onClick={() => setBatchJson(`[
-  {
-    "summary": "Example",
-    "text": "Is this a test?",
-    "type": "boolean",
-    "correct_answer": "True",
-    "explanation": "Correct."
-  }
-]`)}
+                onClick={handleTemplateLoad}
                 className="text-[9px] font-bold tracking-widest text-white/20 hover:text-foreground transition-colors"
               >
                 Template
@@ -130,7 +138,7 @@ export default function QuestionManager({
             placeholder='JSON array of questions...'
             value={batchJson}
             onChange={e => setBatchJson(e.target.value)}
-            className="w-full h-48 glass-input rounded-xl p-4 font-mono text-xs text-foreground resize-none border-white/5"
+            className="w-full h-64 glass-input rounded-xl p-6 font-mono text-xs text-foreground resize-none border-white/5 shadow-inner leading-relaxed"
           />
         </div>
         
