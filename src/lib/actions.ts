@@ -4,6 +4,7 @@ import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer, GameState } from "./types/game";
 import { validateAnswer } from "./validation";
+import { AIProvider } from "./ai";
 
 const SYNC_BUFFER_MS = 1500;
 
@@ -33,7 +34,7 @@ function advanceRoomState(room: Room, updates: Partial<Room>) {
   room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
 }
 
-export async function createRoom(topic: string, leaderName: string) {
+export async function createRoom(topic: string, leaderName: string, provider: AIProvider = "auto") {
   const supabase = await createClient();
   const normalizedTopic = topic.toLowerCase();
   
@@ -54,7 +55,7 @@ export async function createRoom(topic: string, leaderName: string) {
     const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/generate-questions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic }),
+      body: JSON.stringify({ topic, provider }),
     });
     const aiData = await aiResponse.json();
     questions = aiData.questions;
@@ -265,4 +266,35 @@ export async function addQuestions(questions: any[]) {
   const { error } = await supabase.from("questions").insert(newQuestions);
   if (error) throw error;
   return { count: newQuestions.length, message: `Added ${newQuestions.length} questions.` };
+}
+
+export async function deleteTopic(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("topics").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateTopic(id: string, updates: any) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("topics").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteQuestion(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("questions").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateQuestion(id: string, updates: any) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("questions").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
+export async function getQuestionsByTopic(topicId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("questions").select("*").eq("topic", topicId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
 }

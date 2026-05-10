@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getTopics, addTopic, addQuestions } from '@/lib/actions';
+import { getTopics, addTopic, addQuestions, deleteTopic, updateTopic, deleteQuestion, updateQuestion, getQuestionsByTopic } from '@/lib/actions';
 import Toast from '@/components/shared/Toast';
 import AdminLogin from '@/components/admin/AdminLogin';
 import TopicManager from '@/components/admin/TopicManager';
@@ -19,6 +19,7 @@ export default function AdminPage() {
   const [targetTopic, setTargetTopic] = useState('');
   const [batchJson, setBatchJson] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [questions, setQuestions] = useState<any[]>([]);
 
   const supabase = createClient();
 
@@ -35,19 +36,27 @@ export default function AdminPage() {
     checkUser();
   }, [supabase]);
 
+  useEffect(() => {
+    if (targetTopic) {
+      getQuestionsByTopic(targetTopic).then(setQuestions);
+    } else {
+      setQuestions([]);
+    }
+  }, [targetTopic]);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleGenerateAI = async () => {
+  const handleGenerateAI = async (provider: string) => {
     if (!targetTopic) return;
     setIsGenerating(true);
     try {
       const response = await fetch('/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: targetTopic }),
+        body: JSON.stringify({ topic: targetTopic, provider }),
       });
       const data = await response.json();
       if (data.error) throw new Error(data.error);
@@ -74,7 +83,6 @@ export default function AdminPage() {
   };
 
   const handleAddTopic = async () => {
-    if (!newTopic.id || !newTopic.name) return;
     try {
       await addTopic(newTopic);
       setTopics([...topics, newTopic]);
@@ -83,16 +91,51 @@ export default function AdminPage() {
     } catch (e: any) { showToast(e.message); }
   };
 
+  const handleUpdateTopic = async (id: string, updates: any) => {
+    try {
+      await updateTopic(id, updates);
+      setTopics(topics.map(t => t.id === id ? updates : t));
+      showToast("Topic updated successfully!");
+    } catch (e: any) { showToast(e.message); }
+  };
+
+  const handleDeleteTopic = async (id: string) => {
+    if (!confirm("Are you sure? This will delete all questions for this topic.")) return;
+    try {
+      await deleteTopic(id);
+      setTopics(topics.filter(t => t.id !== id));
+      if (targetTopic === id) setTargetTopic('');
+      showToast("Topic deleted.");
+    } catch (e: any) { showToast(e.message); }
+  };
+
   const handleBatchAdd = async () => {
     if (!targetTopic || !batchJson) return;
     try {
       const parsed = JSON.parse(batchJson);
-      const questions = Array.isArray(parsed) ? parsed : [parsed];
-      const formatted = questions.map(q => ({ ...q, topic: targetTopic, options: q.options || null }));
+      const formatted = (Array.isArray(parsed) ? parsed : [parsed]).map(q => ({ ...q, topic: targetTopic, options: q.options || null }));
       const result = await addQuestions(formatted);
       showToast(result.message);
       setBatchJson('');
+      getQuestionsByTopic(targetTopic).then(setQuestions);
     } catch (e: any) { showToast("Invalid JSON or server error: " + e.message); }
+  };
+
+  const handleUpdateQuestion = async (id: string, updates: any) => {
+    try {
+      await updateQuestion(id, updates);
+      setQuestions(questions.map(q => q.id === id ? { ...q, ...updates } : q));
+      showToast("Question updated.");
+    } catch (e: any) { showToast(e.message); }
+  };
+
+  const handleDeleteQuestion = async (id: string) => {
+    if (!confirm("Delete this question?")) return;
+    try {
+      await deleteQuestion(id);
+      setQuestions(questions.filter(q => q.id !== id));
+      showToast("Question deleted.");
+    } catch (e: any) { showToast(e.message); }
   };
 
   if (isLoading) return <div className="min-h-screen bg-black text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse">Loading...</div>;
@@ -110,9 +153,9 @@ export default function AdminPage() {
         <button onClick={() => supabase.auth.signOut().then(() => { setUser(null); window.location.href = "/"; })} className="px-3 py-1.5 glass-button rounded-xl text-[10px] font-bold tracking-wider border-white/5 hover:text-red-500">Sign out</button>
       </header>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 xl:grid-cols-2 gap-8">
-        <TopicManager topics={topics} newTopic={newTopic} setNewTopic={setNewTopic} onAdd={handleAddTopic} />
-        <QuestionManager topics={topics} targetTopic={targetTopic} setTargetTopic={setTargetTopic} batchJson={batchJson} setBatchJson={setBatchJson} isGenerating={isGenerating} onGenerate={handleGenerateAI} onUpload={handleBatchAdd} />
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <TopicManager topics={topics} newTopic={newTopic} setNewTopic={setNewTopic} onAdd={handleAddTopic} onDelete={handleDeleteTopic} onUpdate={handleUpdateTopic} />
+        <QuestionManager topics={topics} targetTopic={targetTopic} setTargetTopic={setTargetTopic} batchJson={batchJson} setBatchJson={setBatchJson} isGenerating={isGenerating} onGenerate={handleGenerateAI} onUpload={handleBatchAdd} questions={questions} onDeleteQuestion={handleDeleteQuestion} onUpdateQuestion={handleUpdateQuestion} />
       </div>
 
       <footer className="text-center pt-4"><p className="text-gray-800 text-[9px] font-bold tracking-[2em] opacity-30 pointer-events-none uppercase">TriviaDuel Admin</p></footer>

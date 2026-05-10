@@ -7,6 +7,7 @@ import HomeHeader from '@/components/home/HomeHeader';
 import TopicGrid from '@/components/home/TopicGrid';
 import TopicDetail from '@/components/home/TopicDetail';
 import JoinGameForm from '@/components/home/JoinGameForm';
+import { AIProvider } from '@/lib/ai';
 
 export default function Home() {
   const [nickname, setNickname] = useState('');
@@ -18,6 +19,7 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [topics, setTopics] = useState<any[]>([]);
   const [isTopicsLoading, setIsTopicsLoading] = useState(true);
+  const [aiProvider, setAIProvider] = useState<AIProvider>('auto');
 
   useEffect(() => {
     const savedName = localStorage.getItem('player_name');
@@ -48,7 +50,7 @@ export default function Home() {
     setIsLoading(true);
     try {
       const topicToUse = selectedTopic === 'custom' ? customTopic : selectedTopic;
-      const { room, player } = await createRoom(topicToUse, nickname);
+      const { room, player } = await createRoom(topicToUse, nickname, aiProvider);
       
       localStorage.setItem('player_id', player.id);
       localStorage.setItem('player_name', nickname);
@@ -147,6 +149,8 @@ export default function Home() {
             onBack={() => setSelectedTopic('')}
             onCreate={handleCreateRoom}
             isLoading={isLoading}
+            aiProvider={aiProvider}
+            setAIProvider={setAIProvider}
           />
         )}
 

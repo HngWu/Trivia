@@ -22,7 +22,7 @@ Ensure a mix of question types. Respond ONLY with the JSON array.`;
 async function generateWithGemini(topic: string): Promise<Question[] | null> {
   if (!GEMINI_API_KEY) return null;
   
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const models = ["gemini-3.1-flash-preview", "gemini-3.1-pro-preview"];
   const prompt = PROMPT_TEMPLATE(topic);
 
   for (const modelName of models) {
@@ -91,12 +91,27 @@ async function generateWithDeepSeek(topic: string): Promise<Question[] | null> {
   return null;
 }
 
-export async function generateAIQuestions(topic: string): Promise<Question[]> {
-  // 1. Try Gemini
+export type AIProvider = "gemini" | "deepseek" | "auto";
+
+export async function generateAIQuestions(topic: string, provider: AIProvider = "auto"): Promise<Question[]> {
+  // 1. Explicit Gemini
+  if (provider === "gemini") {
+    const res = await generateWithGemini(topic);
+    if (res) return res;
+    throw new Error("Gemini failed to generate questions");
+  }
+
+  // 2. Explicit DeepSeek
+  if (provider === "deepseek") {
+    const res = await generateWithDeepSeek(topic);
+    if (res) return res;
+    throw new Error("DeepSeek failed to generate questions");
+  }
+
+  // 3. Auto Fallback (Default)
   const geminiResult = await generateWithGemini(topic);
   if (geminiResult) return geminiResult;
 
-  // 2. Try DeepSeek Fallback
   const deepSeekResult = await generateWithDeepSeek(topic);
   if (deepSeekResult) return deepSeekResult;
 
