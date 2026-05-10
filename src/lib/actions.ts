@@ -262,16 +262,29 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
   return await getFullState(normalizedCode);
 }
 
+const TOPICS_CACHE_KEY = "cached_topics";
+
 export async function getTopics(): Promise<Topic[]> {
-  const supabase = await createClient();
-  const { data: topics } = await supabase.from("topics").select("*").order("name");
-  return topics || [];
+  try {
+    const cached = await redis.get<Topic[]>(TOPICS_CACHE_KEY);
+    if (cached) return cached;
+
+    const supabase = await createClient();
+    const { data: topics } = await supabase.from("topics").select("*").order("name");
+    const result = topics || [];
+    await redis.set(TOPICS_CACHE_KEY, result, { ex: 3600 });
+    return result;
+  } catch (error) {
+    console.error("Fetch Topics Error:", error);
+    return [];
+  }
 }
 
 export async function addTopic(topic: Topic) {
   const supabase = await createClient();
   const { error } = await supabase.from("topics").insert([topic]);
   if (error) throw error;
+  await redis.del(TOPICS_CACHE_KEY);
 }
 
 export async function addQuestions(questions: Question[]) {
