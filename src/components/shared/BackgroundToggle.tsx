@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useTheme } from '@/lib/contexts/ThemeContext';
-import { motion } from 'framer-motion';
 
 export default function BackgroundToggle() {
   const { background, isAnimationEnabled, toggleBackground, toggleAnimation } = useTheme();
