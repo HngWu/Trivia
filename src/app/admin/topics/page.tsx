@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { getTopics, addTopic, deleteTopic, updateTopic } from '@/lib/actions';
 import Toast from '@/components/shared/Toast';
 import TopicManager from '@/components/admin/TopicManager';
+import Link from 'next/link';
 
 export default function AdminTopicsPage() {
   const [topics, setTopics] = useState<any[]>([]);
@@ -54,9 +55,14 @@ export default function AdminTopicsPage() {
   return (
     <div className="space-y-8 animate-fade-in max-w-2xl mx-auto">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-      <div className="space-y-1">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">Aereas</h2>
-        <p className="text-gray-500 text-xs">Manage the domains of knowledge for the duel.</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Arenas</h2>
+          <p className="text-gray-500 text-xs">Manage the domains of knowledge for the duel.</p>
+        </div>
+        <Link href="/admin" className="text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground transition-colors uppercase">
+          ← Dashboard
+        </Link>
       </div>
       <TopicManager 
         topics={topics} 

@@ -10,7 +10,7 @@ interface QuestionManagerProps {
   isGenerating: boolean;
   onGenerate: (provider: string, count: number) => void;
   onUpload: () => void;
-  questions: any[];
+  questions: Question[];
   onDeleteQuestion: (id: string) => void;
   onUpdateQuestion: (id: string, updates: any) => void;
 }

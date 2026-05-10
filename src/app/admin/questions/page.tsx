@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { getTopics, addQuestions, deleteQuestion, updateQuestion, getQuestionsByTopic } from '@/lib/actions';
 import Toast from '@/components/shared/Toast';
 import QuestionManager from '@/components/admin/QuestionManager';
+import Link from 'next/link';
 
 export default function AdminQuestionsPage() {
   const [topics, setTopics] = useState<any[]>([]);
@@ -94,9 +95,14 @@ export default function AdminQuestionsPage() {
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-      <div className="space-y-1">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">Intelligence</h2>
-        <p className="text-gray-500 text-xs">Build the question pool for each arena using AI or manual entry.</p>
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Intelligence</h2>
+          <p className="text-gray-500 text-xs">Build the question pool for each arena using AI or manual entry.</p>
+        </div>
+        <Link href="/admin" className="text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground transition-colors uppercase">
+          ← Dashboard
+        </Link>
       </div>
       <QuestionManager 
         topics={topics} 

@@ -8,6 +8,7 @@ import TopicGrid from '@/components/home/TopicGrid';
 import TopicDetail from '@/components/home/TopicDetail';
 import JoinGameForm from '@/components/home/JoinGameForm';
 import { AIProvider } from '@/lib/ai';
+import { AnimatePresence, motion } from 'framer-motion';
 
 export default function Home() {
   const [nickname, setNickname] = useState('');
@@ -101,7 +102,9 @@ export default function Home() {
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       
       <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-50">
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.1, rotate: 15 }}
+          whileTap={{ scale: 0.9 }}
           onClick={() => window.location.href = '/admin'}
           className="p-2 glass rounded-xl border-white/5 hover:border-white/20 transition-all group focus:ring-2 focus:ring-white/20 focus:outline-none"
           title="Admin Settings"
@@ -109,56 +112,69 @@ export default function Home() {
           <svg className="w-4 h-4 text-gray-500 group-hover:text-foreground transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 21a10.003 10.003 0 008.384-4.51l.054.09m-4.283-9.958L17.163 2m-3.733 3.103c.181.013.362.019.544.019a10.003 10.003 0 008.384-4.51c.054.09.11.178.163.266m-12.115 1.5l-1.077 1.077a2 2 0 000 2.828l1.077 1.077m2.828 0l1.077-1.077a2 2 0 000-2.828l-1.077-1.077M9 10a1 1 0 112 0 1 1 0 01-2 0zm5 2a1 1 0 112 0 1 1 0 01-2 0z" />
           </svg>
-        </button>
+        </motion.button>
       </div>
 
       <div className="max-w-4xl w-full space-y-6 sm:space-y-10 relative z-10 py-4 sm:py-8">
-        {!selectedTopic && !showJoinInput && (
-          <>
-            <HomeHeader />
-            
-            <section className="w-full max-w-md mx-auto text-center">
-              <button 
-                onClick={() => setShowJoinInput(true)}
-                className="glass-button w-full px-10 py-3 rounded-2xl font-bold text-lg hover:bg-foreground hover:text-background transition-all focus:ring-2 focus:ring-white/20 focus:outline-none"
-              >
-                Join a game
-              </button>
-            </section>
+        <AnimatePresence mode="wait">
+          {!selectedTopic && !showJoinInput && (
+            <motion.div 
+              key="landing-view"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6 sm:space-y-10"
+            >
+              <HomeHeader />
+              
+              <section className="w-full max-w-md mx-auto text-center">
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowJoinInput(true)}
+                  className="glass-button w-full px-10 py-3 rounded-2xl font-bold text-lg hover:bg-foreground hover:text-background transition-all focus:ring-2 focus:ring-white/20 focus:outline-none"
+                >
+                  Join a game
+                </motion.button>
+              </section>
 
-            <TopicGrid 
-              topics={sortedTopics} 
-              selectedTopic={selectedTopic} 
-              onSelect={setSelectedTopic} 
-              isLoading={isTopicsLoading} 
+              <TopicGrid 
+                topics={sortedTopics} 
+                selectedTopic={selectedTopic} 
+                onSelect={setSelectedTopic} 
+                isLoading={isTopicsLoading} 
+              />
+            </motion.div>
+          )}
+
+          {showJoinInput && (
+            <JoinGameForm 
+              key="join-form"
+              nickname={nickname}
+              setNickname={setNickname}
+              roomCode={roomCode}
+              setRoomCode={setRoomCode}
+              onJoin={handleJoinRoom}
+              onBack={() => setShowJoinInput(false)}
+              isLoading={isLoading}
             />
-          </>
-        )}
+          )}
 
-        {showJoinInput && (
-          <JoinGameForm 
-            nickname={nickname}
-            setNickname={setNickname}
-            roomCode={roomCode}
-            setRoomCode={setRoomCode}
-            onJoin={handleJoinRoom}
-            onBack={() => setShowJoinInput(false)}
-            isLoading={isLoading}
-          />
-        )}
-
-        {selectedTopic && selectedTopicData && (
-          <TopicDetail 
-            topicData={selectedTopicData}
-            nickname={nickname}
-            setNickname={setNickname}
-            customTopic={customTopic}
-            setCustomTopic={setCustomTopic}
-            onBack={() => setSelectedTopic('')}
-            onCreate={handleCreateRoom}
-            isLoading={isLoading}
-          />
-        )}
+          {selectedTopic && selectedTopicData && (
+            <TopicDetail 
+              key="topic-detail"
+              topicData={selectedTopicData}
+              nickname={nickname}
+              setNickname={setNickname}
+              customTopic={customTopic}
+              setCustomTopic={setCustomTopic}
+              onBack={() => setSelectedTopic('')}
+              onCreate={handleCreateRoom}
+              isLoading={isLoading}
+            />
+          )}
+        </AnimatePresence>
 
         <footer className="text-center pt-6">
           <p className="text-gray-700 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">
