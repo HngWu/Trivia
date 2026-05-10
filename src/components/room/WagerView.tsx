@@ -56,7 +56,7 @@ export default function WagerView({
                 className={`h-16 sm:h-24 rounded-xl sm:rounded-2xl font-bold text-2xl sm:text-4xl transition-all border-2 relative overflow-hidden group shadow-lg focus:ring-2 focus:ring-white/20 focus:outline-none ${
                   isUsed || isLocked
                   ? "bg-transparent border-white/5 text-gray-900 cursor-not-allowed" 
-                  : "glass hover:bg-foreground hover:text-background hover:border-foreground active:scale-95"
+                  : "glass hover:bg-white hover:text-black hover:border-white active:scale-95"
                 }`}
               >
                 <span className={isUsed ? "line-through opacity-20" : ""}>{weight}</span>
