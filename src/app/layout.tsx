@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BackgroundNetwork from "@/components/shared/BackgroundNetwork";
-import GridBackground from "@/components/shared/GridBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "TriviaDuel",
-  description: "Real-time intellectual warfare.",
+  description: "Challenge your friends in real-time trivia",
 };
 
 export default function RootLayout({
@@ -29,7 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased relative`}
       >
-        <GridBackground />
+        <BackgroundNetwork />
         {children}
       </body>
     </html>
