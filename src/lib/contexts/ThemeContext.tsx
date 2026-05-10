@@ -20,13 +20,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Initialize from localStorage
   useEffect(() => {
     const savedBg = localStorage.getItem('background_pref');
-    if (savedBg === 'synapse' || savedBg === 'stream' || savedBg === 'syn-v2') {
-      setBackground(savedBg);
+    if (savedBg && (savedBg === 'synapse' || savedBg === 'stream' || savedBg === 'syn-v2')) {
+      requestAnimationFrame(() => setBackground(savedBg as BackgroundType));
     }
     
     const savedAnim = localStorage.getItem('animation_enabled');
     if (savedAnim !== null) {
-      setIsAnimationEnabled(savedAnim === 'true');
+      requestAnimationFrame(() => setIsAnimationEnabled(savedAnim === 'true'));
     }
   }, []);
 

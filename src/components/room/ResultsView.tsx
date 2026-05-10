@@ -22,9 +22,7 @@ export default function ResultsView({
   roundData, 
   players, 
   myPlayerId, 
-  isLeader, 
-  isLocked, 
-  onKick 
+  isLeader
 }: ResultsViewProps) {
   if (!roundData.results) return null;
 

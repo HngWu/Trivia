@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TriviaDuel",
   description: "Challenge your friends in real-time trivia",
+  icons: {
+    icon: "/icon.svg",
+  }
 };
 
 export default function RootLayout({

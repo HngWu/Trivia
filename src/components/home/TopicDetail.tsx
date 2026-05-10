@@ -1,15 +1,9 @@
 import React from 'react';
 
-interface TopicData {
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-  example_question: string;
-}
+import { Topic } from '@/lib/types/game';
 
 interface TopicDetailProps {
-  topicData: TopicData;
+  topicData: Topic;
   nickname: string;
   setNickname: (val: string) => void;
   customTopic: string;

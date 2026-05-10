@@ -1,8 +1,8 @@
 import React from 'react';
-import { Question } from '@/lib/types/game';
+import { Question, Topic } from '@/lib/types/game';
 
 interface QuestionManagerProps {
-  topics: any[];
+  topics: Topic[];
   targetTopic: string;
   setTargetTopic: (val: string) => void;
   batchJson: string;
@@ -10,9 +10,9 @@ interface QuestionManagerProps {
   isGenerating: boolean;
   onGenerate: (provider: string, count: number) => void;
   onUpload: () => void;
-  questions: any[];
+  questions: Question[];
   onDeleteQuestion: (id: string) => void;
-  onUpdateQuestion: (id: string, updates: any) => void;
+  onUpdateQuestion: (id: string, updates: Partial<Question>) => void;
 }
 
 export default function QuestionManager({ 
@@ -32,7 +32,7 @@ export default function QuestionManager({
   const [aiCount, setAiCount] = React.useState(10);
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
-  const handleEdit = (q: any) => {
+  const handleEdit = (q: Question) => {
     setEditingId(q.id);
     // User-friendly JSON formatting (2 spaces indentation)
     setBatchJson(JSON.stringify([q], null, 2));
@@ -45,7 +45,8 @@ export default function QuestionManager({
       onUpdateQuestion(editingId!, updates);
       setEditingId(null);
       setBatchJson('');
-    } catch (e) {
+    } catch (error: unknown) {
+      console.error("Save error:", error);
       alert("Invalid JSON format. Please check your syntax.");
     }
   };
@@ -107,7 +108,14 @@ export default function QuestionManager({
       </div>
       
       <form 
-        onSubmit={(e) => { e.preventDefault(); editingId ? handleSaveEdit() : onUpload(); }}
+        onSubmit={(e) => { 
+          e.preventDefault(); 
+          if (editingId) {
+            handleSaveEdit();
+          } else {
+            onUpload();
+          }
+        }}
         className="space-y-4"
       >
         {!editingId && (

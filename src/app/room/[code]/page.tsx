@@ -4,7 +4,7 @@ import React, { useState, useEffect, use, useMemo, useRef, useCallback } from "r
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, kickPlayer, getServerTime } from "@/lib/actions";
-import { Player, Question, Answer, GameState } from "@/lib/types/game";
+import { Player, Question, Answer, GameState, Room } from "@/lib/types/game";
 import { validateAnswer } from "@/lib/validation";
 
 import Toast from "@/components/shared/Toast";
@@ -49,13 +49,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Sync displayedPlayers based on phase transitions
-  useEffect(() => {
-    if (displayStatus === "waiting" || displayStatus === "results" || displayStatus === "final" || displayedPlayers.length === 0) {
-      setDisplayedPlayers(players);
-    }
-  }, [players, displayStatus, displayedPlayers.length]);
-
   // --- REFS ---
   const currentVersionRef = useRef(0);
   const currentIndexRef = useRef(0);
@@ -69,11 +62,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const isLocked = useMemo(() => roomStatus !== displayStatus, [roomStatus, displayStatus]);
   const isLeader = useMemo(() => {
     const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
-    return !!(myPlayer?.is_leader || (roomLeaderId && savedId === roomLeaderId));
+    return Boolean(myPlayer?.is_leader || (roomLeaderId && savedId === roomLeaderId));
   }, [myPlayer, roomLeaderId, myPlayerId]);
 
   const roundData = useMemo(() => {
-    if (!currentQuestion) return { wager: null, answer: "", results: null as any, competitors: [] as Answer[], wagerCount: 0, answerCount: 0 };
+    if (!currentQuestion) return { wager: null, answer: "", results: null, competitors: [] as Answer[], wagerCount: 0, answerCount: 0 };
     const qAnswers = allRoomAnswers.filter(a => a.question_id === currentQuestion.id);
     const myAns = qAnswers.find(a => a.player_id === myPlayerId);
     return {
@@ -96,19 +89,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [allRoomAnswers, myPlayerId]);
 
   // --- ACTIONS ---
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
-  };
+  }, []);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const state = await getRoomState(roomCode);
-      applyState(state);
-    } catch (err) { console.error("Sync error:", err); }
-  }, [roomCode]);
-
-  const applyState = useCallback((state: any) => {
+  const applyState = useCallback((state: { room: Room | null; players: Player[]; allAnswers: Answer[] }) => {
     const { room, players: p, allAnswers: a } = state;
     if (!room || (room.version && room.version <= currentVersionRef.current)) return;
     
@@ -161,7 +147,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     }
   }, [myPlayerId, isJoining, serverOffset]);
 
-  const triggerSync = useCallback((data?: any) => {
+  const fetchData = useCallback(async () => {
+    try {
+      const state = await getRoomState(roomCode);
+      applyState(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    } catch (error) { console.error("Sync error:", error); }
+  }, [roomCode, applyState]);
+
+  const triggerSync = useCallback((data?: { room: Room | null; players: Player[]; allAnswers: Answer[] }) => {
     if (channelRef.current) {
       channelRef.current.send({ type: "broadcast", event: "STATE_UPDATED", payload: { t: Date.now(), state: data } });
     }
@@ -171,9 +164,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (!isLeader || targetPlayerId === myPlayerId) return;
     try {
       const newState = await kickPlayer(roomCode, targetPlayerId, myPlayerId);
-      triggerSync(newState);
-    } catch (e) { showToast("Failed to kick player."); }
-  }, [isLeader, myPlayerId, roomCode, triggerSync]);
+      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    } catch (error) { 
+      console.error("Kick failed:", error);
+      showToast("Failed to kick player."); 
+    }
+  }, [isLeader, myPlayerId, roomCode, triggerSync, showToast]);
 
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
@@ -184,8 +180,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     try {
       const newState = await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
       delete pendingSubmissionsRef.current[key];
-      triggerSync(newState);
-    } catch (e) { delete pendingSubmissionsRef.current[key]; }
+      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    } catch (error) { 
+      console.error("Wager failed:", error);
+      delete pendingSubmissionsRef.current[key]; 
+    }
   }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync]);
 
   const handleSubmitAnswer = useCallback(async (val: string) => {
@@ -198,9 +197,13 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     try {
       const newState = await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
       delete pendingSubmissionsRef.current[key];
-      triggerSync(newState);
-    } catch (e) { delete pendingSubmissionsRef.current[key]; }
+      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    } catch (error) { 
+      console.error("Answer failed:", error);
+      delete pendingSubmissionsRef.current[key]; 
+    }
   }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
+
 
   const handleTimeUp = useCallback(() => {
     const availableWeights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(w => !usedWagers.includes(w));
@@ -213,13 +216,13 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const nextIndex = currentIndex + 1;
     const nextStatus = nextIndex < questions.length ? "wager" : "final";
     const newState = await updateRoomStatus(roomCode, nextStatus, nextIndex);
-    triggerSync(newState);
+    triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
   }, [isLeader, currentIndex, questions.length, roomCode, triggerSync]);
 
   const handleStartGame = useCallback(async () => {
     if (questions.length === 0) return;
     const newState = await updateRoomStatus(roomCode, "wager");
-    triggerSync(newState);
+    triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
   }, [questions.length, roomCode, triggerSync]);
 
   const handleJoin = useCallback(async () => {
@@ -231,11 +234,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       localStorage.setItem("player_id", player.id);
       localStorage.setItem("player_name", nickname.trim());
       const state = await getRoomState(roomCode);
-      applyState(state);
+      applyState(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
       setIsJoining(false);
-      triggerSync(state);
-    } catch (err) { showToast("Failed to join room."); } finally { setIsLoading(false); }
-  }, [nickname, roomCode, triggerSync, applyState, isLoading]);
+      triggerSync(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    } catch (error) { 
+      console.error("Join error:", error);
+      showToast("Failed to join room."); 
+    } finally { setIsLoading(false); }
+  }, [nickname, roomCode, triggerSync, applyState, isLoading, showToast]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href);
@@ -245,13 +251,20 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   // --- EFFECTS ---
   useEffect(() => {
+    const shouldUpdate = displayStatus === "waiting" || displayStatus === "results" || displayStatus === "final" || displayedPlayers.length === 0;
+    if (shouldUpdate) {
+      requestAnimationFrame(() => setDisplayedPlayers(players));
+    }
+  }, [players, displayStatus, displayedPlayers.length]);
+
+  useEffect(() => {
     const syncClock = async () => {
       try {
         const start = Date.now();
         const serverNow = await getServerTime();
         const latency = (Date.now() - start) / 2;
         setServerOffset(serverNow - (start + latency));
-      } catch (e) { console.error("Clock sync failed", e); }
+      } catch (error) { console.error("Clock sync failed", error); }
     };
     syncClock();
   }, []);
@@ -268,7 +281,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             setTimeout(() => window.location.href = "/", 2000);
             return;
         }
-        applyState(state);
+        applyState(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
         const isAlreadyInRoom = state.players?.some((player: Player) => player.id === savedId);
         if (isAlreadyInRoom && savedId) setMyPlayerId(savedId);
         else if (savedName) {
@@ -277,21 +290,27 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
              setMyPlayerId(player.id);
              localStorage.setItem("player_id", player.id);
              const s = await getRoomState(roomCode);
-             applyState(s);
-             triggerSync(s);
-           } catch (e) { setIsJoining(true); }
+             applyState(s as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+             triggerSync(s as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+           } catch (error) { 
+             console.error("Auto-join failed:", error);
+             setIsJoining(true); 
+           }
         } else setIsJoining(true);
-      } catch (err) { showToast("Failed to load room data."); } finally { setIsLoading(false); }
+      } catch (error) { 
+        console.error("Initial fetch error:", error);
+        showToast("Failed to load room data."); 
+      } finally { setIsLoading(false); }
     };
     initialFetch();
     const channel = supabase.channel(`game:${roomCode}`, { config: { broadcast: { self: true } } })
       .on("broadcast", { event: "STATE_UPDATED" }, ({ payload }) => {
-         if (payload.state) applyState(payload.state);
+         if (payload.state) applyState(payload.state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
          else fetchData();
       }).subscribe();
     channelRef.current = channel;
     return () => { supabase.removeChannel(channel); channelRef.current = null; };
-  }, [roomCode, supabase, fetchData, applyState, triggerSync]);
+  }, [roomCode, supabase, fetchData, applyState, triggerSync, showToast]);
 
   useEffect(() => {
     const interval = setInterval(() => {

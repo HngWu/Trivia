@@ -5,9 +5,11 @@ import { getTopics, addTopic, deleteTopic, updateTopic } from '@/lib/actions';
 import Toast from '@/components/shared/Toast';
 import TopicManager from '@/components/admin/TopicManager';
 
+import { Topic } from '@/lib/types/game';
+
 export default function AdminTopicsPage() {
-  const [topics, setTopics] = useState<any[]>([]);
-  const [newTopic, setNewTopic] = useState({ id: '', name: '', icon: '', description: '', example_question: '' });
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [newTopic, setNewTopic] = useState<Topic>({ id: '', name: '', icon: '', description: '', example_question: '' });
   const [toast, setToast] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -29,15 +31,21 @@ export default function AdminTopicsPage() {
       setTopics([...topics, newTopic]);
       setNewTopic({ id: '', name: '', icon: '', description: '', example_question: '' });
       showToast("Topic added successfully!");
-    } catch (e: any) { showToast(e.message); }
+    } catch (e: unknown) {
+      const err = e as Error;
+      showToast(err.message); 
+    }
   };
 
-  const handleUpdateTopic = async (id: string, updates: any) => {
+  const handleUpdateTopic = async (id: string, updates: Partial<Topic>) => {
     try {
       await updateTopic(id, updates);
-      setTopics(topics.map(t => t.id === id ? updates : t));
+      setTopics(topics.map(t => t.id === id ? { ...t, ...updates } : t));
       showToast("Topic updated successfully!");
-    } catch (e: any) { showToast(e.message); }
+    } catch (e: unknown) {
+      const err = e as Error;
+      showToast(err.message); 
+    }
   };
 
   const handleDeleteTopic = async (id: string) => {
@@ -46,7 +54,10 @@ export default function AdminTopicsPage() {
       await deleteTopic(id);
       setTopics(topics.filter(t => t.id !== id));
       showToast("Topic deleted.");
-    } catch (e: any) { showToast(e.message); }
+    } catch (e: unknown) {
+      const err = e as Error;
+      showToast(err.message); 
+    }
   };
 
   if (isLoading) return <div className="flex items-center justify-center p-20 font-bold animate-pulse text-gray-500">Loading arenas...</div>;

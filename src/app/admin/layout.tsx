@@ -6,13 +6,15 @@ import AdminLogin from '@/components/admin/AdminLogin';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { User } from '@supabase/supabase-js';
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  
+
   const supabase = createClient();
   const pathname = usePathname();
 
@@ -46,7 +48,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse">Establishing Command...</div>;
 
-  if (!user) return <AdminLogin email={email} setEmail={setEmail} password={password} setPassword={setPassword} onLogin={handleLogin} />;
+  if (!user) return <AdminLogin email={email} setEmail={setEmail} password={password} setPassword={setPassword} onLogin={handleLogin} error={error} />;
+
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20">

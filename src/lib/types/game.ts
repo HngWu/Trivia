@@ -1,5 +1,6 @@
 export type Question = {
   id: string;
+  topic?: string;
   summary: string;
   text: string;
   type: "multiple_choice" | "boolean" | "text";
@@ -24,6 +25,14 @@ export type Answer = {
 };
 
 export type GameState = "waiting" | "wager" | "question" | "results" | "final";
+
+export type Topic = {
+  id: string;
+  name: string;
+  icon: string;
+  description?: string;
+  example_question?: string;
+};
 
 export type Room = {
   code: string;

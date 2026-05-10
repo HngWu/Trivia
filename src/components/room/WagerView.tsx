@@ -1,5 +1,5 @@
 import React from 'react';
-import { Answer, Player } from '@/lib/types/game';
+import { Player } from '@/lib/types/game';
 
 interface WagerViewProps {
   roundData: {

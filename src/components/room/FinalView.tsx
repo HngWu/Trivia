@@ -23,7 +23,7 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
       return {
         name: p.name,
         wrongAnswers: wrong.map(w => {
-          const q = questions.find(q => q.id === w.question_id);
+          const q = questions.find(question => question.id === w.question_id);
           return {
             question: q?.text || "Unknown",
             answer: w.submitted_answer,
@@ -32,14 +32,14 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
           };
         })
       };
-    }).filter(Boolean) as any[];
+    }).filter((h): h is { name: string; wrongAnswers: { question: string; answer: string; correct: string; wager: number }[] } => h !== null);
 
     if (history.length > 0) {
       const results = generateLocalRoasts(history);
-      setRoasts(results);
+      requestAnimationFrame(() => setRoasts(results));
     }
     
-    setIsRoasting(false);
+    requestAnimationFrame(() => setIsRoasting(false));
   }, [sortedPlayers, allAnswers, questions]);
 
   return (

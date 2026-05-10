@@ -1,20 +1,22 @@
 import React from 'react';
 
+import { Topic } from '@/lib/types/game';
+
 interface TopicManagerProps {
-  topics: any[];
-  newTopic: any;
-  setNewTopic: (val: any) => void;
+  topics: Topic[];
+  newTopic: Topic;
+  setNewTopic: (val: Topic) => void;
   onAdd: () => void;
   onDelete: (id: string) => void;
-  onUpdate: (id: string, updates: any) => void;
+  onUpdate: (id: string, updates: Partial<Topic>) => void;
 }
 
 export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onDelete, onUpdate }: TopicManagerProps) {
   const [editingId, setEditingId] = React.useState<string | null>(null);
 
-  const startEdit = (topic: any) => {
+  const startEdit = (topic: Topic) => {
     setEditingId(topic.id);
-    setNewTopic({ ...topic });
+    setNewTopic(topic);
   };
 
   const cancelEdit = () => {

@@ -2,7 +2,7 @@
 
 import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
-import { Room, Player, Question, Answer, GameState } from "./types/game";
+import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
 import { AIProvider } from "./ai";
 import crypto from "crypto";
@@ -39,7 +39,7 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
   const supabase = await createClient();
   const normalizedTopic = topic.toLowerCase();
   
-  let { data: allQuestions } = await supabase
+  const { data: allQuestions } = await supabase
     .from("questions")
     .select("*")
     .eq("topic", normalizedTopic);
@@ -81,7 +81,7 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
     throw new Error("Critical Failure: No questions available in database or via AI.");
   }
 
-  const finalQuestions: Question[] = questions.map((q: any, idx: number) => ({
+  const finalQuestions: Question[] = questions.map((q: Question, idx: number) => ({
     id: q.id || `q-${idx}-${crypto.randomUUID()}`,
     summary: q.summary,
     text: q.text,
@@ -262,19 +262,19 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
   return await getFullState(normalizedCode);
 }
 
-export async function getTopics() {
+export async function getTopics(): Promise<Topic[]> {
   const supabase = await createClient();
-  const { data: topics, error } = await supabase.from("topics").select("*").order("name");
+  const { data: topics } = await supabase.from("topics").select("*").order("name");
   return topics || [];
 }
 
-export async function addTopic(topic: any) {
+export async function addTopic(topic: Topic) {
   const supabase = await createClient();
   const { error } = await supabase.from("topics").insert([topic]);
   if (error) throw error;
 }
 
-export async function addQuestions(questions: any[]) {
+export async function addQuestions(questions: Question[]) {
   const supabase = await createClient();
   
   // 1. Identify which questions already exist in the DB by their text
@@ -319,7 +319,7 @@ export async function deleteTopic(id: string) {
   if (error) throw error;
 }
 
-export async function updateTopic(id: string, updates: any) {
+export async function updateTopic(id: string, updates: Partial<Topic>) {
   const supabase = await createClient();
   const { error } = await supabase.from("topics").update(updates).eq("id", id);
   if (error) throw error;
@@ -331,16 +331,15 @@ export async function deleteQuestion(id: string) {
   if (error) throw error;
 }
 
-export async function updateQuestion(id: string, updates: any) {
+export async function updateQuestion(id: string, updates: Partial<Question>) {
   const supabase = await createClient();
   const { error } = await supabase.from("questions").update(updates).eq("id", id);
   if (error) throw error;
 }
 
-export async function getQuestionsByTopic(topicId: string) {
+export async function getQuestionsByTopic(topicId: string): Promise<Question[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("questions").select("*").eq("topic", topicId).order("created_at", { ascending: false });
-  if (error) throw error;
+  const { data } = await supabase.from("questions").select("*").eq("topic", topicId).order("created_at", { ascending: false });
   return data || [];
 }
 

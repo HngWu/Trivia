@@ -5,12 +5,14 @@ import { getTopics, addQuestions, deleteQuestion, updateQuestion, getQuestionsBy
 import Toast from '@/components/shared/Toast';
 import QuestionManager from '@/components/admin/QuestionManager';
 
+import { Topic, Question } from '@/lib/types/game';
+
 export default function AdminQuestionsPage() {
-  const [topics, setTopics] = useState<any[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [targetTopic, setTargetTopic] = useState('');
   const [batchJson, setBatchJson] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -25,7 +27,8 @@ export default function AdminQuestionsPage() {
     if (targetTopic) {
       getQuestionsByTopic(targetTopic).then(setQuestions);
     } else {
-      setQuestions([]);
+      // Use requestAnimationFrame to avoid cascading render warning in this strict environment
+      requestAnimationFrame(() => setQuestions([]));
     }
   }, [targetTopic]);
 
@@ -53,8 +56,9 @@ export default function AdminQuestionsPage() {
       // Pretty print JSON with 2-space indentation
       setBatchJson(JSON.stringify(data.questions, null, 2));
       showToast(`Generated ${data.questions.length} unique questions.`);
-    } catch (e: any) {
-      showToast("Generation failed: " + e.message);
+    } catch (e: unknown) {
+      const err = e as Error;
+      showToast("Generation failed: " + err.message);
     } finally {
       setIsGenerating(false);
     }
@@ -69,15 +73,21 @@ export default function AdminQuestionsPage() {
       showToast(result.message);
       setBatchJson('');
       getQuestionsByTopic(targetTopic).then(setQuestions);
-    } catch (e: any) { showToast("Invalid JSON or server error: " + e.message); }
+    } catch (e: unknown) {
+      const err = e as Error;
+      showToast("Invalid JSON or server error: " + err.message);
+    }
   };
 
-  const handleUpdateQuestion = async (id: string, updates: any) => {
+  const handleUpdateQuestion = async (id: string, updates: Partial<Question>) => {
     try {
       await updateQuestion(id, updates);
       setQuestions(questions.map(q => q.id === id ? { ...q, ...updates } : q));
       showToast("Question updated.");
-    } catch (e: any) { showToast(e.message); }
+    } catch (e: unknown) {
+      const err = e as Error;
+      showToast(err.message);
+    }
   };
 
   const handleDeleteQuestion = async (id: string) => {
@@ -86,7 +96,10 @@ export default function AdminQuestionsPage() {
       await deleteQuestion(id);
       setQuestions(questions.filter(q => q.id !== id));
       showToast("Question deleted.");
-    } catch (e: any) { showToast(e.message); }
+    } catch (e: unknown) {
+      const err = e as Error;
+      showToast(err.message);
+    }
   };
 
   if (isLoading) return <div className="flex items-center justify-center p-20 font-bold animate-pulse text-gray-500">Loading intelligence...</div>;

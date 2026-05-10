@@ -11,16 +11,15 @@ export default function DataStreamBackground({ isEnabled }: { isEnabled: boolean
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
-    let w = 0, h = 0;
-    let mouse = { x: -1000, y: -1000 };
+    const mouse = { x: -1000, y: -1000 };
     let lastMouse = { x: -1000, y: -1000 };
     let particles: { x: number; y: number; size: number; speed: number; vx: number; vy: number }[] = [];
     let shockwaves: { x: number; y: number; r: number; alpha: number }[] = [];
 
     const init = () => {
       const dpr = window.devicePixelRatio || 1;
-      w = canvas.width = window.innerWidth * dpr;
-      h = canvas.height = window.innerHeight * dpr;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
       ctx.scale(dpr, dpr);
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;

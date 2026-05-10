@@ -9,6 +9,7 @@ import TopicDetail from '@/components/home/TopicDetail';
 import JoinGameForm from '@/components/home/JoinGameForm';
 import { AIProvider } from '@/lib/ai';
 import BackgroundToggle from '@/components/shared/BackgroundToggle';
+import { Topic } from '@/lib/types/game';
 
 export default function Home() {
   const [nickname, setNickname] = useState('');
@@ -18,14 +19,14 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [topics, setTopics] = useState<any[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [isTopicsLoading, setIsTopicsLoading] = useState(true);
-  const [aiProvider, setAIProvider] = useState<AIProvider>('auto');
+  const [aiProvider] = useState<AIProvider>('auto');
 
   useEffect(() => {
     const savedName = localStorage.getItem('player_name');
     if (savedName) {
-      setNickname(savedName);
+      requestAnimationFrame(() => setNickname(savedName));
     }
 
     const fetchTopics = async () => {
