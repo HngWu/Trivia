@@ -103,7 +103,7 @@ export default function Home() {
       <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-50">
         <button 
           onClick={() => window.location.href = '/admin'}
-          className="p-2 glass rounded-xl border-white/5 hover:border-white/20 transition-all group"
+          className="p-2 glass rounded-xl border-white/5 hover:border-white/20 transition-all group focus:ring-2 focus:ring-white/20 focus:outline-none"
           title="Admin Settings"
         >
           <svg className="w-4 h-4 text-gray-500 group-hover:text-foreground transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,7 +120,7 @@ export default function Home() {
             <section className="w-full max-w-md mx-auto text-center">
               <button 
                 onClick={() => setShowJoinInput(true)}
-                className="glass-button w-full px-10 py-3 rounded-2xl font-bold text-lg hover:bg-foreground hover:text-background transition-all"
+                className="glass-button w-full px-10 py-3 rounded-2xl font-bold text-lg hover:bg-foreground hover:text-background transition-all focus:ring-2 focus:ring-white/20 focus:outline-none"
               >
                 Join a game
               </button>

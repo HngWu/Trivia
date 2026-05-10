@@ -30,6 +30,18 @@ export default function LobbyView({
   onCopy, 
   copied 
 }: LobbyViewProps) {
+  // Add keyboard shortcut for leader to start game
+  React.useEffect(() => {
+    if (!isLeader || questionsCount === 0 || isLocked) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") onStart();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLeader, questionsCount, isLocked, onStart]);
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-4">
       <div className="text-center space-y-3 mb-8">
@@ -55,20 +67,20 @@ export default function LobbyView({
          </div>
          <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 no-scrollbar">
            {players.map(p => (
-             <div key={p.id} className={`flex justify-between items-center p-3 sm:p-4 rounded-xl transition-all border ${p.id === myPlayerId ? 'bg-white/10 border-white/20' : 'bg-white/[0.02] border-white/[0.03] hover:border-white/10'} text-foreground`}>
+             <div key={p.id} className={`flex justify-between items-center p-3 sm:p-4 rounded-xl transition-all border focus-within:ring-2 focus-within:ring-white/10 ${p.id === myPlayerId ? 'bg-white/10 border-white/20' : 'bg-white/[0.02] border-white/[0.03] hover:border-white/10'} text-foreground`}>
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-base">{p.id === roomLeaderId ? "• " : ""}{p.name}</span>
                   {isLeader && p.id !== myPlayerId && (
                     <button 
                       disabled={isLocked}
                       onClick={() => onKick(p.id)}
-                      className="text-[9px] text-red-500 font-bold uppercase tracking-wider hover:text-red-400 ml-2"
+                      className="text-[9px] text-red-500 font-bold uppercase tracking-wider hover:text-red-400 ml-2 focus:outline-none focus:ring-1 focus:ring-red-500/50 rounded"
                     >
                       Remove
                     </button>
                   )}
                 </div>
-                <span className="text-[9px] font-bold uppercase opacity-40">{p.id === myPlayerId ? "You" : "Player"}</span>
+                <span className={`text-[9px] font-bold uppercase opacity-40`}>{p.id === myPlayerId ? "You" : "Player"}</span>
              </div>
            ))}
          </div>
@@ -80,7 +92,7 @@ export default function LobbyView({
             <button 
               disabled={questionsCount === 0 || isLocked} 
               onClick={onStart} 
-              className="w-full glass-button py-4 rounded-xl font-bold text-lg sm:text-xl bg-white/10 border-white/20"
+              className="w-full glass-button py-4 rounded-xl font-bold text-lg sm:text-xl bg-white/10 border-white/20 focus:ring-2 focus:ring-white/20 focus:outline-none"
             >
               {questionsCount === 0 ? "Loading questions..." : "Start game"}
             </button>
@@ -99,7 +111,7 @@ export default function LobbyView({
             </span>
             <button 
               onClick={onCopy}
-              className="h-9 px-5 bg-white text-black hover:bg-gray-200 rounded-lg transition-all shadow-md group flex items-center space-x-2 shrink-0"
+              className="h-9 px-5 bg-white text-black hover:bg-gray-200 rounded-lg transition-all shadow-md group flex items-center space-x-2 shrink-0 focus:ring-2 focus:ring-white/20 focus:outline-none"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider">
                 {copied ? "Copied" : "Copy"}

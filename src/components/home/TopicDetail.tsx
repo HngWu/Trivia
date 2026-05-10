@@ -29,6 +29,13 @@ export default function TopicDetail({
   onCreate, 
   isLoading
 }: TopicDetailProps) {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoading && nickname && (topicData.id !== 'custom' || customTopic)) {
+      onCreate();
+    }
+  };
+
   return (
     <section className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden">
       <button 
@@ -55,13 +62,14 @@ export default function TopicDetail({
         </p>
       </div>
 
-      <div className="space-y-5 pt-2">
+      <form onSubmit={handleSubmit} className="space-y-5 pt-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {topicData.id === 'custom' && (
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Topic name</label>
               <input
                 type="text"
+                required
                 placeholder="e.g. 90s Music"
                 value={customTopic}
                 onChange={(e) => setCustomTopic(e.target.value)}
@@ -69,10 +77,11 @@ export default function TopicDetail({
               />
             </div>
           )}
-            <div className="space-y-1.5 sm:col-span-2">
+          <div className="space-y-1.5 sm:col-span-2">
             <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Your name</label>
             <input
               type="text"
+              required
               placeholder="Enter nickname"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
@@ -82,13 +91,13 @@ export default function TopicDetail({
         </div>
 
         <button
+          type="submit"
           disabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
-          onClick={onCreate}
           className="w-full glass-button py-4 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all"
         >
           {isLoading ? 'Starting game...' : 'Create room'}
         </button>
-      </div>
+      </form>
     </section>
   );
 }

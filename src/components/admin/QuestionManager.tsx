@@ -74,7 +74,7 @@ export default function QuestionManager({
                 <select 
                   value={aiProvider}
                   onChange={(e) => setAIProvider(e.target.value)}
-                  className="h-9 min-w-[80px] text-[10px] font-bold glass-input rounded-xl px-2 outline-none appearance-none cursor-pointer"
+                  className="h-9 min-w-[80px] text-[10px] font-bold glass-input rounded-xl px-2 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-white/10"
                 >
                   <option value="auto" className="bg-background">Auto AI</option>
                   <option value="gemini" className="bg-background">Gemini</option>
@@ -95,9 +95,10 @@ export default function QuestionManager({
                 </div>
              </div>
              <button 
+                type="button"
                 onClick={() => onGenerate(aiProvider, aiCount)}
                 disabled={!targetTopic || isGenerating}
-                className={`h-9 font-bold tracking-widest px-4 rounded-xl transition-all active:scale-95 border text-[10px] uppercase ${isGenerating ? 'bg-white/5 text-gray-500 border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
+                className={`h-9 font-bold tracking-widest px-4 rounded-xl transition-all active:scale-95 border text-[10px] uppercase focus:ring-2 focus:ring-white/20 focus:outline-none ${isGenerating ? 'bg-white/5 text-gray-500 border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
               >
                 {isGenerating ? "..." : "Generate AI"}
               </button>
@@ -105,14 +106,18 @@ export default function QuestionManager({
         )}
       </div>
       
-      <div className="space-y-4">
+      <form 
+        onSubmit={(e) => { e.preventDefault(); editingId ? handleSaveEdit() : onUpload(); }}
+        className="space-y-4"
+      >
         {!editingId && (
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold tracking-widest text-gray-700 ml-1 uppercase">Select topic</label>
             <select 
+              required
               value={targetTopic}
               onChange={e => setTargetTopic(e.target.value)}
-              className="w-full h-11 glass-input rounded-xl px-4 font-bold text-sm bg-transparent border-white/5 text-foreground appearance-none cursor-pointer"
+              className="w-full h-11 glass-input rounded-xl px-4 font-bold text-sm bg-transparent border-white/5 text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-white/10"
             >
               <option value="" className="bg-background">Choose a topic...</option>
               {topics.map(t => (
@@ -127,36 +132,38 @@ export default function QuestionManager({
             <label className="text-[10px] font-bold tracking-widest text-gray-700 uppercase">JSON Data</label>
             {!editingId && (
               <button 
+                type="button"
                 onClick={handleTemplateLoad}
-                className="text-[9px] font-bold tracking-widest text-white/20 hover:text-foreground transition-colors"
+                className="text-[9px] font-bold tracking-widest text-white/20 hover:text-foreground transition-colors focus:outline-none"
               >
                 Template
               </button>
             )}
           </div>
           <textarea 
+            required
             placeholder='JSON array of questions...'
             value={batchJson}
             onChange={e => setBatchJson(e.target.value)}
-            className="w-full h-64 glass-input rounded-xl p-6 font-mono text-xs text-foreground resize-none border-white/5 shadow-inner leading-relaxed"
+            className="w-full h-64 glass-input rounded-xl p-6 font-mono text-xs text-foreground resize-none border-white/5 shadow-inner leading-relaxed focus:ring-2 focus:ring-white/10"
           />
         </div>
         
         {editingId ? (
           <div className="flex gap-2">
-            <button onClick={handleSaveEdit} className="flex-1 h-11 glass-button bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all">Save changes</button>
-            <button onClick={() => {setEditingId(null); setBatchJson('');}} className="px-4 h-11 glass-button border-white/10 rounded-xl font-bold hover:bg-white/5 transition-all text-xs">Cancel</button>
+            <button type="submit" className="flex-1 h-11 glass-button bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all focus:ring-2 focus:ring-white/20 focus:outline-none">Save changes</button>
+            <button type="button" onClick={() => {setEditingId(null); setBatchJson('');}} className="px-4 h-11 glass-button border-white/10 rounded-xl font-bold hover:bg-white/5 transition-all text-xs focus:ring-2 focus:ring-white/20 focus:outline-none">Cancel</button>
           </div>
         ) : (
           <button 
-            onClick={onUpload}
+            type="submit"
             disabled={!targetTopic || !batchJson || isGenerating}
-            className="w-full h-11 glass-button bg-foreground text-background rounded-xl font-bold shadow-lg hover:bg-white transition-all"
+            className="w-full h-11 glass-button bg-foreground text-background rounded-xl font-bold shadow-lg hover:bg-white transition-all focus:ring-2 focus:ring-white/20 focus:outline-none"
           >
             Upload questions
           </button>
         )}
-      </div>
+      </form>
 
       {targetTopic && !editingId && (
         <div className="pt-6 border-t border-white/[0.02] space-y-4">

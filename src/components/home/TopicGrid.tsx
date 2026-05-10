@@ -30,7 +30,7 @@ export default function TopicGrid({ topics, selectedTopic, onSelect, isLoading }
           <button
             key={topic.id}
             onClick={() => onSelect(topic.id)}
-            className={`group relative p-5 glass rounded-[1.5rem] flex flex-col items-center justify-center gap-3 transition-all duration-300 border border-white/[0.02] ${
+            className={`group relative p-5 glass rounded-[1.5rem] flex flex-col items-center justify-center gap-3 transition-all duration-300 border border-white/[0.02] focus:ring-2 focus:ring-white/20 focus:outline-none ${
               selectedTopic === topic.id 
                 ? 'border-foreground bg-white/10 scale-105 shadow-xl' 
                 : 'hover:bg-white/[0.04] opacity-80 hover:opacity-100'

@@ -31,7 +31,7 @@ export default function AdminLogin({ email, setEmail, password, setPassword, onL
             onChange={(e) => setPassword(e.target.value)}
             className="w-full h-11 glass-input rounded-xl px-4 font-medium text-foreground" 
           />
-          <button className="w-full h-11 glass-button bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all">Sign in</button>
+          <button type="submit" className="w-full h-11 glass-button bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all">Sign in</button>
         </form>
         <button onClick={() => window.location.href = "/"} className="w-full text-[10px] font-bold tracking-widest text-gray-700 hover:text-foreground transition-colors uppercase">Back to home</button>
       </div>

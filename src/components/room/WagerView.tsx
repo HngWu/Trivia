@@ -19,6 +19,24 @@ export default function WagerView({
   usedWagers, 
   onSelectWager 
 }: WagerViewProps) {
+  // Add keyboard shortcuts for wagers
+  React.useEffect(() => {
+    if (isLocked || roundData.wager) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Map 1-9 to 1-9, and 0 to 10
+      let val = parseInt(e.key);
+      if (e.key === "0") val = 10;
+      
+      if (val >= 1 && val <= 10 && !usedWagers.includes(val)) {
+        onSelectWager(val);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLocked, roundData.wager, usedWagers, onSelectWager]);
+
   if (!roundData.wager) {
     return (
       <div className="w-full max-w-4xl mx-auto space-y-6 animate-slide-up text-center py-4">
@@ -35,13 +53,16 @@ export default function WagerView({
                 key={weight} 
                 disabled={isUsed || isLocked} 
                 onClick={() => onSelectWager(weight)} 
-                className={`h-16 sm:h-24 rounded-xl sm:rounded-2xl font-bold text-2xl sm:text-4xl transition-all border-2 relative overflow-hidden group shadow-lg ${
+                className={`h-16 sm:h-24 rounded-xl sm:rounded-2xl font-bold text-2xl sm:text-4xl transition-all border-2 relative overflow-hidden group shadow-lg focus:ring-2 focus:ring-white/20 focus:outline-none ${
                   isUsed || isLocked
                   ? "bg-transparent border-white/5 text-gray-900 cursor-not-allowed" 
                   : "glass hover:bg-foreground hover:text-background hover:border-foreground active:scale-95"
                 }`}
               >
                 <span className={isUsed ? "line-through opacity-20" : ""}>{weight}</span>
+                {!isUsed && !isLocked && (
+                   <span className="absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{weight === 10 ? '0' : weight}]</span>
+                )}
               </button>
             );
           })}
