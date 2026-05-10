@@ -13,7 +13,7 @@ interface Ball {
   type?: string;
 }
 
-export default function SynapseVariantBackground({ isEnabled }: { isEnabled: boolean }) {
+export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -24,12 +24,12 @@ export default function SynapseVariantBackground({ isEnabled }: { isEnabled: boo
 
     let can_w = window.innerWidth;
     let can_h = window.innerHeight;
-    const BALL_NUM = 100;
-    const R = 2;
-    const alpha_f = 0.03;
-    const link_line_width = 0.8;
-    const dis_limit = 260;
-    const ball_color = { r: 59, g: 130, b: 246 }; // Blue theme instead of 500,0,0
+    const BALL_NUM = 75; // Balanced density
+    const R = 1.5; // Slightly smaller balls for elegance
+    const alpha_f = 0.02; // Slower transparency oscillation
+    const link_line_width = 0.6; // Thinner lines
+    const dis_limit = 240; // Slightly shorter connection range
+    const ball_color = { r: 59, g: 130, b: 246 }; // Consistent blue
     
     let balls: Ball[] = [];
     const mouse_ball: Ball = { x: -1000, y: -1000, vx: 0, vy: 0, r: 0, alpha: 0, phase: 0, type: 'mouse' };
@@ -39,7 +39,7 @@ export default function SynapseVariantBackground({ isEnabled }: { isEnabled: boo
     const randomArrayItem = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
     function getRandomSpeed(pos: string) {
-      const min = -1, max = 1;
+      const min = -0.6, max = 0.6; // Slightly slower drift
       switch (pos) {
         case 'top': return [randomNumFrom(min, max), randomNumFrom(0.1, max)];
         case 'right': return [randomNumFrom(min, -0.1), randomNumFrom(min, max)];
@@ -99,7 +99,7 @@ export default function SynapseVariantBackground({ isEnabled }: { isEnabled: boo
           new_balls.push(b);
         }
         b.phase += alpha_f;
-        b.alpha = Math.abs(Math.cos(b.phase));
+        b.alpha = Math.abs(Math.cos(b.phase)) * 0.8; // Max 80% opacity
       });
       balls = new_balls;
       while (balls.length < BALL_NUM) {
@@ -114,9 +114,10 @@ export default function SynapseVariantBackground({ isEnabled }: { isEnabled: boo
     }
 
     function render() {
-      ctx!.clearRect(0, 0, can_w, can_h);
-      ctx!.fillStyle = '#050505';
-      ctx!.fillRect(0, 0, can_w, can_h);
+      if (!ctx) return;
+      ctx.clearRect(0, 0, can_w, can_h);
+      ctx.fillStyle = '#050505';
+      ctx.fillRect(0, 0, can_w, can_h);
 
       const allBalls = [...balls, mouse_ball];
 
@@ -127,22 +128,22 @@ export default function SynapseVariantBackground({ isEnabled }: { isEnabled: boo
           const fraction = dist / dis_limit;
           if (fraction < 1) {
             const alpha = (1 - fraction);
-            ctx!.strokeStyle = `rgba(150, 150, 150, ${alpha * 0.3})`;
-            ctx!.lineWidth = link_line_width;
-            ctx!.beginPath();
-            ctx!.moveTo(allBalls[i].x, allBalls[i].y);
-            ctx!.lineTo(allBalls[j].x, allBalls[j].y);
-            ctx!.stroke();
+            ctx.strokeStyle = `rgba(59, 130, 246, ${alpha * 0.15})`; // Subtler blue lines
+            ctx.lineWidth = link_line_width;
+            ctx.beginPath();
+            ctx.moveTo(allBalls[i].x, allBalls[i].y);
+            ctx.lineTo(allBalls[j].x, allBalls[j].y);
+            ctx.stroke();
           }
         }
       }
 
       // Draw balls
       balls.forEach(b => {
-        ctx!.fillStyle = `rgba(${ball_color.r}, ${ball_color.g}, ${ball_color.b}, ${b.alpha})`;
-        ctx!.beginPath();
-        ctx!.arc(b.x, b.y, R, 0, Math.PI * 2);
-        ctx!.fill();
+        ctx.fillStyle = `rgba(${ball_color.r}, ${ball_color.g}, ${ball_color.b}, ${b.alpha * 0.4})`; // Muted points
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
       });
 
       if (isEnabled) {

@@ -25,6 +25,7 @@ export default function RoomNav({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
+        <BackgroundToggle />
         <div className="flex flex-col">
           <span className="text-[9px] font-bold tracking-wider text-gray-600 uppercase">Score</span>
           <span className="text-lg font-bold tracking-tight text-foreground tabular-nums leading-none">
@@ -33,7 +34,7 @@ export default function RoomNav({
         </div>
       </div>
       
-      <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[45vw] sm:max-w-none px-2">
+      <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[40vw] sm:max-w-none px-2">
         {displayedSortedPlayers.map((p, i) => (
           <div 
             key={p.id} 
@@ -49,7 +50,6 @@ export default function RoomNav({
       </div>
 
       <div className="flex items-center space-x-4 sm:space-x-6">
-         <BackgroundToggle />
          <div className="text-right hidden sm:block">
             <p className="text-[9px] text-gray-600 font-bold tracking-widest uppercase">Room</p>
             <p className="font-mono font-bold text-xs uppercase text-foreground">{roomCode}</p>

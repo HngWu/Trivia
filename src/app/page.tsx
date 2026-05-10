@@ -117,7 +117,7 @@ export default function Home() {
     <main className="min-h-screen text-foreground flex flex-col items-center p-3 sm:p-6 md:p-10 page-transition overflow-y-auto relative z-10 selection:bg-white/20">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-50 flex items-center gap-3">
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-8 z-50 flex items-center gap-3">
         <BackgroundToggle />
         <button 
           onClick={() => window.location.href = '/admin'}

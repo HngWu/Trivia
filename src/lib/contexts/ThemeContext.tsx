@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type BackgroundType = 'synapse' | 'stream' | 'synapse-variant';
+type BackgroundType = 'synapse' | 'stream' | 'syn-v2';
 
 interface ThemeContextType {
   background: BackgroundType;
@@ -20,7 +20,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Initialize from localStorage
   useEffect(() => {
     const savedBg = localStorage.getItem('background_pref');
-    if (savedBg === 'synapse' || savedBg === 'stream' || savedBg === 'synapse-variant') {
+    if (savedBg === 'synapse' || savedBg === 'stream' || savedBg === 'syn-v2') {
       setBackground(savedBg);
     }
     
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleBackground = () => {
-    const modes: BackgroundType[] = ['synapse', 'stream', 'synapse-variant'];
+    const modes: BackgroundType[] = ['synapse', 'stream', 'syn-v2'];
     const nextIndex = (modes.indexOf(background) + 1) % modes.length;
     const next = modes[nextIndex];
     setBackground(next);
