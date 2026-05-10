@@ -17,8 +17,6 @@ interface TopicDetailProps {
   onBack: () => void;
   onCreate: () => void;
   isLoading: boolean;
-  aiProvider: string;
-  setAIProvider: (val: any) => void;
 }
 
 export default function TopicDetail({ 
@@ -29,9 +27,7 @@ export default function TopicDetail({
   setCustomTopic, 
   onBack, 
   onCreate, 
-  isLoading,
-  aiProvider,
-  setAIProvider
+  isLoading
 }: TopicDetailProps) {
   return (
     <section className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden">
@@ -62,30 +58,16 @@ export default function TopicDetail({
       <div className="space-y-5 pt-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {topicData.id === 'custom' && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Topic name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 90s Music"
-                  value={customTopic}
-                  onChange={(e) => setCustomTopic(e.target.value)}
-                  className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">AI Intelligence</label>
-                <select 
-                  value={aiProvider}
-                  onChange={(e) => setAIProvider(e.target.value)}
-                  className="w-full h-10 glass-input rounded-xl px-4 font-bold text-sm bg-transparent border-white/5 text-foreground appearance-none"
-                >
-                  <option value="auto" className="bg-background">Auto Fallback</option>
-                  <option value="gemini" className="bg-background">Google Gemini</option>
-                  <option value="deepseek" className="bg-background">DeepSeek Chat</option>
-                </select>
-              </div>
-            </>
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Topic name</label>
+              <input
+                type="text"
+                placeholder="e.g. 90s Music"
+                value={customTopic}
+                onChange={(e) => setCustomTopic(e.target.value)}
+                className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
+              />
+            </div>
           )}
           <div className={`space-y-1.5 ${topicData.id !== 'custom' ? 'sm:col-span-2' : ''}`}>
             <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Your name</label>

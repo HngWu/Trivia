@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createRoom, joinRoom, getTopics } from '@/lib/actions';
 import Toast from '@/components/shared/Toast';
 import HomeHeader from '@/components/home/HomeHeader';
@@ -87,6 +87,14 @@ export default function Home() {
   };
 
   const selectedTopicData = topics.find(t => t.id === selectedTopic);
+  
+  const sortedTopics = useMemo(() => {
+    return [...topics].sort((a, b) => {
+      if (a.id === 'custom') return 1;
+      if (b.id === 'custom') return -1;
+      return 0; // Maintain original order for others
+    });
+  }, [topics]);
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-3 sm:p-6 md:p-10 page-transition overflow-y-auto relative selection:bg-white/20">
@@ -119,7 +127,7 @@ export default function Home() {
             </section>
 
             <TopicGrid 
-              topics={topics} 
+              topics={sortedTopics} 
               selectedTopic={selectedTopic} 
               onSelect={setSelectedTopic} 
               isLoading={isTopicsLoading} 
@@ -149,8 +157,6 @@ export default function Home() {
             onBack={() => setSelectedTopic('')}
             onCreate={handleCreateRoom}
             isLoading={isLoading}
-            aiProvider={aiProvider}
-            setAIProvider={setAIProvider}
           />
         )}
 
