@@ -95,7 +95,7 @@ The codebase follows a modular architecture for improved maintainability:
 
 ### AI Generation Strategy
 The application employs a resilient multi-model approach for generating trivia questions and custom topics:
-1. **Primary Provider:** Google Gemini (models like `gemini-2.0-flash`).
+1. **Primary Provider:** Google Gemini (models like `gemini-3-flash-preview`).
 2. **Fallback Provider:** DeepSeek (`deepseek-chat`). If Gemini fails due to rate limits or errors, the system automatically falls back to DeepSeek to ensure uninterrupted gameplay.
 3. **Database Fallback:** If all AI providers fail, the system selects from the pre-populated `questions` pool in the database.
 

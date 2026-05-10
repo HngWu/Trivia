@@ -325,3 +325,14 @@ export async function getQuestionsByTopic(topicId: string) {
   if (error) throw error;
   return data || [];
 }
+
+import { generateRoasts } from "./ai";
+
+export async function getMatchRoasts(playerHistory: { name: string, wrongAnswers: { question: string, answer: string, correct: string }[] }[]) {
+  try {
+    return await generateRoasts(playerHistory);
+  } catch (e) {
+    console.error("Roast action failed", e);
+    return {};
+  }
+}

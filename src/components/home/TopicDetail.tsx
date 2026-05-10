@@ -69,7 +69,7 @@ export default function TopicDetail({
               />
             </div>
           )}
-          <div className={`space-y-1.5 ${topicData.id !== 'custom' ? 'sm:col-span-2' : ''}`}>
+            <div className="space-y-1.5 sm:col-span-2">
             <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Your name</label>
             <input
               type="text"

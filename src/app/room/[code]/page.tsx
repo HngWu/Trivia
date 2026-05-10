@@ -379,7 +379,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {displayStatus === "final" && (
-          <FinalView sortedPlayers={sortedPlayers} myPlayerId={myPlayerId} onHome={() => window.location.href = "/"} />
+          <FinalView sortedPlayers={sortedPlayers} myPlayerId={myPlayerId} onHome={() => window.location.href = "/"} allAnswers={allRoomAnswers} questions={questions} />
         )}
       </main>
       <footer className="p-8 text-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">TriviaDuel • v4.2-GLASS</footer>
