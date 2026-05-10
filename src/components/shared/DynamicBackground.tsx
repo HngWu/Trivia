@@ -11,8 +11,8 @@ export default function DynamicBackground() {
 
   return (
     <>
-      {background === 'synapse' && <SynapseBackground key="synapse" />}
-      {background === 'stream' && <DataStreamBackground key="stream" />}
+      {background === 'synapse' && <SynapseBackground key="synapse" isEnabled={isAnimationEnabled} />}
+      {background === 'stream' && <DataStreamBackground key="stream" isEnabled={isAnimationEnabled} />}
       {background === 'synapse-variant' && <SynapseVariantBackground key="synapse-variant" isEnabled={isAnimationEnabled} />}
       
       {/* Universal Vignette for depth - positioned between bg and content */}

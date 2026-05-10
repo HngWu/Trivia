@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 
-export default function SynapseBackground() {
+export default function SynapseBackground({ isEnabled }: { isEnabled: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -41,6 +41,7 @@ export default function SynapseBackground() {
       mouse.y = e.clientY;
     };
     const handleClick = (e: MouseEvent) => {
+      if (!isEnabled) return;
       rippleRadius = 1;
       rippleCenter = { x: e.clientX, y: e.clientY };
     };
@@ -67,17 +68,19 @@ export default function SynapseBackground() {
         const distToMouse = Math.hypot(p.x - mouse.x, p.y - mouse.y);
         const isOrbiting = distToMouse < 180;
 
-        if (isOrbiting) {
-          p.orbitAngle += 0.02;
-          const targetX = mouse.x + Math.cos(p.orbitAngle) * p.orbitRadius;
-          const targetY = mouse.y + Math.sin(p.orbitAngle) * p.orbitRadius;
-          p.x += (targetX - p.x) * 0.1;
-          p.y += (targetY - p.y) * 0.1;
-        } else {
-          p.x += p.vx;
-          p.y += p.vy;
-          if (p.x < 0 || p.x > width) p.vx *= -1;
-          if (p.y < 0 || p.y > height) p.vy *= -1;
+        if (isEnabled) {
+          if (isOrbiting) {
+            p.orbitAngle += 0.02;
+            const targetX = mouse.x + Math.cos(p.orbitAngle) * p.orbitRadius;
+            const targetY = mouse.y + Math.sin(p.orbitAngle) * p.orbitRadius;
+            p.x += (targetX - p.x) * 0.1;
+            p.y += (targetY - p.y) * 0.1;
+          } else {
+            p.x += p.vx;
+            p.y += p.vy;
+            if (p.x < 0 || p.x > width) p.vx *= -1;
+            if (p.y < 0 || p.y > height) p.vy *= -1;
+          }
         }
 
         const distToRipple = Math.abs(Math.hypot(p.x - rippleCenter.x, p.y - rippleCenter.y) - rippleRadius);
@@ -120,7 +123,7 @@ export default function SynapseBackground() {
       window.removeEventListener('mousedown', handleClick);
       cancelAnimationFrame(animationFrame);
     };
-  }, []);
+  }, [isEnabled]);
 
   return (
     <canvas

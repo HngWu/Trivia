@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 
-export default function DataStreamBackground() {
+export default function DataStreamBackground({ isEnabled }: { isEnabled: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -42,6 +42,7 @@ export default function DataStreamBackground() {
       mouse.y = e.clientY;
     };
     const handleClick = (e: MouseEvent) => {
+      if (!isEnabled) return;
       shockwaves.push({ x: e.clientX, y: e.clientY, r: 1, alpha: 1 });
     };
 
@@ -60,8 +61,10 @@ export default function DataStreamBackground() {
 
       // Handle shockwaves
       shockwaves = shockwaves.filter(s => {
-        s.r += 10;
-        s.alpha -= 0.02;
+        if (isEnabled) {
+          s.r += 10;
+          s.alpha -= 0.02;
+        }
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(255, 255, 255, ${s.alpha * 0.2})`;
@@ -73,40 +76,43 @@ export default function DataStreamBackground() {
       const mouseVy = mouse.y - lastMouse.y;
 
       particles.forEach(p => {
-        // Base movement
-        p.y -= p.speed;
-        if (p.y < -10) {
-          p.y = height + 10;
-          p.x = Math.random() * width;
-          p.vx = 0; p.vy = 0;
-        }
-
-        // Fluid Wake (Mouse movement)
-        const distToMouse = Math.hypot(p.x - mouse.x, p.y - mouse.y);
-        if (distToMouse < 100) {
-          const force = (100 - distToMouse) / 100;
-          p.vx += mouseVx * force * 0.2;
-          p.vy += mouseVy * force * 0.2;
-        }
-
-        // Shockwave repulsion
-        shockwaves.forEach(s => {
-          const d = Math.hypot(p.x - s.x, p.y - s.y);
-          const rippleDist = Math.abs(d - s.r);
-          if (rippleDist < 40) {
-            const angle = Math.atan2(p.y - s.y, p.x - s.x);
-            const push = (40 - rippleDist) * 0.5 * s.alpha;
-            p.x += Math.cos(angle) * push;
-            p.y += Math.sin(angle) * push;
+        if (isEnabled) {
+          // Base movement
+          p.y -= p.speed;
+          if (p.y < -10) {
+            p.y = height + 10;
+            p.x = Math.random() * width;
+            p.vx = 0; p.vy = 0;
           }
-        });
 
-        // Apply velocities with friction
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.95;
-        p.vy *= 0.95;
+          // Fluid Wake (Mouse movement)
+          const distToMouse = Math.hypot(p.x - mouse.x, p.y - mouse.y);
+          if (distToMouse < 100) {
+            const force = (100 - distToMouse) / 100;
+            p.vx += mouseVx * force * 0.2;
+            p.vy += mouseVy * force * 0.2;
+          }
 
+          // Shockwave repulsion
+          shockwaves.forEach(s => {
+            const d = Math.hypot(p.x - s.x, p.y - s.y);
+            const rippleDist = Math.abs(d - s.r);
+            if (rippleDist < 40) {
+              const angle = Math.atan2(p.y - s.y, p.x - s.x);
+              const push = (40 - rippleDist) * 0.5 * s.alpha;
+              p.x += Math.cos(angle) * push;
+              p.y += Math.sin(angle) * push;
+            }
+          });
+
+          // Apply velocities with friction
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.95;
+          p.vy *= 0.95;
+        }
+
+        const distToMouse = Math.hypot(p.x - mouse.x, p.y - mouse.y);
         const isActive = distToMouse < 80;
         ctx.fillStyle = isActive ? '#fff' : 'rgba(255, 255, 255, 0.2)';
         ctx.beginPath();
@@ -133,7 +139,7 @@ export default function DataStreamBackground() {
       window.removeEventListener('mousedown', handleClick);
       cancelAnimationFrame(animationFrame);
     };
-  }, []);
+  }, [isEnabled]);
 
   return (
     <canvas
