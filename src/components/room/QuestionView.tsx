@@ -62,7 +62,7 @@ export default function QuestionView({
                   key={i} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(option)} 
-                  className="p-4 sm:p-6 rounded-xl text-left border border-white/10 bg-white/[0.02] transition-all font-bold text-base sm:text-lg hover:bg-white hover:text-black hover:border-white active:scale-95 group disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                  className="p-4 sm:p-6 rounded-xl text-left transition-all font-bold text-base sm:text-lg glass-button hover:border-blue-400/50 active:scale-95 group disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none"
                 >
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center">
@@ -78,7 +78,7 @@ export default function QuestionView({
                   key={val} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(val)} 
-                  className="p-8 rounded-2xl font-bold text-2xl border border-white/10 bg-white/[0.02] transition-all hover:bg-white hover:text-black hover:border-white active:scale-95 disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none group relative"
+                  className="p-8 rounded-2xl font-bold text-2xl transition-all glass-button hover:border-blue-400/50 active:scale-95 disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none group relative"
                 >
                   {val}
                   <span className="absolute bottom-2 right-4 text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{val[0]}]</span>
