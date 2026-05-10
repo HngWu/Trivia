@@ -1,27 +1,34 @@
 <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Subtle Outer Dark Glow -->
-  <circle cx="16" cy="16" r="14" fill="url(#paint0_radial)" fill-opacity="0.1"/>
-  
-  <!-- Dark Glass Neural Brain Base -->
-  <path d="M16 6C11.5817 6 8 9.58172 8 14C8 16.5 9.5 18.5 11.5 19.5V22C11.5 23.1046 12.3954 24 13.5 24H18.5C19.6046 24 20.5 23.1046 20.5 22V19.5C22.5 18.5 24 16.5 24 14C24 9.58172 20.4183 6 16 6Z" fill="#1D1D1F" fill-rule="evenodd" clip-rule="evenodd"/>
-  
-  <!-- Shadow for depth -->
-  <path d="M16 6C11.5817 6 8 9.58172 8 14C8 16.5 9.5 18.5 11.5 19.5V22C11.5 23.1046 12.3954 24 13.5 24H18.5C19.6046 24 20.5 23.1046 20.5 22V19.5C22.5 18.5 24 16.5 24 14C24 9.58172 20.4183 6 16 6Z" stroke="white" stroke-opacity="0.05" stroke-width="0.5"/>
+  <!-- Solid Background Container (App Icon Style) -->
+  <rect width="32" height="32" rx="8" fill="#0A0A0B"/>
+  <rect x="0.5" y="0.5" width="31" height="31" rx="7.5" stroke="white" stroke-opacity="0.08"/>
 
-  <!-- Clashing Dual Elements (The Duel - Darker Blues) -->
-  <path d="M15.5 8C12.4624 8 10 10.4624 10 13.5C10 15.5 11 17.2 12.5 18.2V21H15.5V8Z" fill="#1E40AF" opacity="0.8"/>
-  <path d="M16.5 8V21H19.5V18.2C21 17.2 22 15.5 22 13.5C22 10.4624 19.5376 8 16.5 8Z" fill="#2563EB" opacity="0.8"/>
+  <!-- Centered Neural Brain Elements -->
+  <g transform="translate(1, 1) scale(0.9375)">
+    <!-- Subtle Inner Glow -->
+    <circle cx="16" cy="16" r="12" fill="url(#paint0_radial)" fill-opacity="0.15"/>
+    
+    <!-- Dark Neural Brain Base -->
+    <path d="M16 6C11.5817 6 8 9.58172 8 14C8 16.5 9.5 18.5 11.5 19.5V22C11.5 23.1046 12.3954 24 13.5 24H18.5C19.6046 24 20.5 23.1046 20.5 22V19.5C22.5 18.5 24 16.5 24 14C24 9.58172 20.4183 6 16 6Z" fill="#1D1D1F" fill-rule="evenodd" clip-rule="evenodd"/>
+    
+    <!-- Edge Highlight -->
+    <path d="M16 6C11.5817 6 8 9.58172 8 14C8 16.5 9.5 18.5 11.5 19.5V22C11.5 23.1046 12.3954 24 13.5 24H18.5C19.6046 24 20.5 23.1046 20.5 22V19.5C22.5 18.5 24 16.5 24 14C24 9.58172 20.4183 6 16 6Z" stroke="white" stroke-opacity="0.05" stroke-width="0.5"/>
 
-  <!-- Center "Intelligence" Spark -->
-  <circle cx="16" cy="13.5" r="1.2" fill="#60A5FA">
-    <animate attributeName="opacity" values="1;0.3;1" dur="3s" repeatCount="indefinite" />
-  </circle>
+    <!-- Dual Clashing Elements -->
+    <path d="M15.5 8C12.4624 8 10 10.4624 10 13.5C10 15.5 11 17.2 12.5 18.2V21H15.5V8Z" fill="#1E40AF" opacity="0.8"/>
+    <path d="M16.5 8V21H19.5V18.2C21 17.2 22 15.5 22 13.5C22 10.4624 19.5376 8 16.5 8Z" fill="#2563EB" opacity="0.8"/>
 
-  <!-- Connective Nodes (Subtler) -->
-  <circle cx="14" cy="11" r="0.6" fill="white" opacity="0.3"/>
-  <circle cx="18" cy="11" r="0.6" fill="white" opacity="0.3"/>
-  <circle cx="14" cy="16" r="0.6" fill="white" opacity="0.3"/>
-  <circle cx="18" cy="16" r="0.6" fill="white" opacity="0.3"/>
+    <!-- Intelligence Spark -->
+    <circle cx="16" cy="13.5" r="1.2" fill="#60A5FA">
+      <animate attributeName="opacity" values="1;0.3;1" dur="3s" repeatCount="indefinite" />
+    </circle>
+
+    <!-- Connective Nodes -->
+    <circle cx="14" cy="11" r="0.6" fill="white" opacity="0.3"/>
+    <circle cx="18" cy="11" r="0.6" fill="white" opacity="0.3"/>
+    <circle cx="14" cy="16" r="0.6" fill="white" opacity="0.3"/>
+    <circle cx="18" cy="16" r="0.6" fill="white" opacity="0.3"/>
+  </g>
 
   <defs>
     <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(16 16) rotate(90) scale(14)">
