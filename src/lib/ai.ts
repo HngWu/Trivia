@@ -22,7 +22,7 @@ Ensure a mix of question types. Respond ONLY with the JSON array.`;
 async function generateWithGemini(topic: string): Promise<Question[] | null> {
   if (!GEMINI_API_KEY) return null;
   
-  const models = ["gemini-3.1-flash-preview", "gemini-3-pro-preview"];
+  const models = ["gemini-3.0-flash-preview", "gemini-3.1-pro-preview"];
   const prompt = PROMPT_TEMPLATE(topic);
 
   for (const modelName of models) {
@@ -69,6 +69,17 @@ async function generateWithDeepSeek(topic: string): Promise<Question[] | null> {
     });
 
     const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("[AI] DeepSeek API Error:", data.error || data);
+      return null;
+    }
+
+    if (!data.choices || !data.choices[0]?.message?.content) {
+      console.error("[AI] DeepSeek returned invalid response structure:", data);
+      return null;
+    }
+
     const content = data.choices[0].message.content;
     const match = content.match(/\[[\s\S]*\]/);
     if (match) {
