@@ -8,6 +8,7 @@ import TopicGrid from '@/components/home/TopicGrid';
 import TopicDetail from '@/components/home/TopicDetail';
 import JoinGameForm from '@/components/home/JoinGameForm';
 import { AIProvider } from '@/lib/ai';
+import BackgroundToggle from '@/components/shared/BackgroundToggle';
 
 export default function Home() {
   const [nickname, setNickname] = useState('');
@@ -100,7 +101,8 @@ export default function Home() {
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center p-3 sm:p-6 md:p-10 page-transition overflow-y-auto relative selection:bg-white/20">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       
-      <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-50">
+      <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-50 flex items-center gap-3">
+        <BackgroundToggle />
         <button 
           onClick={() => window.location.href = '/admin'}
           className="p-2 glass rounded-xl border-white/5 hover:border-white/20 transition-all group focus:ring-2 focus:ring-white/20 focus:outline-none"

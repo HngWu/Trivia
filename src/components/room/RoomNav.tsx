@@ -1,5 +1,6 @@
 import React from 'react';
 import { Player } from '@/lib/types/game';
+import BackgroundToggle from '../shared/BackgroundToggle';
 
 interface RoomNavProps {
   roomCode: string;
@@ -48,6 +49,7 @@ export default function RoomNav({
       </div>
 
       <div className="flex items-center space-x-4 sm:space-x-6">
+         <BackgroundToggle />
          <div className="text-right hidden sm:block">
             <p className="text-[9px] text-gray-600 font-bold tracking-widest uppercase">Room</p>
             <p className="font-mono font-bold text-xs uppercase text-foreground">{roomCode}</p>
