@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/contexts/ThemeContext";
 import DynamicBackground from "@/components/shared/DynamicBackground";
+import GlobalShortcuts from "@/components/shared/GlobalShortcuts";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased relative`}
       >
         <ThemeProvider>
+          <GlobalShortcuts />
           <DynamicBackground />
           {children}
         </ThemeProvider>

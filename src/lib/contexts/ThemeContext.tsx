@@ -2,34 +2,50 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-type BackgroundType = 'synapse' | 'stream';
+type BackgroundType = 'synapse' | 'stream' | 'synapse-variant';
 
 interface ThemeContextType {
   background: BackgroundType;
+  isAnimationEnabled: boolean;
   toggleBackground: () => void;
+  toggleAnimation: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [background, setBackground] = useState<BackgroundType>('synapse');
+  const [isAnimationEnabled, setIsAnimationEnabled] = useState(true);
 
   // Initialize from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('background_pref');
-    if (saved === 'synapse' || saved === 'stream') {
-      setBackground(saved);
+    const savedBg = localStorage.getItem('background_pref');
+    if (savedBg === 'synapse' || savedBg === 'stream' || savedBg === 'synapse-variant') {
+      setBackground(savedBg);
+    }
+    
+    const savedAnim = localStorage.getItem('animation_enabled');
+    if (savedAnim !== null) {
+      setIsAnimationEnabled(savedAnim === 'true');
     }
   }, []);
 
   const toggleBackground = () => {
-    const next = background === 'synapse' ? 'stream' : 'synapse';
+    const modes: BackgroundType[] = ['synapse', 'stream', 'synapse-variant'];
+    const nextIndex = (modes.indexOf(background) + 1) % modes.length;
+    const next = modes[nextIndex];
     setBackground(next);
     localStorage.setItem('background_pref', next);
   };
 
+  const toggleAnimation = () => {
+    const next = !isAnimationEnabled;
+    setIsAnimationEnabled(next);
+    localStorage.setItem('animation_enabled', String(next));
+  };
+
   return (
-    <ThemeContext.Provider value={{ background, toggleBackground }}>
+    <ThemeContext.Provider value={{ background, isAnimationEnabled, toggleBackground, toggleAnimation }}>
       {children}
     </ThemeContext.Provider>
   );
