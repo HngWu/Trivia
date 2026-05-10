@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Player, Answer, Question } from '@/lib/types/game';
-import { getMatchRoasts } from '@/lib/actions';
+import { generateLocalRoasts } from '@/lib/roasts';
 
 interface FinalViewProps {
   sortedPlayers: Player[];
@@ -15,41 +15,31 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
   const [isRoasting, setIsRoasting] = useState(true);
 
   useEffect(() => {
-    const generateAllRoasts = async () => {
-      // 1. Prepare history: only include players who have at least one wrong answer
-      const history = sortedPlayers.map(p => {
-        const wrong = allAnswers.filter(a => a.player_id === p.id && !a.is_correct && a.submitted_answer !== "TIMEOUT_EXPIRED");
-        if (wrong.length === 0) return null;
-        
-        return {
-          name: p.name,
-          wrongAnswers: wrong.map(w => {
-            const q = questions.find(q => q.id === w.question_id);
-            return {
-              question: q?.text || "Unknown",
-              answer: w.submitted_answer,
-              correct: q?.correct_answer || "Unknown"
-            };
-          })
-        };
-      }).filter(Boolean) as any[];
+    // prepare history: only include players who have at least one wrong answer
+    const history = sortedPlayers.map(p => {
+      const wrong = allAnswers.filter(a => a.player_id === p.id && !a.is_correct && a.submitted_answer !== "TIMEOUT_EXPIRED");
+      if (wrong.length === 0) return null;
+      
+      return {
+        name: p.name,
+        wrongAnswers: wrong.map(w => {
+          const q = questions.find(q => q.id === w.question_id);
+          return {
+            question: q?.text || "Unknown",
+            answer: w.submitted_answer,
+            correct: q?.correct_answer || "Unknown",
+            wager: w.wager
+          };
+        })
+      };
+    }).filter(Boolean) as any[];
 
-      if (history.length === 0) {
-        setIsRoasting(false);
-        return;
-      }
-
-      try {
-        const results = await getMatchRoasts(history);
-        setRoasts(results);
-      } catch (e) {
-        console.error("Roast generation failed", e);
-      } finally {
-        setIsRoasting(false);
-      }
-    };
-
-    generateAllRoasts();
+    if (history.length > 0) {
+      const results = generateLocalRoasts(history);
+      setRoasts(results);
+    }
+    
+    setIsRoasting(false);
   }, [sortedPlayers, allAnswers, questions]);
 
   return (
