@@ -4,7 +4,7 @@ import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer, GameState } from "./types/game";
 import { validateAnswer } from "./validation";
-import { AIProvider, generateRoasts } from "./ai";
+import { AIProvider } from "./ai";
 
 const SYNC_BUFFER_MS = 1500;
 
@@ -244,60 +244,29 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
   return await getFullState(normalizedCode);
 }
 
-// Internal helper to verify admin session for sensitive CRUD operations
-async function checkAdmin() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized: Admin access required");
-  return supabase;
-}
-
 export async function getTopics() {
   const supabase = await createClient();
   const { data: topics, error } = await supabase.from("topics").select("*").order("name");
-  if (error) {
-    console.error("Fetch Topics Error:", error);
-    return [];
-  }
   return topics || [];
 }
 
-export async function addTopic(topic: { id: string, name: string, icon: string, description?: string, example_question?: string }) {
-  const supabase = await checkAdmin();
+export async function addTopic(topic: any) {
+  const supabase = await createClient();
   const { error } = await supabase.from("topics").insert([topic]);
   if (error) throw error;
 }
 
-export async function deleteTopic(id: string) {
-  const supabase = await checkAdmin();
-  const { error } = await supabase.from("topics").delete().eq("id", id);
-  if (error) throw error;
-}
-
-export async function updateTopic(id: string, updates: Partial<{ name: string, icon: string, description: string, example_question: string }>) {
-  const supabase = await checkAdmin();
-  const { error } = await supabase.from("topics").update(updates).eq("id", id);
-  if (error) throw error;
-}
-
-export async function getQuestionsByTopic(topicId: string) {
+export async function addQuestions(questions: any[]) {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("questions").select("*").eq("topic", topicId).order("created_at", { ascending: false });
-  if (error) throw error;
-  return data || [];
-}
-
-export async function addQuestions(questions: Partial<Question>[]) {
-  const supabase = await checkAdmin();
   
   // 1. Identify which questions already exist in the DB by their text
-  const texts = questions.map(q => q.text).filter(Boolean) as string[];
+  const texts = questions.map(q => q.text);
   const { data: existing } = await supabase.from("questions").select("text").in("text", texts);
   const existingTexts = new Set(existing?.map(e => e.text) || []);
   
   // 2. Filter out duplicates and sanitize for insertion
   const sanitizedQuestions = questions
-    .filter(q => q.text && !existingTexts.has(q.text))
+    .filter(q => !existingTexts.has(q.text))
     .map(q => ({
       topic: q.topic,
       summary: q.summary,
@@ -326,17 +295,38 @@ export async function addQuestions(questions: Partial<Question>[]) {
   };
 }
 
+export async function deleteTopic(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("topics").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateTopic(id: string, updates: any) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("topics").update(updates).eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteQuestion(id: string) {
-  const supabase = await checkAdmin();
+  const supabase = await createClient();
   const { error } = await supabase.from("questions").delete().eq("id", id);
   if (error) throw error;
 }
 
-export async function updateQuestion(id: string, updates: Partial<Question>) {
-  const supabase = await checkAdmin();
+export async function updateQuestion(id: string, updates: any) {
+  const supabase = await createClient();
   const { error } = await supabase.from("questions").update(updates).eq("id", id);
   if (error) throw error;
 }
+
+export async function getQuestionsByTopic(topicId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("questions").select("*").eq("topic", topicId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+import { generateRoasts } from "./ai";
 
 export async function getMatchRoasts(playerHistory: { name: string, wrongAnswers: { question: string, answer: string, correct: string }[] }[]) {
   try {

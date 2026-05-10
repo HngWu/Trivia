@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
 import React, { useState, useEffect, use, useMemo, useRef, useCallback } from "react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, kickPlayer, getServerTime } from "@/lib/actions";
 import { Player, Question, Answer, GameState } from "@/lib/types/game";
-import Toast from "@/components/shared/Toast";
 import { validateAnswer } from "@/lib/validation";
 
+import Toast from "@/components/shared/Toast";
 import FluidTimer from "@/components/room/FluidTimer";
 import RoomNav from "@/components/room/RoomNav";
 import RoomHeader from "@/components/room/RoomHeader";
@@ -16,8 +16,6 @@ import WagerView from "@/components/room/WagerView";
 import QuestionView from "@/components/room/QuestionView";
 import ResultsView from "@/components/room/ResultsView";
 import FinalView from "@/components/room/FinalView";
-
-import { AnimatePresence, motion } from "framer-motion";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const unwrappedParams = use(params);
@@ -42,7 +40,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [statusUpdatedAt, setStatusUpdatedAt] = useState<number>(0);
   const [serverOffset, setServerOffset] = useState(0);
 
-  // --- UI DISPLAY STATE ---
+  // --- UI DISPLAY STATE (Delayed updates for smoothness) ---
   const [displayedPlayers, setDisplayedPlayers] = useState<Player[]>([]);
 
   // --- UI STATE ---
@@ -51,66 +49,33 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Sync displayedPlayers based on phase transitions
   useEffect(() => {
     if (displayStatus === "waiting" || displayStatus === "results" || displayStatus === "final" || displayedPlayers.length === 0) {
       setDisplayedPlayers(players);
     }
   }, [players, displayStatus, displayedPlayers.length]);
 
+  // --- REFS ---
   const currentVersionRef = useRef(0);
+  const currentIndexRef = useRef(0);
+  const pendingSubmissionsRef = useRef<Record<string, Answer>>({});
+  const lastSyncTimeRef = useRef(0);
 
-  useEffect(() => {
-    return () => {
-      if (scheduledUpdateRef.current !== null) {
-        cancelAnimationFrame(scheduledUpdateRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const savedName = localStorage.getItem("player_name");
-    if (savedName) setNickname(savedName);
-  }, []);
-
-  useEffect(() => {
-    const syncClock = async () => {
-      try {
-        const start = Date.now();
-        const serverNow = await getServerTime();
-        const end = Date.now();
-        const latency = (end - start) / 2;
-        const offset = serverNow - (start + latency);
-        setServerOffset(offset);
-      } catch (e) {
-        console.error("Clock sync failed", e);
-      }
-    };
-    syncClock();
-  }, []);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  };
-
+  // --- DERIVED DATA ---
   const currentQuestion = useMemo(() => questions[currentIndex], [questions, currentIndex]);
   const myPlayer = useMemo(() => players.find(p => p.id === myPlayerId), [players, myPlayerId]);
+  const displayedMyPlayer = useMemo(() => displayedPlayers.find(p => p.id === myPlayerId), [displayedPlayers, myPlayerId]);
   const isLocked = useMemo(() => roomStatus !== displayStatus, [roomStatus, displayStatus]);
-  
   const isLeader = useMemo(() => {
     const savedId = myPlayerId || (typeof window !== "undefined" ? localStorage.getItem("player_id") : "");
-    return Boolean(myPlayer?.is_leader || (roomLeaderId && savedId === roomLeaderId));
+    return !!(myPlayer?.is_leader || (roomLeaderId && savedId === roomLeaderId));
   }, [myPlayer, roomLeaderId, myPlayerId]);
 
   const roundData = useMemo(() => {
-    if (!currentQuestion) return { wager: null, answer: "", results: null, competitors: [] as Answer[], wagerCount: 0, answerCount: 0 };
-
+    if (!currentQuestion) return { wager: null, answer: "", results: null as any, competitors: [] as Answer[], wagerCount: 0, answerCount: 0 };
     const qAnswers = allRoomAnswers.filter(a => a.question_id === currentQuestion.id);
     const myAns = qAnswers.find(a => a.player_id === myPlayerId);
-    
-    const wagerCount = qAnswers.filter(a => a.wager > 0).length;
-    const answerCount = qAnswers.filter(a => a.submitted_answer !== "").length;
-
     return {
       wager: myAns?.wager || null,
       answer: myAns?.submitted_answer || "",
@@ -121,28 +86,33 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         qId: currentQuestion.id
       } : null,
       competitors: qAnswers,
-      wagerCount,
-      answerCount
+      wagerCount: qAnswers.filter(a => a.wager > 0).length,
+      answerCount: qAnswers.filter(a => a.submitted_answer !== "").length
     };
   }, [allRoomAnswers, currentQuestion, myPlayerId, roomStatus]);
 
   const usedWagers = useMemo(() => {
-    return allRoomAnswers
-      .filter(a => a.player_id === myPlayerId)
-      .map(a => a.wager);
+    return allRoomAnswers.filter(a => a.player_id === myPlayerId).map(a => a.wager);
   }, [allRoomAnswers, myPlayerId]);
 
-  const currentIndexRef = useRef(0);
-  const pendingSubmissionsRef = useRef<Record<string, Answer>>({});
-  const lastSyncTimeRef = useRef(0);
+  // --- ACTIONS ---
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const fetchData = useCallback(async () => {
+    try {
+      const state = await getRoomState(roomCode);
+      applyState(state);
+    } catch (err) { console.error("Sync error:", err); }
+  }, [roomCode]);
 
   const applyState = useCallback((state: any) => {
     const { room, players: p, allAnswers: a } = state;
-    if (!room) return;
-
-    if (room.version && room.version <= currentVersionRef.current) return;
+    if (!room || (room.version && room.version <= currentVersionRef.current)) return;
+    
     currentVersionRef.current = room.version || 0;
-
     lastSyncTimeRef.current = Date.now();
 
     if (myPlayerId && p && !p.find((player: Player) => player.id === myPlayerId) && !isJoining) {
@@ -158,16 +128,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (a) {
       const mergedAnswers = [...a];
       Object.values(pendingSubmissionsRef.current).forEach(pending => {
-        const index = mergedAnswers.findIndex(ans => 
-          ans.player_id === pending.player_id && ans.question_id === pending.question_id
-        );
+        const index = mergedAnswers.findIndex(ans => ans.player_id === pending.player_id && ans.question_id === pending.question_id);
         if (index !== -1) {
-          if (!mergedAnswers[index].submitted_answer && pending.submitted_answer) {
-             mergedAnswers[index] = { ...mergedAnswers[index], ...pending };
-          }
-        } else {
-          mergedAnswers.push(pending);
-        }
+          if (!mergedAnswers[index].submitted_answer && pending.submitted_answer) mergedAnswers[index] = { ...mergedAnswers[index], ...pending };
+        } else mergedAnswers.push(pending);
       });
       setAllRoomAnswers(mergedAnswers);
     }
@@ -181,46 +145,25 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     setCurrentIndex(room.current_question_index);
     setStatusUpdatedAt(room.status_updated_at || (Date.now() + serverOffset));
 
-    if (scheduledUpdateRef.current !== null) {
-      cancelAnimationFrame(scheduledUpdateRef.current);
-      scheduledUpdateRef.current = null;
-    }
-
+    if (scheduledUpdateRef.current !== null) cancelAnimationFrame(scheduledUpdateRef.current);
     const targetTime = room.status_updated_at || (Date.now() + serverOffset);
     const now = Date.now() + serverOffset;
     
-    if (now >= targetTime) {
-      setDisplayStatus(room.status as GameState);
-    } else {
+    if (now >= targetTime) setDisplayStatus(room.status as GameState);
+    else {
       const syncLoop = () => {
-        const currentTime = Date.now() + serverOffset;
-        if (currentTime >= targetTime) {
+        if (Date.now() + serverOffset >= targetTime) {
           setDisplayStatus(room.status as GameState);
           scheduledUpdateRef.current = null;
-        } else {
-          scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
-        }
+        } else scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
       };
       scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
     }
   }, [myPlayerId, isJoining, serverOffset]);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const state = await getRoomState(roomCode);
-      applyState(state);
-    } catch (err) {
-      console.error("Sync error:", err);
-    }
-  }, [roomCode, applyState]);
-
   const triggerSync = useCallback((data?: any) => {
     if (channelRef.current) {
-      channelRef.current.send({
-        type: "broadcast",
-        event: "STATE_UPDATED",
-        payload: { t: Date.now(), state: data }
-      });
+      channelRef.current.send({ type: "broadcast", event: "STATE_UPDATED", payload: { t: Date.now(), state: data } });
     }
   }, []);
 
@@ -229,71 +172,40 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     try {
       const newState = await kickPlayer(roomCode, targetPlayerId, myPlayerId);
       triggerSync(newState);
-    } catch (e) {
-      console.error("Kick failed", e);
-      showToast("Failed to kick player.");
-    }
+    } catch (e) { showToast("Failed to kick player."); }
   }, [isLeader, myPlayerId, roomCode, triggerSync]);
 
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
-    
     const key = `${myPlayerId}:${currentQuestion.id}`;
-    const optimisticAnswer: Answer = {
-       player_id: myPlayerId,
-       question_id: currentQuestion.id,
-       wager: weight,
-       submitted_answer: "",
-       is_correct: false
-    };
-
+    const optimisticAnswer: Answer = { player_id: myPlayerId, question_id: currentQuestion.id, wager: weight, submitted_answer: "", is_correct: false };
     pendingSubmissionsRef.current[key] = optimisticAnswer;
     setAllRoomAnswers(prev => [...prev.filter(a => !(a.player_id === myPlayerId && a.question_id === currentQuestion.id)), optimisticAnswer]);
-
     try {
       const newState = await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
       delete pendingSubmissionsRef.current[key];
       triggerSync(newState);
-    } catch (e) {
-      delete pendingSubmissionsRef.current[key];
-      console.error("Wager failed", e);
-    }
+    } catch (e) { delete pendingSubmissionsRef.current[key]; }
   }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync]);
 
   const handleSubmitAnswer = useCallback(async (val: string) => {
     if (roundData.answer || !currentQuestion) return;
-    
     const key = `${myPlayerId}:${currentQuestion.id}`;
     const isCorrect = validateAnswer(val, currentQuestion.correct_answer);
-
-    const optimisticAnswer: Answer = {
-      player_id: myPlayerId,
-      question_id: currentQuestion.id,
-      wager: roundData.wager || 0,
-      submitted_answer: val,
-      is_correct: isCorrect
-    };
-
+    const optimisticAnswer: Answer = { player_id: myPlayerId, question_id: currentQuestion.id, wager: roundData.wager || 0, submitted_answer: val, is_correct: isCorrect };
     pendingSubmissionsRef.current[key] = optimisticAnswer;
     setAllRoomAnswers(prev => prev.map(a => (a.player_id === myPlayerId && a.question_id === currentQuestion.id) ? optimisticAnswer : a));
-    
     try {
       const newState = await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
       delete pendingSubmissionsRef.current[key];
       triggerSync(newState);
-    } catch (e) {
-      delete pendingSubmissionsRef.current[key];
-      console.error("Answer failed", e);
-    }
+    } catch (e) { delete pendingSubmissionsRef.current[key]; }
   }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
 
   const handleTimeUp = useCallback(() => {
     const availableWeights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(w => !usedWagers.includes(w));
-    if (roomStatus === "wager" && !roundData.wager) {
-      handleSelectWager(availableWeights[0] || 1);
-    } else if (roomStatus === "question" && !roundData.answer) {
-      handleSubmitAnswer("TIMEOUT_EXPIRED");
-    }
+    if (roomStatus === "wager" && !roundData.wager) handleSelectWager(availableWeights[0] || 1);
+    else if (roomStatus === "question" && !roundData.answer) handleSubmitAnswer("TIMEOUT_EXPIRED");
   }, [roomStatus, roundData.wager, roundData.answer, usedWagers, handleSelectWager, handleSubmitAnswer]);
 
   const handleNextRound = useCallback(async () => {
@@ -322,12 +234,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       applyState(state);
       setIsJoining(false);
       triggerSync(state);
-    } catch (err) {
-      console.error("Join error:", err);
-      showToast("Failed to join room.");
-    } finally {
-      setIsLoading(false);
-    }
+    } catch (err) { showToast("Failed to join room."); } finally { setIsLoading(false); }
   }, [nickname, roomCode, triggerSync, applyState, isLoading]);
 
   const handleCopyLink = useCallback(() => {
@@ -336,55 +243,59 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     setTimeout(() => setCopied(false), 2000);
   }, []);
 
+  // --- EFFECTS ---
+  useEffect(() => {
+    const syncClock = async () => {
+      try {
+        const start = Date.now();
+        const serverNow = await getServerTime();
+        const latency = (Date.now() - start) / 2;
+        setServerOffset(serverNow - (start + latency));
+      } catch (e) { console.error("Clock sync failed", e); }
+    };
+    syncClock();
+  }, []);
+
   useEffect(() => {
     const savedId = localStorage.getItem("player_id");
     const savedName = localStorage.getItem("player_name");
-    
     const initialFetch = async () => {
       setIsLoading(true);
       try {
         const state = await getRoomState(roomCode);
         if (!state.room) {
-            showToast("Battle room not found.");
+            showToast("Room not found.");
             setTimeout(() => window.location.href = "/", 2000);
             return;
         }
         applyState(state);
-        if (state.players?.some((p: Player) => p.id === savedId) && savedId) {
-          setMyPlayerId(savedId);
-        } else if (savedName) {
-          try {
-            const { player } = await joinRoom(roomCode, savedName);
-            setMyPlayerId(player.id);
-            localStorage.setItem("player_id", player.id);
-            const newState = await getRoomState(roomCode);
-            applyState(newState);
-            triggerSync(newState);
-          } catch (e) { setIsJoining(true); }
-        } else { setIsJoining(true); }
-      } catch (err) {
-        console.error("Initial fetch failed", err);
-        showToast("Failed to load battle data.");
-      } finally { setIsLoading(false); }
+        const isAlreadyInRoom = state.players?.some((player: Player) => player.id === savedId);
+        if (isAlreadyInRoom && savedId) setMyPlayerId(savedId);
+        else if (savedName) {
+           try {
+             const { player } = await joinRoom(roomCode, savedName);
+             setMyPlayerId(player.id);
+             localStorage.setItem("player_id", player.id);
+             const s = await getRoomState(roomCode);
+             applyState(s);
+             triggerSync(s);
+           } catch (e) { setIsJoining(true); }
+        } else setIsJoining(true);
+      } catch (err) { showToast("Failed to load room data."); } finally { setIsLoading(false); }
     };
-
     initialFetch();
-
     const channel = supabase.channel(`game:${roomCode}`, { config: { broadcast: { self: true } } })
       .on("broadcast", { event: "STATE_UPDATED" }, ({ payload }) => {
          if (payload.state) applyState(payload.state);
          else fetchData();
-      })
-      .subscribe();
-
+      }).subscribe();
     channelRef.current = channel;
     return () => { supabase.removeChannel(channel); channelRef.current = null; };
-  }, [roomCode, supabase, fetchData, triggerSync, applyState]);
+  }, [roomCode, supabase, fetchData, applyState, triggerSync]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const timeSinceLastSync = Date.now() - lastSyncTimeRef.current;
-      if (!isLoading && roomStatus !== "final" && timeSinceLastSync > 3000) fetchData();
+      if (!isLoading && roomStatus !== "final" && Date.now() - lastSyncTimeRef.current > 3000) fetchData();
     }, 5000);
     return () => clearInterval(interval);
   }, [isLoading, roomStatus, fetchData]);
@@ -392,8 +303,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   useEffect(() => {
     if (roomStatus === "waiting" || roomStatus === "final" || isLoading || !statusUpdatedAt) return;
     const updateTimer = () => {
-      const now = Date.now() + serverOffset;
-      const elapsed = Math.floor((now - statusUpdatedAt) / 1000);
+      const elapsed = Math.floor(((Date.now() + serverOffset) - statusUpdatedAt) / 1000);
       setTimer(Math.max(0, 60 - elapsed));
     };
     updateTimer();
@@ -402,199 +312,77 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [roomStatus, isLoading, currentIndex, statusUpdatedAt, serverOffset]);
 
   useEffect(() => {
-    if (timer === 0 && (roomStatus === "wager" || roomStatus === "question")) {
-      handleTimeUp();
-    }
+    if (timer === 0 && (roomStatus === "wager" || roomStatus === "question")) setTimeout(handleTimeUp, 0);
   }, [timer, roomStatus, handleTimeUp]);
 
   useEffect(() => {
     if (roomStatus === "results" && isLeader) {
-      const t = setTimeout(() => handleNextRound(), 7000);
+      const t = setTimeout(handleNextRound, 7000);
       return () => clearTimeout(t);
     }
   }, [roomStatus, isLeader, handleNextRound]);
 
+  // --- RENDER ---
+  if (isJoining) return (
+    <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-3xl flex items-center justify-center p-6">
+      <div className="glass p-10 rounded-[3rem] w-full max-w-md space-y-6 animate-slide-up border-white/10 shadow-2xl">
+        <div className="text-center space-y-2">
+          <h2 className="text-4xl font-bold tracking-tight text-foreground">Enter Game</h2>
+          <p className="text-gray-500 font-bold tracking-widest text-[10px] uppercase">Identify yourself to join</p>
+        </div>
+        <div className="space-y-5">
+          <input type="text" autoFocus value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Your Nickname" onKeyDown={e => e.key === "Enter" && handleJoin()} className="w-full h-12 glass-input rounded-xl px-4 font-semibold text-lg placeholder:text-gray-500 focus:border-white transition-all text-foreground" />
+          <button onClick={handleJoin} disabled={!nickname.trim() || isLoading} className="w-full h-12 bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all active:scale-95 disabled:opacity-50">Join room</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse text-center p-8">Loading room...</div>;
+
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const displayedSortedPlayers = [...displayedPlayers].sort((a, b) => b.score - a.score);
-
-  if (isJoining) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-3xl flex items-center justify-center p-6">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="glass p-12 rounded-[3rem] w-full max-w-lg space-y-8 border-white/10 shadow-2xl"
-        >
-          <div className="text-center space-y-4">
-            <h2 className="text-5xl font-bold tracking-tight text-white">Enter Game</h2>
-            <p className="text-gray-500 font-bold tracking-widest text-[10px] uppercase">Identify yourself to join</p>
-          </div>
-          <div className="space-y-6">
-            <input 
-              type="text" 
-              autoFocus
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="Your Nickname" 
-              onKeyDown={(e) => e.key === "Enter" && handleJoin()}
-              className="w-full h-14 glass-input rounded-xl px-6 text-xl font-semibold tracking-tight focus:border-white transition-all text-white" 
-            />
-            <motion.button 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleJoin}
-              disabled={!nickname.trim() || isLoading}
-              className="w-full h-14 bg-white text-black rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-95 disabled:opacity-50"
-            >
-              {isLoading ? "Joining..." : "Join room"}
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse text-center p-8 text-white">Establishing Connection...</div>;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20 overflow-y-auto">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-      
-      <RoomNav 
-        onHome={() => window.location.href = "/"}
-        displayedMyPlayer={displayedPlayers.find(p => p.id === myPlayerId)}
-        displayedSortedPlayers={displayedSortedPlayers}
-        myPlayerId={myPlayerId}
-        roomCode={roomCode}
-      />
+      <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} />
 
-      <main className="flex-1 flex flex-col items-center p-4 sm:p-8 md:p-12 max-w-6xl mx-auto w-full relative">
-        <AnimatePresence mode="wait">
-          {displayStatus !== "waiting" && displayStatus !== "final" && (
-            <RoomHeader 
-              currentIndex={currentIndex}
-              topic={topic}
-              roomStatus={roomStatus}
-              displayStatus={displayStatus}
-              isLocked={isLocked}
-              currentQuestion={currentQuestion}
-            />
-          )}
-        </AnimatePresence>
+      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-6 md:p-10 max-w-6xl mx-auto w-full relative">
+        <RoomHeader currentIndex={currentIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={currentQuestion} />
+        <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
-        <FluidTimer 
-          statusUpdatedAt={statusUpdatedAt}
-          displayStatus={displayStatus}
-          timer={timer}
-          serverOffset={serverOffset}
-          isLocked={isLocked}
-        />
+        {roomStatus === "wager" && displayStatus !== "wager" && (
+           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 py-12">
+              <div className="relative group"><div className="w-20 h-20 border-4 border-white/[0.03] border-t-foreground rounded-full animate-spin" /></div>
+              <div className="text-center space-y-2">
+                 <h2 className="text-2xl sm:text-4xl font-bold text-foreground">Preparing Next Round</h2>
+                 <p className="text-gray-600 font-bold tracking-wider text-[10px] animate-pulse italic uppercase">Setting the stage...</p>
+              </div>
+           </div>
+        )}
 
-        <AnimatePresence mode="wait">
-          {displayStatus === "waiting" && (
-            <motion.div 
-              key="lobby"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="w-full"
-            >
-              <LobbyView 
-                topic={topic}
-                players={players}
-                roomCode={roomCode}
-                myPlayerId={myPlayerId}
-                roomLeaderId={roomLeaderId}
-                isLeader={isLeader}
-                isLocked={isLocked}
-                questionsCount={questions.length}
-                onKick={handleKick}
-                onStart={handleStartGame}
-                onCopy={handleCopyLink}
-                copied={copied}
-              />
-            </motion.div>
-          )}
+        {displayStatus === "waiting" && roomStatus === "waiting" && (
+          <LobbyView topic={topic} players={players} roomCode={roomCode} myPlayerId={myPlayerId} roomLeaderId={roomLeaderId} isLeader={isLeader} isLocked={isLocked} questionsCount={questions.length} onKick={handleKick} onStart={handleStartGame} onCopy={handleCopyLink} copied={copied} />
+        )}
 
-          {displayStatus === "wager" && (
-            <motion.div 
-              key="wager"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.05 }}
-              className="w-full"
-            >
-              <WagerView 
-                roundData={roundData}
-                players={players}
-                isLocked={isLocked}
-                usedWagers={usedWagers}
-                onSelectWager={handleSelectWager}
-              />
-            </motion.div>
-          )}
+        {displayStatus === "wager" && (
+          <WagerView roundData={roundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} />
+        )}
 
-          {displayStatus === "question" && (
-            <motion.div 
-              key="question"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              className="w-full"
-            >
-              <QuestionView 
-                currentQuestion={currentQuestion}
-                roundData={roundData}
-                players={players}
-                isLocked={isLocked}
-                textAnswer={textAnswer}
-                setTextAnswer={setTextAnswer}
-                onSubmitAnswer={handleSubmitAnswer}
-              />
-            </motion.div>
-          )}
+        {displayStatus === "question" && (
+          <QuestionView currentQuestion={currentQuestion} roundData={roundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} />
+        )}
 
-          {displayStatus === "results" && (
-            <motion.div 
-              key="results"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              className="w-full"
-            >
-              <ResultsView 
-                roundData={roundData}
-                players={players}
-                myPlayerId={myPlayerId}
-                isLeader={isLeader}
-                isLocked={isLocked}
-                onKick={handleKick}
-              />
-            </motion.div>
-          )}
+        {displayStatus === "results" && roomStatus === "results" && (
+          <ResultsView roundData={roundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked} onKick={handleKick} />
+        )}
 
-          {displayStatus === "final" && (
-            <motion.div 
-              key="final"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full"
-            >
-              <FinalView 
-                sortedPlayers={sortedPlayers}
-                myPlayerId={myPlayerId}
-                onHome={() => window.location.href = "/"}
-                allAnswers={allRoomAnswers}
-                questions={questions}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {displayStatus === "final" && (
+          <FinalView sortedPlayers={sortedPlayers} myPlayerId={myPlayerId} onHome={() => window.location.href = "/"} allAnswers={allRoomAnswers} questions={questions} />
+        )}
       </main>
-      
-      <footer className="p-8 text-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">
-        TriviaDuel • v4.2-GLASS
-      </footer>
+      <footer className="p-8 text-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">TriviaDuel • v4.2-GLASS</footer>
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 
 interface TopicData {
   id: string;
@@ -38,13 +37,7 @@ export default function TopicDetail({
   };
 
   return (
-    <motion.section 
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-      className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] border-white/10 shadow-xl relative overflow-hidden"
-    >
+    <section className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden">
       <button 
         onClick={onBack}
         className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground mb-6 transition-colors"
@@ -54,13 +47,7 @@ export default function TopicDetail({
 
       <div className="space-y-3">
         <div className="flex items-center gap-4">
-          <motion.span 
-            initial={{ rotate: -20, scale: 0.8 }}
-            animate={{ rotate: 0, scale: 1 }}
-            className="text-4xl"
-          >
-            {topicData.icon}
-          </motion.span>
+          <span className="text-4xl">{topicData.icon}</span>
           <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{topicData.name}</h3>
         </div>
         <p className="text-sm font-medium text-gray-400 leading-snug">
@@ -68,7 +55,7 @@ export default function TopicDetail({
         </p>
       </div>
 
-      <div className="p-4 bg-white/[0.02] rounded-xl border border-white/5 space-y-1.5 my-5">
+      <div className="p-4 bg-white/[0.02] rounded-xl border border-white/5 space-y-1.5">
         <span className="text-[9px] font-bold tracking-[0.2em] text-gray-600 block uppercase">Example question</span>
         <p className="italic text-foreground font-semibold text-base sm:text-lg leading-tight">
           &quot;{topicData.example_question}&quot;
@@ -103,16 +90,14 @@ export default function TopicDetail({
           </div>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
+        <button
           type="submit"
           disabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
-          className="w-full glass-button py-4 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+          className="w-full glass-button py-4 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all"
         >
           {isLoading ? 'Starting game...' : 'Create room'}
-        </motion.button>
+        </button>
       </form>
-    </motion.section>
+    </section>
   );
 }

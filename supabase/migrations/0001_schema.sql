@@ -30,25 +30,13 @@ ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 -- Topics
 CREATE POLICY "Public read access for topics" ON topics
     FOR SELECT USING (true);
-
-CREATE POLICY "Admin insert access for topics" ON topics
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "Admin update access for topics" ON topics
-    FOR UPDATE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Admin delete access for topics" ON topics
-    FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Public insert access for topics" ON topics
+    FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public update access for topics" ON topics
+    FOR UPDATE WITH CHECK (true);
 
 -- Questions
 CREATE POLICY "Public read access for questions" ON questions
     FOR SELECT USING (true);
-
-CREATE POLICY "Admin insert access for questions" ON questions
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
-
-CREATE POLICY "Admin update access for questions" ON questions
-    FOR UPDATE USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Admin delete access for questions" ON questions
-    FOR DELETE USING (auth.role() = 'authenticated');
+CREATE POLICY "Public insert access for questions" ON questions
+    FOR INSERT WITH CHECK (true);

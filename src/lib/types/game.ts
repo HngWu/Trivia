@@ -1,6 +1,5 @@
 export type Question = {
   id: string;
-  topic?: string;
   summary: string;
   text: string;
   type: "multiple_choice" | "boolean" | "text";
