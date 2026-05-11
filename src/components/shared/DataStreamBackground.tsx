@@ -55,7 +55,7 @@ export default function DataStreamBackground({ isEnabled }: { isEnabled: boolean
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      ctx.fillStyle = '#050505';
+      ctx.fillStyle = '#0a0a0a';
       ctx.fillRect(0, 0, width, height);
 
       // Handle shockwaves
