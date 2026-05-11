@@ -75,7 +75,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
       can_h = window.innerHeight;
 
       const isMobile = window.innerWidth < 768;
-      BALL_NUM = isMobile ? 40 : 75; // Reduced for mobile
+      BALL_NUM = isMobile ? 20 : 50; // Significantly reduced for focus and performance
     }
 
     function initBalls(num: number) {
