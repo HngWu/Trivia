@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a; /* Slightly lighter charcoal for better depth */
+  --background: #0f0f0f; /* Slightly lighter off-black for improved depth */
   --foreground: hsl(210 10% 85%); /* Darker shade of white */
   --accent: #E2E8F0;
   --glass-bg: rgba(255, 255, 255, 0.04);

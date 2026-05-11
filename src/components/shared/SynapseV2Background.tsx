@@ -116,7 +116,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
     function render() {
       if (!ctx) return;
       ctx.clearRect(0, 0, can_w, can_h);
-      ctx.fillStyle = '#0a0a0a';
+      ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, can_w, can_h);
 
       const allBalls = [...balls, mouse_ball];

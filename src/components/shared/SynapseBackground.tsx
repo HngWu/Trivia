@@ -55,7 +55,7 @@ export default function SynapseBackground({ isEnabled }: { isEnabled: boolean })
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      ctx.fillStyle = '#0a0a0a';
+      ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, width, height);
 
       if (rippleRadius > 0) {
