@@ -24,12 +24,13 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
 
     let can_w = window.innerWidth;
     let can_h = window.innerHeight;
-    const BALL_NUM = 75; // Balanced density
-    const R = 1.5; // Slightly smaller balls for elegance
-    const alpha_f = 0.02; // Slower transparency oscillation
-    const link_line_width = 0.6; // Thinner lines
-    const dis_limit = 240; // Slightly shorter connection range
-    const ball_color = { r: 59, g: 130, b: 246 }; // Consistent blue
+    
+    let BALL_NUM = 75;
+    const R = 1.5;
+    const alpha_f = 0.02;
+    const link_line_width = 0.6;
+    const dis_limit = 240;
+    const ball_color = { r: 255, g: 255, b: 255 }; // Pure white nodes
     
     let balls: Ball[] = [];
     const mouse_ball: Ball = { x: -1000, y: -1000, vx: 0, vy: 0, r: 0, alpha: 0, phase: 0, type: 'mouse' };
@@ -39,7 +40,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
     const randomArrayItem = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
     function getRandomSpeed(pos: string) {
-      const min = -0.6, max = 0.6; // Slightly slower drift
+      const min = -0.6, max = 0.6;
       switch (pos) {
         case 'top': return [randomNumFrom(min, max), randomNumFrom(0.1, max)];
         case 'right': return [randomNumFrom(min, -0.1), randomNumFrom(min, max)];
@@ -72,6 +73,9 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
       canvas!.style.height = `${window.innerHeight}px`;
       can_w = window.innerWidth;
       can_h = window.innerHeight;
+
+      const isMobile = window.innerWidth < 768;
+      BALL_NUM = isMobile ? 40 : 75; // Reduced for mobile
     }
 
     function initBalls(num: number) {
@@ -99,7 +103,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
           new_balls.push(b);
         }
         b.phase += alpha_f;
-        b.alpha = Math.abs(Math.cos(b.phase)) * 0.8; // Max 80% opacity
+        b.alpha = Math.abs(Math.cos(b.phase)) * 0.8;
       });
       balls = new_balls;
       while (balls.length < BALL_NUM) {
@@ -116,7 +120,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
     function render() {
       if (!ctx) return;
       ctx.clearRect(0, 0, can_w, can_h);
-      ctx.fillStyle = '#0f0f0f';
+      ctx.fillStyle = '#121212'; // Lightened background
       ctx.fillRect(0, 0, can_w, can_h);
 
       const allBalls = [...balls, mouse_ball];
@@ -128,7 +132,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
           const fraction = dist / dis_limit;
           if (fraction < 1) {
             const alpha = (1 - fraction);
-            ctx.strokeStyle = `rgba(59, 130, 246, ${alpha * 0.15})`; // Subtler blue lines
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.1})`; // White lines
             ctx.lineWidth = link_line_width;
             ctx.beginPath();
             ctx.moveTo(allBalls[i].x, allBalls[i].y);
@@ -140,7 +144,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
 
       // Draw balls
       balls.forEach(b => {
-        ctx.fillStyle = `rgba(${ball_color.r}, ${ball_color.g}, ${ball_color.b}, ${b.alpha * 0.4})`; // Muted points
+        ctx.fillStyle = `rgba(${ball_color.r}, ${ball_color.g}, ${ball_color.b}, ${b.alpha * 0.3})`;
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
         ctx.fill();

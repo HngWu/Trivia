@@ -24,7 +24,10 @@ export default function SynapseBackground({ isEnabled }: { isEnabled: boolean })
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;
       
-      points = Array.from({ length: 65 }, () => ({
+      const isMobile = window.innerWidth < 768;
+      const count = isMobile ? 35 : 65; // Reduced for mobile
+      
+      points = Array.from({ length: count }, () => ({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
         vx: (Math.random() - 0.5) * 0.4,
@@ -55,7 +58,7 @@ export default function SynapseBackground({ isEnabled }: { isEnabled: boolean })
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      ctx.fillStyle = '#0f0f0f';
+      ctx.fillStyle = '#121212'; // Lighter background
       ctx.fillRect(0, 0, width, height);
 
       if (rippleRadius > 0) {
@@ -87,12 +90,12 @@ export default function SynapseBackground({ isEnabled }: { isEnabled: boolean })
         
         ctx.beginPath();
         ctx.arc(p.x, p.y, isRippling ? 3 : (isOrbiting ? 2 : 1), 0, Math.PI * 2);
-        ctx.fillStyle = isRippling ? '#fff' : (isOrbiting ? '#3b82f6' : '#222');
+        ctx.fillStyle = isRippling ? '#fff' : (isOrbiting ? '#fff' : '#333'); // White nodes
         ctx.fill();
 
         if (isRippling) {
           ctx.shadowBlur = 15;
-          ctx.shadowColor = '#3b82f6';
+          ctx.shadowColor = '#fff';
         }
 
         for (let j = i + 1; j < points.length; j++) {
@@ -102,8 +105,8 @@ export default function SynapseBackground({ isEnabled }: { isEnabled: boolean })
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
-            const opacity = (1 - d/150) * (isRippling ? 0.8 : (isOrbiting ? 0.4 : 0.1));
-            ctx.strokeStyle = `rgba(59, 130, 246, ${opacity})`;
+            const opacity = (1 - d/150) * (isRippling ? 0.8 : (isOrbiting ? 0.4 : 0.15));
+            ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`; // White connections
             ctx.lineWidth = isRippling ? 1.5 : 0.5;
             ctx.stroke();
           }

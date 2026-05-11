@@ -15,6 +15,7 @@ export default function DataStreamBackground({ isEnabled }: { isEnabled: boolean
     let lastMouse = { x: -1000, y: -1000 };
     let particles: { x: number; y: number; size: number; speed: number; vx: number; vy: number }[] = [];
     let shockwaves: { x: number; y: number; r: number; alpha: number }[] = [];
+    let count = 120;
 
     const init = () => {
       const dpr = window.devicePixelRatio || 1;
@@ -24,7 +25,10 @@ export default function DataStreamBackground({ isEnabled }: { isEnabled: boolean
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;
       
-      particles = Array.from({ length: 120 }, () => ({
+      const isMobile = window.innerWidth < 768;
+      count = isMobile ? 60 : 120; // Reduced for mobile
+      
+      particles = Array.from({ length: count }, () => ({
         x: Math.random() * window.innerWidth,
         y: Math.random() * window.innerHeight,
         size: Math.random() * 2 + 1,
@@ -55,7 +59,7 @@ export default function DataStreamBackground({ isEnabled }: { isEnabled: boolean
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      ctx.fillStyle = '#0f0f0f';
+      ctx.fillStyle = '#121212'; // Lighter background
       ctx.fillRect(0, 0, width, height);
 
       // Handle shockwaves

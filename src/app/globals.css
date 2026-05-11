@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f0f0f; /* Slightly lighter off-black for improved depth */
+  --background: #121212; /* Slightly lighter for better visibility */
   --foreground: hsl(210 10% 85%); /* Darker shade of white */
   --accent: #E2E8F0;
   --glass-bg: rgba(255, 255, 255, 0.04);
@@ -58,10 +58,10 @@ body {
 
 .glass-button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(59, 130, 246, 0.5); /* Vivid Lume Border */
+  border-color: rgba(255, 255, 255, 0.2); /* Subtle white border instead of blue */
   transform: translateY(-2px);
   box-shadow: 
-    0 0 15px rgba(59, 130, 246, 0.1),
+    0 0 15px rgba(255, 255, 255, 0.05),
     0 10px 25px -5px rgba(0,0,0,0.4);
   color: white;
 }
