@@ -3,20 +3,35 @@
 ## Project Overview
 This project is a full-stack real-time multiplayer trivia application, replicating the core mechanics of "TriviaDuel.com". It features dynamic question generation via Gemini AI, secure wagering, and instant synchronization between up to 10 players.
 
-### Core Tech Stack
-- **Framework:** Next.js 16 (App Router)
-- **Language:** TypeScript
-- **Styling:** Tailwind CSS 4
-- **AI Integration:** Google Gemini SDK (`@google/generative-ai`)
-- **Real-time State:** Upstash Redis (`@upstash/redis`)
-- **Persistence & Auth:** Supabase (Postgres + RLS)
-- **Monitoring:** Vercel Analytics & Speed Insights
-- **Testing:** Jest & React Testing Library
+### Technologies & Tech Stack
+The application is built using a modern, performant, and type-safe stack:
+- **Core Framework:** [Next.js 16](https://nextjs.org/) (App Router)
+- **Language:** [TypeScript](https://www.typescriptlang.org/)
+- **Styling:** [Tailwind CSS 4](https://tailwindcss.com/)
+- **Runtime State:** [Upstash Redis](https://upstash.com/) (REST-based serverless Redis)
+- **Database & Auth:** [Supabase](https://supabase.com/) (PostgreSQL + Row Level Security)
+- **AI Engine:** [Google Gemini 2.0 Flash](https://ai.google.dev/) (Primary) & [DeepSeek](https://www.deepseek.com/) (Fallback)
+- **Monitoring:** [Vercel Analytics](https://vercel.com/analytics) & [Speed Insights](https://vercel.com/speed-insights)
+
+### Main Libraries
+- **`@google/generative-ai`**: Official SDK for Gemini AI integration.
+- **`@upstash/redis`**: Low-latency REST client for state synchronization.
+- **`@supabase/supabase-js`**: Client for persistence, RLS, and real-time signaling.
+- **`@supabase/ssr`**: Server-side rendering helpers for Supabase auth and client management.
+- **`crypto`**: Node.js native module for secure UUID and room code generation.
+- **`react` 19**: Utilizing the latest concurrent features and server actions.
+
+### UI & UX Libraries
+- **Vanilla CSS & HTML5 Canvas**: Custom-built high-performance background engines (Synapse, Data Stream).
+- **Tailwind CSS 4**: Utility-first styling with the latest JIT engine for "Lume-Glass" aesthetics.
+- **Geist Sans & Mono**: Modern typography via `next/font`.
+- **Custom Toast Engine**: Lightweight, animated notification system built from scratch for non-blocking feedback.
 
 ### Architecture
 - **Server-Authoritative State:** All critical game logic (scoring, wager validation, answer verification) happens on the server via Next.js Server Actions. Correctness and score deltas are calculated on the server to prevent client-side manipulation.
 - **Redis Sync:** Active game sessions (rooms, players, wagers) are stored in Redis for low-latency synchronization and restored on page reloads.
 - **Supabase Persistence:** Room archival and permanent records are stored in Postgres. Supabase Broadcast is used for real-time signaling between clients.
+- **Optimized Loading:** The application uses **Next.js Server Components** to pre-render topics and data, ensuring instant page loads without client-side waterfalls.
 - **Redis Caching:** Static data like Topic lists are cached in Redis with automatic cache invalidation during administrative CRUD operations, ensuring high performance.
 - **Graceful Fallback:** If Gemini AI is throttled or fails, the application automatically falls back to DeepSeek, then to a pool of high-quality "filler questions" in the database, or finally to global random scavenging.
 
