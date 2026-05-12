@@ -15,3 +15,10 @@
 - [x] Task 14: Fuzzy Answer Matching (Numerical tolerance, ranges, partial name matches)
 - [x] Task 15: Server-Authoritative Scoring (submitAnswer refactor)
 - [x] Task 16: Comprehensive Documentation Update
+- [x] Task 17: Admin Dashboard Refactor (Split Topics/Questions, JSON Editor)
+- [x] Task 18: Interactive Background System (Synapse, Stream, Syn-V2)
+- [x] Task 19: Premium Mouse Interactions (Orbit, Fluid Wake, Shockwaves)
+- [x] Task 20: Performance Optimizations (Redis Caching, Database Indexing)
+- [x] Task 21: Accessibility Shortcuts (Esc, 'J', Hotkeys)
+- [x] Task 22: Security Audit & Cleanup (RLS, checkAdmin guard, Type safety)
+- [x] Task 23: Custom Dark App-Style Branding (SVG Icon, Tab integration)

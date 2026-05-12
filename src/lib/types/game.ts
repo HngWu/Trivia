@@ -3,7 +3,7 @@ export type Question = {
   topic?: string;
   summary: string;
   text: string;
-  type: "multiple_choice" | "boolean" | "text";
+  type: "multiple_choice" | "boolean" | "boolean_yes_no" | "text";
   options: string[] | null;
   correct_answer: string;
   explanation?: string;

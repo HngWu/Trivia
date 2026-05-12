@@ -8,7 +8,7 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Extremely concise prompt to minimize token usage
 const SYSTEM_PROMPT = `You generate trivia questions in a valid JSON array of objects. 
-Properties: id (string), summary (short), text (full), type (multiple_choice/boolean/text), options (4 strings or null), correct_answer, explanation.`;
+Properties: id (string), summary (short), text (full), type (multiple_choice/boolean/boolean_yes_no/text), options (4 strings or null), correct_answer, explanation.`;
 
 const USER_PROMPT = (topic: string, count: number, excluded: string[]) => 
   `Topic: "${topic}". Generate ${count} NEW unique questions.
@@ -87,9 +87,30 @@ async function generateWithDeepSeek(topic: string, count: number, excluded: stri
 export async function generateRoasts(playerHistory: { name: string, wrongAnswers: { question: string, answer: string, correct: string }[] }[]): Promise<Record<string, string>> {
   if (playerHistory.length === 0) return {};
   
-  const prompt = `You are a savage but witty trivia roast master. Roast these players based on their wrong answers.
-  Keep each roast extremely short (max 15 words) and funny.
-  Return a JSON object where keys are player names and values are their roasts.
+  const personalityPool = [
+    "Sarcastic British Butler",
+    "Aggressive Gym Bro",
+    "Disappointed Middle School Teacher",
+    "Edgy 1990s Hacker",
+    "Overly-Polite Southern Belle (with hidden shade)",
+    "Clueless but enthusiastic Boomer",
+    "Gordon Ramsay-style Chef",
+    "Cryptic Fortune Teller",
+    "Corporate HR Manager using 'synergy' speak",
+    "Snarky AI with a superiority complex"
+  ];
+
+  const selectedPersonalities = [...personalityPool].sort(() => Math.random() - 0.5);
+
+  const prompt = `You are a group of diverse roast masters. Roast these trivia players based on their wrong answers.
+  Each player MUST be roasted by a DIFFERENT personality from this list: [${selectedPersonalities.join(', ')}].
+  
+  Guidelines:
+  - Keep each roast short (max 20 words).
+  - Be creative, witty, and savage.
+  - Reference their specific wrong answers and the correct ones when relevant.
+  - Ensure the tone matches the assigned personality.
+  - Return a JSON object where keys are player names and values are their roasts.
   
   Match History:
   ${playerHistory.map(p => `- ${p.name}: ${p.wrongAnswers.map(w => `[Q: ${w.question} | Ans: ${w.answer} | Correct: ${w.correct}]`).join(', ')}`).join('\n')}

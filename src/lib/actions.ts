@@ -62,23 +62,18 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
       if (aiResponse.ok) {
         const aiData = await aiResponse.json();
         questions = aiData.questions;
+      } else {
+        const errorData = await aiResponse.json();
+        throw new Error(errorData.error || "AI generation failed");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("AI fetch failed in createRoom:", e);
-    }
-  }
-
-  // Final Fallback: if still no questions, pick ANY random questions from the DB
-  if (!questions || questions.length === 0) {
-    console.warn("AI and Topic specific fetch failed. Falling back to global question pool.");
-    const { data: fallback } = await supabase.from("questions").select("*").limit(count * 2);
-    if (fallback && fallback.length > 0) {
-      questions = fallback.sort(() => Math.random() - 0.5).slice(0, count);
+      throw new Error(`Failed to generate questions for topic "${topic}": ${e.message}`);
     }
   }
 
   if (!questions || questions.length === 0) {
-    throw new Error("Critical Failure: No questions available in database or via AI.");
+    throw new Error(`No questions available for topic "${topic}" and AI generation failed.`);
   }
 
   const finalQuestions: Question[] = questions.map((q: Question, idx: number) => ({
@@ -208,7 +203,7 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
   
   const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) as Answer : existingRaw;
   
-  const isCorrect = validateAnswer(answerText, question.correct_answer);
+  const isCorrect = validateAnswer(answerText, question.correct_answer, question.type);
   const scoreDelta = isCorrect ? existing.wager : 0;
   
   existing.submitted_answer = answerText;

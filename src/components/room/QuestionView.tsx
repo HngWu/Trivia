@@ -36,15 +36,24 @@ export default function QuestionView({
             onSubmitAnswer(currentQuestion.options[idx]);
           }
         }
-      } else if (currentQuestion?.type === "boolean") {
-        if (e.key.toLowerCase() === "t") onSubmitAnswer("True");
-        if (e.key.toLowerCase() === "f") onSubmitAnswer("False");
+      } else if (currentQuestion?.type === "boolean" || currentQuestion?.type === "boolean_yes_no") {
+        const key = e.key.toLowerCase();
+        if (currentQuestion.type === "boolean") {
+          if (key === "t") onSubmitAnswer("True");
+          if (key === "f") onSubmitAnswer("False");
+        } else {
+          if (key === "y") onSubmitAnswer("Yes");
+          if (key === "n") onSubmitAnswer("No");
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentQuestion, isLocked, roundData.answer, onSubmitAnswer]);
+
+  const booleanOptions = currentQuestion?.type === "boolean_yes_no" ? ["Yes", "No"] : ["True", "False"];
+  const getShortcut = (val: string) => currentQuestion?.type === "boolean_yes_no" ? val[0] : val[0]; // Both Y/N and T/F use first char
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4">
@@ -73,7 +82,7 @@ export default function QuestionView({
                   </div>
                 </button>
               ))}
-              {currentQuestion?.type === "boolean" && ["True", "False"].map(val => (
+              {(currentQuestion?.type === "boolean" || currentQuestion?.type === "boolean_yes_no") && booleanOptions.map(val => (
                 <button 
                   key={val} 
                   disabled={isLocked}
