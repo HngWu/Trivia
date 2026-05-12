@@ -267,7 +267,7 @@ export async function getTopics(): Promise<Topic[]> {
     const supabase = await createClient();
     const { data: topics } = await supabase.from("topics").select("*").order("name");
     const result = topics || [];
-    await redis.set(TOPICS_CACHE_KEY, result, { ex: 3600 });
+    await redis.set(TOPICS_CACHE_KEY, result, { ex: 86400 });
     return result;
   } catch (error) {
     console.error("Fetch Topics Error:", error);
@@ -325,12 +325,14 @@ export async function deleteTopic(id: string) {
   const supabase = await createClient();
   const { error } = await supabase.from("topics").delete().eq("id", id);
   if (error) throw error;
+  await redis.del(TOPICS_CACHE_KEY);
 }
 
 export async function updateTopic(id: string, updates: Partial<Topic>) {
   const supabase = await createClient();
   const { error } = await supabase.from("topics").update(updates).eq("id", id);
   if (error) throw error;
+  await redis.del(TOPICS_CACHE_KEY);
 }
 
 export async function deleteQuestion(id: string) {
