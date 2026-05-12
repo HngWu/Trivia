@@ -4,10 +4,12 @@ import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
-import { AIProvider } from "./ai";
+import { AIProvider, generateRoasts } from "./ai";
 import crypto from "crypto";
+import { cache } from 'react';
 
 const SYNC_BUFFER_MS = 1500;
+const TOPICS_CACHE_KEY = "cached_topics";
 
 export async function getServerTime() {
   return Date.now();
@@ -257,9 +259,7 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
   return await getFullState(normalizedCode);
 }
 
-const TOPICS_CACHE_KEY = "cached_topics";
-
-export async function getTopics(): Promise<Topic[]> {
+export const getTopics = cache(async (): Promise<Topic[]> => {
   try {
     const cached = await redis.get<Topic[]>(TOPICS_CACHE_KEY);
     if (cached) return cached;
@@ -273,7 +273,7 @@ export async function getTopics(): Promise<Topic[]> {
     console.error("Fetch Topics Error:", error);
     return [];
   }
-}
+});
 
 export async function addTopic(topic: Topic) {
   const supabase = await createClient();
@@ -352,8 +352,6 @@ export async function getQuestionsByTopic(topicId: string): Promise<Question[]> 
   const { data } = await supabase.from("questions").select("*").eq("topic", topicId).order("created_at", { ascending: false });
   return data || [];
 }
-
-import { generateRoasts } from "./ai";
 
 export async function getMatchRoasts(playerHistory: { name: string, wrongAnswers: { question: string, answer: string, correct: string }[] }[]) {
   try {

@@ -1,82 +1,10 @@
-'use client';
+import { getTopics } from '@/lib/actions';
+import AdminTopicsClient from './AdminTopicsClient';
 
-import React, { useState, useEffect } from 'react';
-import { getTopics, addTopic, deleteTopic, updateTopic } from '@/lib/actions';
-import Toast from '@/components/shared/Toast';
-import TopicManager from '@/components/admin/TopicManager';
+export const dynamic = 'force-dynamic';
 
-import { Topic } from '@/lib/types/game';
-
-export default function AdminTopicsPage() {
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [newTopic, setNewTopic] = useState<Topic>({ id: '', name: '', icon: '', description: '', example_question: '' });
-  const [toast, setToast] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    getTopics().then(data => {
-      setTopics(data);
-      setIsLoading(false);
-    });
-  }, []);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  const handleAddTopic = async () => {
-    try {
-      await addTopic(newTopic);
-      setTopics([...topics, newTopic]);
-      setNewTopic({ id: '', name: '', icon: '', description: '', example_question: '' });
-      showToast("Topic added successfully!");
-    } catch (e: unknown) {
-      const err = e as Error;
-      showToast(err.message); 
-    }
-  };
-
-  const handleUpdateTopic = async (id: string, updates: Partial<Topic>) => {
-    try {
-      await updateTopic(id, updates);
-      setTopics(topics.map(t => t.id === id ? { ...t, ...updates } : t));
-      showToast("Topic updated successfully!");
-    } catch (e: unknown) {
-      const err = e as Error;
-      showToast(err.message); 
-    }
-  };
-
-  const handleDeleteTopic = async (id: string) => {
-    if (!confirm("Are you sure? This will delete all questions for this topic.")) return;
-    try {
-      await deleteTopic(id);
-      setTopics(topics.filter(t => t.id !== id));
-      showToast("Topic deleted.");
-    } catch (e: unknown) {
-      const err = e as Error;
-      showToast(err.message); 
-    }
-  };
-
-  if (isLoading) return <div className="flex items-center justify-center p-20 font-bold animate-pulse text-gray-500">Loading arenas...</div>;
-
-  return (
-    <div className="space-y-8 animate-fade-in max-w-2xl mx-auto">
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-      <div className="space-y-1">
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">Aereas</h2>
-        <p className="text-gray-500 text-xs">Manage the domains of knowledge for the duel.</p>
-      </div>
-      <TopicManager 
-        topics={topics} 
-        newTopic={newTopic} 
-        setNewTopic={setNewTopic} 
-        onAdd={handleAddTopic} 
-        onDelete={handleDeleteTopic} 
-        onUpdate={handleUpdateTopic} 
-      />
-    </div>
-  );
+export default async function AdminTopicsPage() {
+  const topics = await getTopics();
+  
+  return <AdminTopicsClient initialTopics={topics || []} />;
 }
