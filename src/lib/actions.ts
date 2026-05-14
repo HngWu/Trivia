@@ -68,9 +68,10 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
         const errorData = await aiResponse.json();
         throw new Error(errorData.error || "AI generation failed");
       }
-    } catch (e: any) {
-      console.error("AI fetch failed in createRoom:", e);
-      throw new Error(`Failed to generate questions for topic "${topic}": ${e.message}`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      console.error("AI fetch failed in createRoom:", err);
+      throw new Error(`Failed to generate questions for topic "${topic}": ${err.message}`);
     }
   }
 

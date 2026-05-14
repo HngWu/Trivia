@@ -9,25 +9,25 @@ describe("validateAnswer", () => {
 
   test("numerical tolerance", () => {
     // Years (4 digits) +/- 1
-    expect(validateAnswer("1990", "1991")).toBe(true);
-    expect(validateAnswer("1992", "1991")).toBe(true);
-    expect(validateAnswer("1993", "1991")).toBe(false);
+    expect(validateAnswer("1990", "1991", "text")).toBe(true);
+    expect(validateAnswer("1992", "1991", "text")).toBe(true);
+    expect(validateAnswer("1993", "1991", "text")).toBe(false);
     
     // Large numbers (2% margin) - Non-years
-    expect(validateAnswer("5000", "5050")).toBe(true); // Within 2% (50/5000 = 1%)
-    expect(validateAnswer("5000", "5150")).toBe(false); // Outside 2% (150/5000 = 3%)
+    expect(validateAnswer("5000", "5050", "text")).toBe(true); // Within 2% (50/5000 = 1%)
+    expect(validateAnswer("5000", "5150", "text")).toBe(false); // Outside 2% (150/5000 = 3%)
     
     // Small integers (0-100) +/- 1
-    expect(validateAnswer("50", "51")).toBe(true);
-    expect(validateAnswer("52", "51")).toBe(true);
-    expect(validateAnswer("53", "51")).toBe(false);
+    expect(validateAnswer("50", "51", "text")).toBe(true);
+    expect(validateAnswer("52", "51", "text")).toBe(true);
+    expect(validateAnswer("53", "51", "text")).toBe(false);
   });
 
   test("range matching", () => {
-    expect(validateAnswer("1992", "1990-1995")).toBe(true);
-    expect(validateAnswer("1990", "1990-1995")).toBe(true);
-    expect(validateAnswer("1995", "1990-1995")).toBe(true);
-    expect(validateAnswer("1989", "1990-1995")).toBe(false);
+    expect(validateAnswer("1992", "1990-1995", "text")).toBe(true);
+    expect(validateAnswer("1990", "1990-1995", "text")).toBe(true);
+    expect(validateAnswer("1995", "1990-1995", "text")).toBe(true);
+    expect(validateAnswer("1989", "1990-1995", "text")).toBe(false);
   });
 
   test("fuzzy matches for text type", () => {

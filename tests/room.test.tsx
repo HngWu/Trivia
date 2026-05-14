@@ -20,12 +20,12 @@ jest.mock('../src/lib/gemini', () => ({
 // Mock actions as well since we don't want to run real server actions
 jest.mock('../src/lib/actions', () => ({
   getRoomState: jest.fn().mockResolvedValue({
-    room: { code: 'ABCD', status: 'waiting', questions: [], leader_id: 'p1' },
+    room: { version: 1, code: 'ABCD', status: 'waiting', questions: [], leader_id: 'p1' },
     players: [],
     allAnswers: []
   }),
   joinRoom: jest.fn().mockResolvedValue({
-    room: { code: 'ABCD', status: 'waiting', questions: [], leader_id: 'p1' },
+    room: { version: 1, code: 'ABCD', status: 'waiting', questions: [], leader_id: 'p1' },
     player: { id: 'p1', name: 'Test Player', score: 0, is_leader: true }
   }),
   updateRoomStatus: jest.fn(),

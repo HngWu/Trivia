@@ -69,6 +69,7 @@ describe('Explanation Display', () => {
   it('renders the explanation during results phase', async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         code: 'ROOM_CODE',
         status: 'results',
         current_question_index: 0,

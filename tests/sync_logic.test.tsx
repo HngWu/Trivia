@@ -92,6 +92,7 @@ describe('Sync Logic Transitions', () => {
   it('transitions from wager to question phase when all players have wagered', async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         code: 'TEST',
         status: 'question', // Server already transitioned it
         status_updated_at: Date.now() - 1000, // Happened in the past
@@ -117,6 +118,7 @@ describe('Sync Logic Transitions', () => {
   it('transitions from question to results phase when all players have answered', async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         code: 'TEST',
         status: 'results', // Server already transitioned it
         status_updated_at: Date.now() - 1000, // Happened in the past
@@ -142,6 +144,7 @@ describe('Sync Logic Transitions', () => {
   it('automatically transitions from results to next round after 7 seconds (leader only)', async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         code: 'TEST',
         status: 'results',
         status_updated_at: Date.now() - 1000,
@@ -178,6 +181,7 @@ describe('Sync Logic Transitions', () => {
   it('hides question text during wager phase', async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         code: 'TEST',
         status: 'wager',
         current_question_index: 0,
@@ -201,6 +205,7 @@ describe('Sync Logic Transitions', () => {
   it('shows waiting screen after wagering but before phase transition', async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         code: 'TEST',
         status: 'wager',
         current_question_index: 0,

@@ -34,7 +34,7 @@ export default function RoomNav({
         </div>
       </div>
       
-      <div className="flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[40vw] sm:max-w-none px-2">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center space-x-2 md:space-x-4 overflow-x-auto no-scrollbar max-w-[40vw] sm:max-w-none px-2">
         {displayedSortedPlayers.map((p, i) => {
           // Calculate rank with tie handling
           const rank = i > 0 && p.score === displayedSortedPlayers[i - 1].score 

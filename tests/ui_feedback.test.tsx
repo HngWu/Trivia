@@ -39,6 +39,7 @@ describe("RoomPage UI Feedback", () => {
   it("renders 'Waiting for other players to pick' when wager is committed", async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         status: "wager",
         current_question_index: 0,
         leader_id: "p1",
@@ -64,6 +65,7 @@ describe("RoomPage UI Feedback", () => {
   it("renders 'Waiting for others to answer' when answer is committed", async () => {
     mockedActions.getRoomState.mockResolvedValue({
       room: {
+        version: 1,
         status: "question",
         current_question_index: 0,
         leader_id: "p1",
