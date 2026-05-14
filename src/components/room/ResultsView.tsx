@@ -77,7 +77,7 @@ export default function ResultsView({
               <Table.ScrollContainer className="max-h-[400px] overflow-y-auto no-scrollbar">
                 <Table.Content aria-label="Round recap" className="min-w-full">
                   <Table.Header>
-                    <Table.Column className="px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase bg-transparent border-none">Player</Table.Column>
+                    <Table.Column isRowHeader className="px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase bg-transparent border-none">Player</Table.Column>
                     <Table.Column className="px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase bg-transparent border-none">Answer</Table.Column>
                     <Table.Column className="px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase bg-transparent border-none text-center">Wager</Table.Column>
                     <Table.Column className="px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase bg-transparent border-none text-right">Result</Table.Column>
