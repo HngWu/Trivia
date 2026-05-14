@@ -36,8 +36,8 @@ export default function TopicGrid({ topics, selectedTopic, onSelect, isLoading }
                 : 'hover:bg-white/[0.04] opacity-80 hover:opacity-100 hover:-translate-y-1 hover:scale-105 hover:shadow-lg'
             }`}
           >
-            <span className="inline-block text-3xl sm:text-4xl group-hover:scale-110 transition-transform duration-300">{topic.icon}</span>
-            <span className="inline-block font-bold text-[13px] text-foreground tracking-wide group-hover:scale-105 transition-transform duration-300">{topic.name}</span>
+            <span className="text-3xl sm:text-4xl transition-all duration-300 group-hover:scale-125">{topic.icon}</span>
+            <span className="font-bold text-[13px] text-foreground tracking-wide transition-all duration-300 group-hover:scale-110">{topic.name}</span>
           </button>
         ))}
       </div>

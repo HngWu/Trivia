@@ -4,7 +4,7 @@ import { createClient } from "./supabase/server";
 import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
-import { AIProvider, generateRoasts } from "./ai";
+import { AIProvider, generateRoasts, generateAIQuestions } from "./ai";
 import crypto from "crypto";
 import { cache } from 'react';
 
@@ -56,21 +56,10 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
     
   if (!questions || questions.length === 0) {
     try {
-      const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/generate-questions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic, provider, count }),
-      });
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        questions = aiData.questions;
-      } else {
-        const errorData = await aiResponse.json();
-        throw new Error(errorData.error || "AI generation failed");
-      }
+      questions = await generateAIQuestions(topic, provider, count, []);
     } catch (e: unknown) {
       const err = e as Error;
-      console.error("AI fetch failed in createRoom:", err);
+      console.error("AI generation failed in createRoom:", err);
       throw new Error(`Failed to generate questions for topic "${topic}": ${err.message}`);
     }
   }
