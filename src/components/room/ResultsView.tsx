@@ -169,7 +169,7 @@ export default function ResultsView({
               onPress={onNextRound}
               className="text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 border border-white/5"
             >
-              Force Next Round
+              Next Round
             </Button>
           </div>
         )}
