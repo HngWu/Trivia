@@ -13,6 +13,8 @@ interface QuestionViewProps {
   textAnswer: string;
   setTextAnswer: (val: string) => void;
   onSubmitAnswer: (val: string) => void;
+  isLeader: boolean;
+  onForceAdvance: () => void;
 }
 
 export default function QuestionView({ 
@@ -22,7 +24,9 @@ export default function QuestionView({
   isLocked, 
   textAnswer, 
   setTextAnswer, 
-  onSubmitAnswer 
+  onSubmitAnswer,
+  isLeader,
+  onForceAdvance
 }: QuestionViewProps) {
   // Add keyboard shortcuts for answering
   React.useEffect(() => {
@@ -121,6 +125,17 @@ export default function QuestionView({
             <div className="space-y-4 pt-8">
               <p className="text-foreground text-2xl sm:text-4xl font-bold tracking-tight animate-pulse italic">Answer submitted</p>
               <p className="text-gray-600 text-[10px] font-bold tracking-widest uppercase">Waiting for everyone ({roundData.answerCount}/{players.length})</p>
+              
+              {isLeader && (
+                <div className="pt-6 animate-fade-in">
+                  <button 
+                    onClick={onForceAdvance}
+                    className="text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 border border-white/5 glass px-4 py-2 rounded-xl text-foreground transition-all active:scale-95"
+                  >
+                    Next Round
+                  </button>
+                </div>
+              )}
             </div>
           )}
        </div>

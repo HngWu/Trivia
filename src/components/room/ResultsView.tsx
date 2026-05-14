@@ -1,5 +1,6 @@
 import React from 'react';
 import { Player, Answer } from '@/lib/types/game';
+import { Button } from '@heroui/react';
 
 interface ResultsViewProps {
   roundData: {
@@ -16,13 +17,15 @@ interface ResultsViewProps {
   isLeader: boolean;
   isLocked: boolean;
   onKick: (id: string) => void;
+  onNextRound: () => void;
 }
 
 export default function ResultsView({ 
   roundData, 
   players, 
   myPlayerId, 
-  isLeader
+  isLeader,
+  onNextRound
 }: ResultsViewProps) {
   if (!roundData.results) return null;
 
@@ -156,9 +159,19 @@ export default function ResultsView({
         </div>
 
         {isLeader && (
-          <p className="text-gray-700 text-[10px] font-bold tracking-widest animate-pulse mt-8">
-            Next round starting soon...
-          </p>
+          <div className="flex flex-col items-center gap-4 mt-8">
+            <p className="text-gray-700 text-[10px] font-bold tracking-widest animate-pulse">
+              Next round starting soon...
+            </p>
+            <Button 
+              size="sm"
+              variant="tertiary"
+              onPress={onNextRound}
+              className="text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 border border-white/5"
+            >
+              Force Next Round
+            </Button>
+          </div>
         )}
       </div>
     </div>

@@ -225,6 +225,18 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
   }, [questions.length, roomCode, triggerSync]);
 
+  const handleForceAdvance = useCallback(async () => {
+    if (!isLeader) return;
+    let nextStatus: GameState = roomStatus;
+    if (roomStatus === "wager") nextStatus = "question";
+    else if (roomStatus === "question") nextStatus = "results";
+    
+    if (nextStatus !== roomStatus) {
+      const newState = await updateRoomStatus(roomCode, nextStatus, currentIndex);
+      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    }
+  }, [isLeader, roomStatus, currentIndex, roomCode, triggerSync]);
+
   const handleJoin = useCallback(async () => {
     if (isLoading || !nickname.trim()) return;
     setIsLoading(true);
@@ -386,15 +398,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         )}
 
         {displayStatus === "wager" && (
-          <WagerView roundData={roundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} />
+          <WagerView roundData={roundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
         )}
 
         {displayStatus === "question" && (
-          <QuestionView currentQuestion={currentQuestion} roundData={roundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} />
+          <QuestionView currentQuestion={currentQuestion} roundData={roundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
         )}
 
         {displayStatus === "results" && roomStatus === "results" && (
-          <ResultsView roundData={roundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked} onKick={handleKick} />
+          <ResultsView roundData={roundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked} onKick={handleKick} onNextRound={handleNextRound} />
         )}
 
         {displayStatus === "final" && (

@@ -10,6 +10,8 @@ interface WagerViewProps {
   isLocked: boolean;
   usedWagers: number[];
   onSelectWager: (weight: number) => void;
+  isLeader: boolean;
+  onForceAdvance: () => void;
 }
 
 export default function WagerView({ 
@@ -17,7 +19,9 @@ export default function WagerView({
   players, 
   isLocked, 
   usedWagers, 
-  onSelectWager 
+  onSelectWager,
+  isLeader,
+  onForceAdvance
 }: WagerViewProps) {
   // Add keyboard shortcuts for wagers
   React.useEffect(() => {
@@ -87,6 +91,17 @@ export default function WagerView({
                 style={{ width: `${(roundData.wagerCount / players.length) * 100}%` }}
               />
             </div>
+
+            {isLeader && (
+              <div className="pt-6 animate-fade-in">
+                <button 
+                  onClick={onForceAdvance}
+                  className="text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 border border-white/5 glass px-4 py-2 rounded-xl text-foreground transition-all active:scale-95"
+                >
+                  Next Round
+                </button>
+              </div>
+            )}
           </div>
        </div>
     </div>
