@@ -16,33 +16,13 @@
 - Modify: `src/lib/types/database.types.ts`
 - Modify: `src/app/room/[code]/page.tsx`
 
-- [ ] **Step 1: Add explanation field to Database types**
+- [x] **Step 1: Add explanation field to Database types**
 
-Modify `src/lib/types/database.types.ts` to include `explanation` in the `questions` and `filler_questions` tables (even though they are not in migrations yet, it's good for type safety).
-Wait, I should check if `filler_questions` is in `database.types.ts`. I didn't see it before.
+Modify `src/lib/types/database.types.ts` to include `explanation` in the `questions` table.
 
-```typescript
-// src/lib/types/database.types.ts
-// ... in questions.Row and questions.Insert
-          correct_answer: string;
-          explanation: string; // Add this
-```
+- [x] **Step 2: Add explanation field to Room Page Question type**
 
-- [ ] **Step 2: Add explanation field to Room Page Question type**
-
-Modify `src/app/room/[code]/page.tsx` to update the local `Question` type.
-
-```typescript
-type Question = {
-  id: string;
-  summary: string;
-  text: string;
-  type: "multiple_choice" | "boolean" | "text";
-  options: string[] | null;
-  correct_answer: string;
-  explanation: string; // Add this
-};
-```
+The `Question` type in `src/lib/types/game.ts` was updated to include `explanation: string;`.
 
 ### Task 2: Update AI Generation Prompts
 
@@ -50,27 +30,25 @@ type Question = {
 - Modify: `src/app/api/generate-questions/route.ts`
 - Modify: `src/lib/gemini.ts`
 
-- [ ] **Step 1: Update prompt in API route**
+- [x] **Step 1: Update prompt in API route**
 
-Modify the `prompt` variable in `src/app/api/generate-questions/route.ts` to include the `explanation` property.
+- [x] **Step 2: Update prompt in Gemini lib**
 
-- [ ] **Step 2: Update prompt in Gemini lib**
-
-Modify the `prompt` variable in `src/lib/gemini.ts` to include the `explanation` property.
+The Gemini prompt in `src/lib/gemini.ts` now requests an `explanation` field.
 
 ### Task 3: Display Explanations in UI
 
 **Files:**
-- Modify: `src/app/room/[code]/page.tsx`
+- Modify: `src/components/room/ResultsView.tsx`
 
-- [ ] **Step 1: Render explanation in Results phase**
+- [x] **Step 1: Render explanation in Results phase**
 
-Update the results section in `src/app/room/[code]/page.tsx` to show the explanation below the correct answer.
+`ResultsView.tsx` was updated to display `roundData.results.explanation` when available.
 
 ### Task 4: Verification
 
-- [ ] **Step 1: Run lint**
-- [ ] **Step 2: Add/Update tests**
-  Create `tests/explanation.test.tsx` to verify the UI displays the explanation.
+- [x] **Step 1: Run lint**
+- [x] **Step 2: Add/Update tests**
+  Created `tests/explanation.test.tsx` to verify the UI displays the explanation.
 
 ---
