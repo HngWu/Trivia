@@ -59,7 +59,7 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
 
           return (
             <React.Fragment key={p.id}>
-              <div className={`flex items-center justify-between p-6 sm:p-10 transition-all ${i === 0 ? "bg-white/[0.05]" : ""}`}>
+              <div className={`flex items-center justify-between p-4 sm:p-6 transition-all`}>
                  <div className="flex items-center space-x-6 sm:space-x-10">
                     <span className={`text-4xl sm:text-6xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/10"}`}>
                       #{rank}
@@ -113,7 +113,7 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
       
       <Button 
         onPress={onHome} 
-        className="mt-16 sm:mt-24 glass !border-white/10 px-16 sm:px-32 h-16 sm:h-20 rounded-2xl font-bold text-xl sm:text-2xl transition-all active:scale-95 bg-white/5 hover:bg-foreground hover:text-background uppercase tracking-widest"
+        className="mt-16 sm:mt-24 glass !border-white/10 px-16 sm:px-32 h-12 sm:h-14 rounded-2xl font-bold text-xl transition-all active:scale-95 bg-white/5 hover:bg-foreground hover:text-background uppercase tracking-widest"
       >
         Leave game
       </Button>
