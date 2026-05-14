@@ -71,7 +71,7 @@ export default function QuestionView({
                   key={i} 
                   isDisabled={isLocked}
                   onPress={() => onSubmitAnswer(option)} 
-                  className="h-auto p-4 sm:p-6 rounded-xl text-left transition-all font-bold text-base sm:text-lg glass-button hover:!border-white/30 active:scale-95 group relative min-w-0 flex items-center justify-between"
+                  className="h-14 sm:h-16 px-6 sm:px-8 rounded-xl text-left transition-all font-bold text-base sm:text-lg glass-button hover:!border-white/30 active:scale-95 group relative min-w-0 flex items-center justify-between"
                 >
                   <div className="flex items-center">
                     <span className="mr-3 opacity-20 font-bold group-hover:opacity-100 transition-all">{String.fromCharCode(65 + i)}</span> 
@@ -85,7 +85,7 @@ export default function QuestionView({
                   key={val} 
                   isDisabled={isLocked}
                   onPress={() => onSubmitAnswer(val)} 
-                  className="h-auto p-8 rounded-2xl font-bold text-2xl transition-all glass-button hover:!border-white/30 active:scale-95 group relative min-w-0"
+                  className="h-16 sm:h-24 rounded-2xl font-bold text-2xl transition-all glass-button hover:!border-white/30 active:scale-95 group relative min-w-0"
                 >
                   {val}
                   <span className="absolute bottom-2 right-4 text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{val[0]}]</span>
@@ -101,13 +101,13 @@ export default function QuestionView({
                     <Input 
                       autoFocus 
                       placeholder="Type your answer..." 
-                      className="glass !border-white/10 h-14 rounded-xl px-4 font-semibold text-lg"
+                      className="glass !border-white/10 h-12 rounded-xl px-4 font-semibold text-lg"
                     />
                   </TextField>
                   <Button 
                     type="submit"
                     isDisabled={isLocked || !textAnswer.trim()}
-                    className="w-full sm:w-auto h-14 px-10 bg-foreground text-background rounded-xl font-bold text-lg hover:bg-white transition-all active:scale-95"
+                    className="w-full sm:w-auto h-12 px-10 bg-foreground text-background rounded-xl font-bold text-lg hover:bg-white transition-all active:scale-95"
                   >
                     Submit
                   </Button>
