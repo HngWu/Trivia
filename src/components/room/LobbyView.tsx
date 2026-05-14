@@ -45,7 +45,7 @@ export default function LobbyView({
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-4">
-      <div className="text-center space-y-3 mb-8">
+      <div className="text-center space-y-3 mb-4">
         <div className="flex items-center justify-center space-x-3 text-[10px] font-bold tracking-widest text-gray-700 uppercase">
           <span>Selected Topic</span>
         </div>
@@ -54,7 +54,7 @@ export default function LobbyView({
         </h2>
       </div>
       
-      <Card className="glass p-5 sm:p-8 rounded-[2rem] w-full max-w-lg space-y-6 border-white/[0.03] shadow-xl relative overflow-visible bg-transparent">
+      <Card className="glass p-4 sm:p-6 rounded-[2rem] w-full max-w-lg space-y-6 border-white/[0.03] shadow-xl relative overflow-visible bg-transparent">
          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
          <div className="flex justify-between items-center pb-2">
             <div className="flex flex-col">
@@ -111,7 +111,7 @@ export default function LobbyView({
             <Button 
               disabled={questionsCount === 0 || isLocked} 
               onPress={onStart} 
-              className="w-full h-16 rounded-2xl font-bold text-lg sm:text-xl bg-white/10 border-white/20 text-foreground glass focus:ring-2 focus:ring-white/20 focus:outline-none"
+              className="w-full h-12 sm:h-14 rounded-2xl font-bold text-lg bg-white/10 border-white/20 text-foreground glass focus:ring-2 focus:ring-white/20 focus:outline-none"
             >
               {(questionsCount === 0 || isLocked) && <Spinner size="sm" color="current" className="mr-2" />}
               {questionsCount === 0 ? "Loading questions..." : "Start game"}
