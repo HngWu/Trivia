@@ -42,6 +42,15 @@ const TEMPLATES = {
   ]
 };
 
+// Simple deterministic hash string function
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
+  }
+  return Math.abs(hash);
+}
+
 export function generateLocalRoasts(players: PlayerStats[]): Record<string, string> {
   const roasts: Record<string, string> = {};
 
@@ -49,36 +58,37 @@ export function generateLocalRoasts(players: PlayerStats[]): Record<string, stri
     const { name, wrongAnswers } = player;
     if (wrongAnswers.length === 0) return;
 
-    // Pick a random wrong answer for context
+    // Pick the highest wager wrong answer to be consistent
     const worst = [...wrongAnswers].sort((a, b) => b.wager - a.wager)[0];
     let selectedRoast = "";
 
-    // Probability-based selection to increase variety
-    const rand = Math.random();
+    // Generate a deterministic integer for this player's worst answer
+    const hash = hashString(name + worst.answer + worst.question);
+
+    // Probability-based selection to increase variety (using hash % 100 / 100)
+    const rand = (hash % 100) / 100;
+
+    // A secondary hash to pick the item from the list
+    const pick = (list: string[]) => list[hash % list.length];
 
     // 1. High Wager logic (Priority)
     if (worst.wager >= 8 && rand > 0.3) {
-      const list = TEMPLATES.highWager;
-      selectedRoast = list[Math.floor(Math.random() * list.length)];
+      selectedRoast = pick(TEMPLATES.highWager);
     } 
     // 2. High Count logic
     else if (wrongAnswers.length >= 4 && rand > 0.4) {
-      const list = TEMPLATES.consistent;
-      selectedRoast = list[Math.floor(Math.random() * list.length)];
+      selectedRoast = pick(TEMPLATES.consistent);
     }
     // 3. Absurd/Pity logic
     else if (rand < 0.2) {
-      const list = TEMPLATES.absurd;
-      selectedRoast = list[Math.floor(Math.random() * list.length)];
+      selectedRoast = pick(TEMPLATES.absurd);
     }
     else if (rand < 0.4) {
-      const list = TEMPLATES.pity;
-      selectedRoast = list[Math.floor(Math.random() * list.length)];
+      selectedRoast = pick(TEMPLATES.pity);
     }
     // 4. General logic (Fallback)
     else {
-      const list = TEMPLATES.general;
-      selectedRoast = list[Math.floor(Math.random() * list.length)];
+      selectedRoast = pick(TEMPLATES.general);
     }
 
     // Fill placeholders
