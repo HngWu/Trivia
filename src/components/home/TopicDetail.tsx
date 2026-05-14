@@ -63,7 +63,7 @@ export default function TopicDetail({
                 <Label className="text-[10px] font-bold tracking-widest text-gray-600 uppercase mb-1 ml-1">Topic name</Label>
                 <Input
                   placeholder="e.g. 90s Music"
-                  className="glass !border-white/10 h-11 rounded-xl px-4 font-semibold"
+                  className="glass !border-white/10 h-12 rounded-xl px-4 font-semibold"
                 />
               </TextField>
             </div>
@@ -73,7 +73,7 @@ export default function TopicDetail({
               <Label className="text-[10px] font-bold tracking-widest text-gray-600 uppercase mb-1 ml-1">Your name</Label>
               <Input
                 placeholder="Enter nickname"
-                className="glass !border-white/10 h-11 rounded-xl px-4 font-semibold"
+                className="glass !border-white/10 h-12 rounded-xl px-4 font-semibold"
               />
             </TextField>
           </div>
@@ -83,7 +83,7 @@ export default function TopicDetail({
           type="submit"
           isLoading={isLoading}
           disabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
-          className="w-full py-6 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all h-auto"
+          className="w-full h-14 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all"
         >
           {isLoading ? 'Starting game...' : 'Create room'}
         </Button>
