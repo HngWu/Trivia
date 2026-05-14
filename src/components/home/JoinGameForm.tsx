@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button, Input, TextField, Label } from "@heroui/react";
 
 interface JoinGameFormProps {
   nickname: string;
@@ -28,32 +29,34 @@ export default function JoinGameForm({
 
   return (
     <section className="w-full max-w-md mx-auto space-y-4 animate-fade-in">
-      <form onSubmit={handleSubmit} className="glass p-5 sm:p-6 rounded-2xl border-white/10 shadow-xl">
-        <div className="flex flex-col gap-3">
-          <input
-            type="text"
-            required
-            placeholder="Your Name"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
-          />
-          <div className="flex items-center gap-2 w-full">
-            <input
-              type="text"
-              required
-              placeholder="Room Code"
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-              className="flex-1 min-w-0 h-10 glass-input rounded-xl px-4 font-bold tracking-widest uppercase text-base text-foreground"
+      <form onSubmit={handleSubmit} className="glass p-5 sm:p-6 rounded-2xl border-white/10 shadow-xl bg-transparent">
+        <div className="flex flex-col gap-4 text-left">
+          <TextField name="nickname" value={nickname} onChange={setNickname}>
+            <Label className="text-[10px] font-bold tracking-widest text-gray-700 uppercase mb-1.5 ml-1">Your Name</Label>
+            <Input
+              placeholder="Enter your name"
+              className="glass !border-white/10 h-12 rounded-xl px-4 font-semibold"
             />
-            <button 
+          </TextField>
+          
+          <div className="flex items-end gap-2 w-full">
+            <div className="flex-1">
+               <TextField name="roomCode" value={roomCode} onChange={val => setRoomCode(val.toUpperCase())}>
+                 <Label className="text-[10px] font-bold tracking-widest text-gray-700 uppercase mb-1.5 ml-1">Room Code</Label>
+                 <Input
+                   placeholder="CODE"
+                   className="glass !border-white/10 h-12 rounded-xl px-4 font-bold tracking-widest uppercase"
+                 />
+               </TextField>
+            </div>
+            <Button 
               type="submit"
+              isLoading={isLoading}
               disabled={isLoading || !nickname || !roomCode}
-              className="h-10 glass-button px-5 rounded-xl font-bold text-sm whitespace-nowrap bg-foreground text-background shrink-0"
+              className="h-12 px-6 rounded-xl font-bold bg-foreground text-background shrink-0"
             >
               Join
-            </button>
+            </Button>
           </div>
         </div>
       </form>

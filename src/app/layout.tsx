@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/lib/contexts/ThemeContext";
+import { Providers } from "@/components/shared/Providers";
 import DynamicBackground from "@/components/shared/DynamicBackground";
 import GlobalShortcuts from "@/components/shared/GlobalShortcuts";
 import { Analytics } from "@vercel/analytics/next";
@@ -35,13 +35,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased relative`}
       >
-        <ThemeProvider>
+        <Providers>
           <GlobalShortcuts />
           <DynamicBackground />
           {children}
           <Analytics />
           <SpeedInsights />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

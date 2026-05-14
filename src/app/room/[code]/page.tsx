@@ -7,7 +7,8 @@ import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, ki
 import { Player, Question, Answer, GameState, Room } from "@/lib/types/game";
 import { validateAnswer } from "@/lib/validation";
 
-import Toast from "@/components/shared/Toast";
+import { toast, Button, Input, Card, Spinner, TextField } from "@heroui/react";
+
 import FluidTimer from "@/components/room/FluidTimer";
 import RoomNav from "@/components/room/RoomNav";
 import RoomHeader from "@/components/room/RoomHeader";
@@ -47,7 +48,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [isJoining, setIsJoining] = useState(false);
   const [nickname, setNickname] = useState("");
   const [copied, setCopied] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
 
   // --- REFS ---
   const currentVersionRef = useRef(0);
@@ -89,11 +89,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [allRoomAnswers, myPlayerId]);
 
   // --- ACTIONS ---
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  }, []);
-
   const applyState = useCallback((state: { room: Room | null; players: Player[]; allAnswers: Answer[] }) => {
     const { room, players: p, allAnswers: a } = state;
     if (!room || (room.version && room.version <= currentVersionRef.current)) return;
@@ -167,9 +162,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
     } catch (error) { 
       console.error("Kick failed:", error);
-      showToast("Failed to kick player."); 
+      toast.danger("Failed to kick player.");
     }
-  }, [isLeader, myPlayerId, roomCode, triggerSync, showToast]);
+  }, [isLeader, myPlayerId, roomCode, triggerSync]);
 
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
@@ -239,9 +234,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       triggerSync(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
     } catch (error) { 
       console.error("Join error:", error);
-      showToast("Failed to join room."); 
+      toast.danger("Failed to join room.");
     } finally { setIsLoading(false); }
-  }, [nickname, roomCode, triggerSync, applyState, isLoading, showToast]);
+  }, [nickname, roomCode, triggerSync, applyState, isLoading]);
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href);
@@ -277,7 +272,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       try {
         const state = await getRoomState(roomCode);
         if (!state.room) {
-            showToast("Room not found.");
+            toast.danger("Room not found.");
             setTimeout(() => window.location.href = "/", 2000);
             return;
         }
@@ -299,7 +294,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         } else setIsJoining(true);
       } catch (error) { 
         console.error("Initial fetch error:", error);
-        showToast("Failed to load room data."); 
+        toast.danger("Failed to load room data.");
       } finally { setIsLoading(false); }
     };
     initialFetch();
@@ -310,7 +305,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       }).subscribe();
     channelRef.current = channel;
     return () => { supabase.removeChannel(channel); channelRef.current = null; };
-  }, [roomCode, supabase, fetchData, applyState, triggerSync, showToast]);
+  }, [roomCode, supabase, fetchData, applyState, triggerSync]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -344,16 +339,29 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   // --- RENDER ---
   if (isJoining) return (
     <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-3xl flex items-center justify-center p-6">
-      <div className="glass p-10 rounded-[3rem] w-full max-w-md space-y-6 animate-slide-up border-white/10 shadow-2xl">
+      <Card className="glass p-10 rounded-[3rem] w-full max-w-md space-y-6 animate-slide-up border-white/10 shadow-2xl bg-transparent">
         <div className="text-center space-y-2">
           <h2 className="text-4xl font-bold tracking-tight text-foreground">Enter Game</h2>
           <p className="text-gray-500 font-bold tracking-widest text-[10px] uppercase">Identify yourself to join</p>
         </div>
         <div className="space-y-5">
-          <input type="text" autoFocus value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Your Nickname" onKeyDown={e => e.key === "Enter" && handleJoin()} className="w-full h-12 glass-input rounded-xl px-4 font-semibold text-lg placeholder:text-gray-500 focus:border-white transition-all text-foreground" />
-          <button onClick={handleJoin} disabled={!nickname.trim() || isLoading} className="w-full h-12 bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all active:scale-95 disabled:opacity-50">Join room</button>
+          <TextField name="nickname" value={nickname} onChange={setNickname} autoFocus>
+            <Input 
+              placeholder="Your Nickname" 
+              onKeyDown={e => e.key === "Enter" && handleJoin()} 
+              className="font-semibold text-lg glass !border-white/10 h-12 rounded-xl px-4"
+            />
+          </TextField>
+          <Button 
+            onPress={handleJoin} 
+            isDisabled={!nickname.trim() || isLoading} 
+            className="w-full h-12 bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all active:scale-95"
+          >
+            {isLoading ? <Spinner size="sm" color="current" className="mr-2" /> : null}
+            Join room
+          </Button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 
@@ -364,7 +372,6 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   return (
     <div className="min-h-screen text-foreground flex flex-col page-transition selection:bg-white/20 overflow-y-auto relative z-10">
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} />
 
       <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-6 md:p-10 max-w-6xl mx-auto w-full relative">
@@ -373,7 +380,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         {roomStatus === "wager" && displayStatus !== "wager" && (
            <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 py-12">
-              <div className="relative group"><div className="w-20 h-20 border-4 border-white/[0.03] border-t-foreground rounded-full animate-spin" /></div>
+              <Spinner size="lg" color="accent" />
               <div className="text-center space-y-2">
                  <h2 className="text-2xl sm:text-4xl font-bold text-foreground">Preparing Next Round</h2>
                  <p className="text-gray-600 font-bold tracking-wider text-[10px] animate-pulse italic uppercase">Setting the stage...</p>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { GameState, Question } from '@/lib/types/game';
+import { Chip } from "@heroui/react";
 
 interface RoomHeaderProps {
   currentIndex: number;
@@ -21,16 +22,31 @@ export default function RoomHeader({
   if (displayStatus === "waiting" || displayStatus === "final") return null;
 
   return (
-    <header className="w-full text-center space-y-2 mb-6 sm:mb-8 animate-fade-in">
-      <div className="flex items-center justify-center space-x-3 text-[10px] font-bold tracking-widest text-gray-600 uppercase">
-         <span>Round {currentIndex + 1}</span>
-         <span className="w-1 h-1 rounded-full bg-white/10"></span>
-         <span>{topic || "General Knowledge"}</span>
+    <header className="w-full text-center space-y-3 mb-6 sm:mb-8 animate-fade-in">
+      <div className="flex items-center justify-center gap-2">
+         <Chip 
+           size="sm" 
+           variant="soft" 
+           className="bg-white/5 text-[9px] font-bold uppercase tracking-widest text-gray-500 border-none"
+         >
+           Round {currentIndex + 1}
+         </Chip>
+         <Chip 
+           size="sm" 
+           variant="soft" 
+           className="bg-white/5 text-[9px] font-bold uppercase tracking-widest text-gray-500 border-none"
+         >
+           {topic || "General Knowledge"}
+         </Chip>
          {(roomStatus !== displayStatus || isLocked) && (
-           <>
-             <span className="w-1 h-1 rounded-full bg-white/10"></span>
-             <span className="text-foreground animate-pulse italic">Syncing...</span>
-           </>
+           <Chip 
+             size="sm" 
+             variant="soft" 
+             color="accent"
+             className="bg-foreground/10 text-[9px] font-bold uppercase tracking-widest text-foreground animate-pulse border-none italic"
+           >
+             Syncing...
+           </Chip>
          )}
       </div>
       <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">

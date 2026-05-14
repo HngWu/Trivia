@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getTopics, addQuestions, deleteQuestion, updateQuestion, getQuestionsByTopic } from '@/lib/actions';
-import Toast from '@/components/shared/Toast';
+import { toast } from "@heroui/react";
 import QuestionManager from '@/components/admin/QuestionManager';
 
 import { Topic, Question } from '@/lib/types/game';
@@ -13,7 +13,6 @@ export default function AdminQuestionsPage() {
   const [batchJson, setBatchJson] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -31,11 +30,6 @@ export default function AdminQuestionsPage() {
       requestAnimationFrame(() => setQuestions([]));
     }
   }, [targetTopic]);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  };
 
   const handleGenerateAI = async (provider: string, count: number) => {
     if (!targetTopic) return;
@@ -55,10 +49,10 @@ export default function AdminQuestionsPage() {
       
       // Pretty print JSON with 2-space indentation
       setBatchJson(JSON.stringify(data.questions, null, 2));
-      showToast(`Generated ${data.questions.length} unique questions.`);
+      toast.success(`Generated ${data.questions.length} unique questions.`);
     } catch (e: unknown) {
       const err = e as Error;
-      showToast("Generation failed: " + err.message);
+      toast.danger(err.message);
     } finally {
       setIsGenerating(false);
     }
@@ -70,12 +64,12 @@ export default function AdminQuestionsPage() {
       const parsed = JSON.parse(batchJson);
       const formatted = (Array.isArray(parsed) ? parsed : [parsed]).map(q => ({ ...q, topic: targetTopic, options: q.options || null }));
       const result = await addQuestions(formatted);
-      showToast(result.message);
+      toast.success(result.message);
       setBatchJson('');
       getQuestionsByTopic(targetTopic).then(setQuestions);
     } catch (e: unknown) {
       const err = e as Error;
-      showToast("Invalid JSON or server error: " + err.message);
+      toast.danger(err.message);
     }
   };
 
@@ -83,10 +77,10 @@ export default function AdminQuestionsPage() {
     try {
       await updateQuestion(id, updates);
       setQuestions(questions.map(q => q.id === id ? { ...q, ...updates } : q));
-      showToast("Question updated.");
+      toast.success("Question updated.");
     } catch (e: unknown) {
       const err = e as Error;
-      showToast(err.message);
+      toast.danger(err.message);
     }
   };
 
@@ -95,10 +89,10 @@ export default function AdminQuestionsPage() {
     try {
       await deleteQuestion(id);
       setQuestions(questions.filter(q => q.id !== id));
-      showToast("Question deleted.");
+      toast.success("Question deleted.");
     } catch (e: unknown) {
       const err = e as Error;
-      showToast(err.message);
+      toast.danger(err.message);
     }
   };
 
@@ -106,7 +100,6 @@ export default function AdminQuestionsPage() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <div className="space-y-1">
         <h2 className="text-3xl font-bold tracking-tight text-foreground">Intelligence</h2>
         <p className="text-gray-500 text-xs">Build the question pool for each arena using AI or manual entry.</p>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player, Answer, Question } from '@/lib/types/game';
 import { generateLocalRoasts } from '@/lib/roasts';
+import { Button, Card, Separator, Spinner } from "@heroui/react";
 
 interface FinalViewProps {
   sortedPlayers: Player[];
@@ -49,7 +50,7 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
         <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest">Match conclusion</p>
       </div>
       
-      <div className="glass w-full max-w-2xl rounded-[2.5rem] border-white/[0.03] overflow-hidden shadow-2xl">
+      <Card className="glass w-full max-w-2xl rounded-[2.5rem] border-white/[0.03] shadow-2xl bg-transparent overflow-hidden">
         {sortedPlayers.map((p, i) => {
           // Calculate rank with tie handling
           const rank = i > 0 && p.score === sortedPlayers[i - 1].score 
@@ -57,21 +58,24 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
             : i + 1;
 
           return (
-            <div key={p.id} className={`flex items-center justify-between p-6 sm:p-10 transition-all ${i === 0 ? "bg-white/[0.05] border-b border-white/10" : "border-b border-white/[0.02] last:border-0"}`}>
-               <div className="flex items-center space-x-6 sm:space-x-10">
-                  <span className={`text-4xl sm:text-6xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/10"}`}>
-                    #{rank}
-                  </span>
-                  <div className="text-left">
-                    <p className="text-xl sm:text-3xl font-bold uppercase tracking-tight text-foreground">{p.name}</p>
-                    <p className="text-[9px] font-bold tracking-wider text-foreground/30 uppercase">{p.id === myPlayerId ? "You" : "Player"}</p>
-                  </div>
-               </div>
-               <span className="text-4xl sm:text-6xl font-bold tabular-nums text-foreground">{p.score}</span>
-            </div>
+            <React.Fragment key={p.id}>
+              <div className={`flex items-center justify-between p-6 sm:p-10 transition-all ${i === 0 ? "bg-white/[0.05]" : ""}`}>
+                 <div className="flex items-center space-x-6 sm:space-x-10">
+                    <span className={`text-4xl sm:text-6xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/10"}`}>
+                      #{rank}
+                    </span>
+                    <div className="text-left">
+                      <p className="text-xl sm:text-3xl font-bold uppercase tracking-tight text-foreground">{p.name}</p>
+                      <p className="text-[9px] font-bold tracking-wider text-foreground/30 uppercase">{p.id === myPlayerId ? "You" : "Player"}</p>
+                    </div>
+                 </div>
+                 <span className="text-4xl sm:text-6xl font-bold tabular-nums text-foreground">{p.score}</span>
+              </div>
+              {i < sortedPlayers.length - 1 && <Separator className="bg-white/[0.02]" />}
+            </React.Fragment>
           );
         })}
-      </div>
+      </Card>
 
       {/* ROAST SECTION */}
       <div className="w-full max-w-2xl space-y-6">
@@ -82,13 +86,14 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
         </div>
 
         {isRoasting ? (
-          <div className="text-center py-10 glass rounded-[2rem] border-white/5 animate-pulse">
-            <p className="text-gray-600 font-bold text-[10px] tracking-widest uppercase italic">Synthesizing roasts...</p>
-          </div>
+          <Card className="text-center py-10 glass rounded-[2rem] border-white/5 bg-transparent shadow-none">
+            <Spinner color="accent" size="sm" />
+            <p className="text-gray-600 font-bold text-[10px] tracking-widest uppercase italic mt-4">Synthesizing roasts...</p>
+          </Card>
         ) : Object.keys(roasts).length > 0 ? (
           <div className="grid grid-cols-1 gap-4">
              {Object.entries(roasts).map(([name, roast]) => (
-               <div key={name} className="glass p-6 rounded-[2rem] border-white/5 relative overflow-hidden group hover:border-white/10 transition-all">
+               <Card key={name} className="glass p-6 rounded-[2.5rem] border-white/5 relative overflow-hidden group hover:border-white/10 transition-all bg-transparent shadow-none">
                   <div className="absolute top-0 left-0 w-1 h-full bg-white/5 group-hover:bg-white/20 transition-all" />
                   <div className="flex flex-col gap-2">
                      <span className="text-[9px] font-bold text-gray-700 uppercase tracking-widest">{name}</span>
@@ -96,19 +101,22 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
                         &quot;{roast}&quot;
                      </p>
                   </div>
-               </div>
+               </Card>
              ))}
           </div>
         ) : (
-          <div className="text-center py-10 glass rounded-[2rem] border-white/5 opacity-40">
+          <Card className="text-center py-10 glass rounded-[2rem] border-white/5 opacity-40 bg-transparent shadow-none">
             <p className="text-gray-700 font-bold text-[10px] tracking-widest uppercase italic">No meaningful failures detected.</p>
-          </div>
+          </Card>
         )}
       </div>
       
-      <button onClick={onHome} className="mt-16 sm:mt-24 glass-button px-16 sm:px-32 py-5 rounded-2xl font-bold text-xl sm:text-2xl transition-all active:scale-95 bg-white/5 border-white/10 hover:bg-foreground hover:text-background uppercase tracking-widest">
+      <Button 
+        onPress={onHome} 
+        className="mt-16 sm:mt-24 glass !border-white/10 px-16 sm:px-32 h-16 sm:h-20 rounded-2xl font-bold text-xl sm:text-2xl transition-all active:scale-95 bg-white/5 hover:bg-foreground hover:text-background uppercase tracking-widest"
+      >
         Leave game
-      </button>
+      </Button>
     </div>
   );
 }

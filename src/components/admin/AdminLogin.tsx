@@ -1,4 +1,5 @@
 import React from 'react';
+import { Button, Input, Card, Alert, TextField, Label } from "@heroui/react";
 
 interface AdminLoginProps {
   email: string;
@@ -12,37 +13,55 @@ interface AdminLoginProps {
 export default function AdminLogin({ email, setEmail, password, setPassword, onLogin, error }: AdminLoginProps) {
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 page-transition">
-      <div className="glass p-8 sm:p-12 rounded-[2rem] w-full max-w-md space-y-6 border-white/10 shadow-xl">
+      <Card className="glass p-8 sm:p-12 rounded-[2rem] w-full max-w-md space-y-6 border-white/10 shadow-xl bg-transparent">
         <div className="text-center space-y-1.5">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Admin login</h1>
           <p className="text-gray-500 font-medium text-xs">Enter credentials to manage game settings</p>
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold text-center">
-            {error}
-          </div>
+          <Alert 
+            status="danger" 
+            className="bg-red-500/10 border-red-500/20"
+          >
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>Authentication Error</Alert.Title>
+              <Alert.Description>{error}</Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
 
         <form onSubmit={onLogin} className="space-y-4">
-          <input 
-            type="email" 
-            placeholder="Email" 
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-11 glass-input rounded-xl px-4 font-medium text-foreground" 
-          />
-          <input 
-            type="password" 
-            placeholder="Password" 
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full h-11 glass-input rounded-xl px-4 font-medium text-foreground" 
-          />
-          <button type="submit" className="w-full h-11 glass-button bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all">Sign in</button>
+          <TextField name="email" type="email" value={email} onChange={setEmail}>
+            <Label className="text-[10px] font-bold tracking-widest text-gray-600 uppercase mb-1 ml-1">Email</Label>
+            <Input 
+              placeholder="Enter your email" 
+              className="glass !border-white/10 h-12 rounded-xl px-4 font-medium"
+            />
+          </TextField>
+          <TextField name="password" type="password" value={password} onChange={setPassword}>
+            <Label className="text-[10px] font-bold tracking-widest text-gray-600 uppercase mb-1 ml-1">Password</Label>
+            <Input 
+              placeholder="Enter your password" 
+              className="glass !border-white/10 h-12 rounded-xl px-4 font-medium"
+            />
+          </TextField>
+          <Button 
+            type="submit" 
+            className="w-full h-12 bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all text-base"
+          >
+            Sign in
+          </Button>
         </form>
-        <button onClick={() => window.location.href = "/"} className="w-full text-[10px] font-bold tracking-widest text-gray-700 hover:text-foreground transition-colors uppercase">Back to home</button>
-      </div>
+        <Button 
+          variant="light"
+          onPress={() => window.location.href = "/"} 
+          className="w-full text-[10px] font-bold tracking-widest text-gray-700 hover:text-foreground transition-colors uppercase h-auto min-w-0 p-0"
+        >
+          Back to home
+        </Button>
+      </Card>
     </main>
   );
 }

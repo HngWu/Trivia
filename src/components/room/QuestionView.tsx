@@ -1,5 +1,6 @@
 import React from 'react';
 import { Question, Player } from '@/lib/types/game';
+import { Button, Input, Card, Chip, TextField, Label } from "@heroui/react";
 
 interface QuestionViewProps {
   currentQuestion: Question | undefined;
@@ -53,11 +54,10 @@ export default function QuestionView({
   }, [currentQuestion, isLocked, roundData.answer, onSubmitAnswer]);
 
   const booleanOptions = currentQuestion?.type === "boolean_yes_no" ? ["Yes", "No"] : ["True", "False"];
-  const getShortcut = (val: string) => currentQuestion?.type === "boolean_yes_no" ? val[0] : val[0]; // Both Y/N and T/F use first char
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4">
-       <div className="glass p-6 sm:p-12 rounded-[2rem] shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
+       <Card className="glass p-6 sm:p-12 rounded-[2rem] shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05] bg-transparent">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
           <h2 className="text-xl sm:text-3xl font-bold tracking-tight leading-tight text-foreground">
@@ -67,53 +67,50 @@ export default function QuestionView({
           {!roundData.answer ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {currentQuestion?.type === "multiple_choice" && currentQuestion.options?.map((option, i) => (
-                <button 
+                <Button 
                   key={i} 
-                  disabled={isLocked}
-                  onClick={() => onSubmitAnswer(option)} 
-                  className="p-4 sm:p-6 rounded-xl text-left transition-all font-bold text-base sm:text-lg glass-button hover:border-blue-400/50 active:scale-95 group disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                  isDisabled={isLocked}
+                  onPress={() => onSubmitAnswer(option)} 
+                  className="h-auto p-4 sm:p-6 rounded-xl text-left transition-all font-bold text-base sm:text-lg glass-button hover:!border-white/30 active:scale-95 group relative min-w-0 flex items-center justify-between"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center">
-                      <span className="mr-3 opacity-20 font-bold group-hover:opacity-100 transition-all">{String.fromCharCode(65 + i)}</span> 
-                      {option}
-                    </div>
-                    <span className="text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{i + 1}]</span>
+                  <div className="flex items-center">
+                    <span className="mr-3 opacity-20 font-bold group-hover:opacity-100 transition-all">{String.fromCharCode(65 + i)}</span> 
+                    {option}
                   </div>
-                </button>
+                  <span className="text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{i + 1}]</span>
+                </Button>
               ))}
               {(currentQuestion?.type === "boolean" || currentQuestion?.type === "boolean_yes_no") && booleanOptions.map(val => (
-                <button 
+                <Button 
                   key={val} 
-                  disabled={isLocked}
-                  onClick={() => onSubmitAnswer(val)} 
-                  className="p-8 rounded-2xl font-bold text-2xl transition-all glass-button hover:border-blue-400/50 active:scale-95 disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none group relative"
+                  isDisabled={isLocked}
+                  onPress={() => onSubmitAnswer(val)} 
+                  className="h-auto p-8 rounded-2xl font-bold text-2xl transition-all glass-button hover:!border-white/30 active:scale-95 group relative min-w-0"
                 >
                   {val}
                   <span className="absolute bottom-2 right-4 text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{val[0]}]</span>
-                </button>
+                </Button>
               ))}
               {currentQuestion?.type === "text" && (
                 <form 
                   onSubmit={(e) => { e.preventDefault(); onSubmitAnswer(textAnswer); }}
-                  className="col-span-full flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+                  className="col-span-full flex flex-col sm:flex-row gap-3 items-stretch sm:items-end"
                 >
-                  <input 
-                    type="text" 
-                    autoFocus 
-                    disabled={isLocked}
-                    value={textAnswer}
-                    onChange={(e) => setTextAnswer(e.target.value)}
-                    placeholder="Type your answer..." 
-                    className="flex-1 w-full py-3 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/10" 
-                  />
-                  <button 
+                  <TextField name="textAnswer" value={textAnswer} onChange={setTextAnswer} isDisabled={isLocked} className="flex-1 text-left">
+                    <Label className="text-[10px] font-bold tracking-widest text-gray-600 uppercase mb-1 ml-1">Answer</Label>
+                    <Input 
+                      autoFocus 
+                      placeholder="Type your answer..." 
+                      className="glass !border-white/10 h-14 rounded-xl px-4 font-semibold text-lg"
+                    />
+                  </TextField>
+                  <Button 
                     type="submit"
-                    disabled={isLocked || !textAnswer.trim()}
-                    className="w-full sm:w-auto py-3 px-8 bg-foreground text-background rounded-xl font-bold text-base hover:bg-white transition-all active:scale-95"
+                    isDisabled={isLocked || !textAnswer.trim()}
+                    className="w-full sm:w-auto h-14 px-10 bg-foreground text-background rounded-xl font-bold text-lg hover:bg-white transition-all active:scale-95"
                   >
                     Submit
-                  </button>
+                  </Button>
                 </form>
               )}
             </div>
@@ -123,11 +120,15 @@ export default function QuestionView({
               <p className="text-gray-600 text-[10px] font-bold tracking-widest uppercase">Waiting for everyone ({roundData.answerCount}/{players.length})</p>
             </div>
           )}
-       </div>
+       </Card>
        <div className="pt-4">
-          <span className="glass px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider text-gray-500 border-white/[0.03]">
-            Your wager: <span className="text-foreground">{roundData.wager} Points</span>
-          </span>
+          <Chip 
+            size="lg"
+            variant="soft"
+            className="glass bg-white/5 border-white/[0.03] text-[10px] font-bold uppercase tracking-widest h-10 px-6"
+          >
+            Your wager: <span className="text-foreground ml-1">{roundData.wager} Points</span>
+          </Chip>
        </div>
     </div>
   );

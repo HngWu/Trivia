@@ -8,6 +8,8 @@ import { usePathname } from 'next/navigation';
 
 import { User } from '@supabase/supabase-js';
 
+import { Button } from "@heroui/react";
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,7 +55,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col page-transition selection:bg-white/20">
-      <header className="glass sticky top-0 z-50 px-6 sm:px-12 py-3 sm:py-4 flex justify-between items-center border-x-0 border-t-0 rounded-none backdrop-blur-3xl shadow-2xl">
+      <header className="glass sticky top-0 z-50 px-6 sm:px-12 py-3 sm:py-4 flex justify-between items-center border-x-0 border-t-0 rounded-none backdrop-blur-3xl shadow-2xl bg-transparent">
         <div className="flex items-center space-x-8">
           <Link href="/" className="text-gray-500 hover:text-white transition-all transform hover:scale-110">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
@@ -64,27 +66,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        <nav className="hidden md:flex items-center space-x-4">
-          <Link 
+        <nav className="hidden md:flex items-center space-x-2">
+          <Button 
+            as={Link}
             href="/admin/topics" 
-            className={`px-4 py-2 rounded-xl text-[10px] font-bold tracking-wider transition-all ${pathname === '/admin/topics' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+            variant={pathname === '/admin/topics' ? "solid" : "light"}
+            className={`h-9 px-4 rounded-xl text-[10px] font-bold tracking-wider transition-all ${pathname === '/admin/topics' ? 'bg-white text-black' : 'text-gray-500'}`}
           >
             Topics
-          </Link>
-          <Link 
+          </Button>
+          <Button 
+            as={Link}
             href="/admin/questions" 
-            className={`px-4 py-2 rounded-xl text-[10px] font-bold tracking-wider transition-all ${pathname === '/admin/questions' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+            variant={pathname === '/admin/questions' ? "solid" : "light"}
+            className={`h-9 px-4 rounded-xl text-[10px] font-bold tracking-wider transition-all ${pathname === '/admin/questions' ? 'bg-white text-black' : 'text-gray-500'}`}
           >
             Questions
-          </Link>
+          </Button>
         </nav>
 
-        <button 
-          onClick={handleSignOut}
-          className="px-4 py-2 glass-button rounded-xl text-[10px] font-bold tracking-wider border-white/5 hover:text-red-500 transition-colors"
+        <Button 
+          onPress={handleSignOut}
+          variant="flat"
+          className="h-9 px-4 glass !border-white/5 rounded-xl text-[10px] font-bold tracking-wider hover:text-red-500 transition-colors bg-white/5"
         >
           Sign out
-        </button>
+        </Button>
       </header>
 
       <main className="flex-1 p-4 sm:p-8 md:p-12 max-w-7xl mx-auto w-full">

@@ -1,6 +1,4 @@
-import React from 'react';
-
-import { Topic } from '@/lib/types/game';
+import { Button, Input, Card, TextField, Label } from "@heroui/react";
 
 interface TopicDetailProps {
   topicData: Topic;
@@ -31,13 +29,14 @@ export default function TopicDetail({
   };
 
   return (
-    <section className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden">
-      <button 
-        onClick={onBack}
-        className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground mb-6 transition-colors"
+    <Card className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden bg-transparent">
+      <Button 
+        variant="light"
+        onPress={onBack}
+        className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground mb-2 transition-colors min-w-0 h-auto p-0"
       >
         ← Back to topics
-      </button>
+      </Button>
 
       <div className="space-y-3">
         <div className="flex items-center gap-4">
@@ -57,41 +56,38 @@ export default function TopicDetail({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 pt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
           {topicData.id === 'custom' && (
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Topic name</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 90s Music"
-                value={customTopic}
-                onChange={(e) => setCustomTopic(e.target.value)}
-                className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
-              />
+            <div className="sm:col-span-2">
+              <TextField name="customTopic" value={customTopic} onChange={setCustomTopic} isRequired>
+                <Label className="text-[10px] font-bold tracking-widest text-gray-600 uppercase mb-1 ml-1">Topic name</Label>
+                <Input
+                  placeholder="e.g. 90s Music"
+                  className="glass !border-white/10 h-11 rounded-xl px-4 font-semibold"
+                />
+              </TextField>
             </div>
           )}
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Your name</label>
-            <input
-              type="text"
-              required
-              placeholder="Enter nickname"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
-            />
+          <div className="sm:col-span-2">
+            <TextField name="nickname" value={nickname} onChange={setNickname} isRequired>
+              <Label className="text-[10px] font-bold tracking-widest text-gray-600 uppercase mb-1 ml-1">Your name</Label>
+              <Input
+                placeholder="Enter nickname"
+                className="glass !border-white/10 h-11 rounded-xl px-4 font-semibold"
+              />
+            </TextField>
           </div>
         </div>
 
-        <button
+        <Button
           type="submit"
+          isLoading={isLoading}
           disabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
-          className="w-full glass-button py-4 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all"
+          className="w-full py-6 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all h-auto"
         >
           {isLoading ? 'Starting game...' : 'Create room'}
-        </button>
+        </Button>
       </form>
-    </section>
+    </Card>
   );
 }

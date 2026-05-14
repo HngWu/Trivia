@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { GameState } from "@/lib/types/game";
+import { Spinner } from "@heroui/react";
 
 interface FluidTimerProps {
   statusUpdatedAt: number;
@@ -84,7 +85,7 @@ export default function FluidTimer({ statusUpdatedAt, displayStatus, timer, serv
         
         {isLocked && (
           <div className="absolute inset-0 flex items-center justify-center">
-             <div className="w-12 h-12 border border-white/5 border-t-white rounded-full animate-spin" />
+             <Spinner size="sm" color="accent" />
           </div>
         )}
       </div>
