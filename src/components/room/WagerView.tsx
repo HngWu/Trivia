@@ -54,7 +54,7 @@ export default function WagerView({
                 key={weight} 
                 isDisabled={isUsed || isLocked} 
                 onPress={() => onSelectWager(weight)} 
-                className={`h-16 sm:h-24 rounded-xl sm:rounded-2xl font-bold text-2xl sm:text-4xl transition-all border-2 relative overflow-hidden group shadow-lg min-w-0 p-0 ${
+                className={`h-12 sm:h-16 rounded-xl sm:rounded-2xl font-bold text-2xl sm:text-3xl transition-all border-2 relative overflow-hidden group shadow-lg min-w-0 p-0 ${
                   isUsed || isLocked
                   ? "bg-transparent border-white/5 text-gray-900 cursor-not-allowed" 
                   : "glass-button !border-white/10 hover:!border-white/30"
