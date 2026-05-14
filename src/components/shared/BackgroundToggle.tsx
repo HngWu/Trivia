@@ -13,7 +13,7 @@ export default function BackgroundToggle() {
       <Tooltip closeDelay={0}>
         <Button 
           onPress={toggleBackground}
-          variant="flat"
+          variant="tertiary"
           className="flex items-center gap-2 px-3 h-8 glass !border-white/5 hover:!border-white/20 transition-all group min-w-0"
         >
           <div className="relative w-4 h-4 flex items-center justify-center">
@@ -45,7 +45,7 @@ export default function BackgroundToggle() {
         <Button 
           isIconOnly
           onPress={toggleAnimation}
-          variant="flat"
+          variant="tertiary"
           className={`flex items-center justify-center w-8 h-8 glass !border-white/5 hover:!border-white/20 transition-all min-w-0 ${!isAnimationEnabled ? 'opacity-40' : ''}`}
         >
           {isAnimationEnabled ? (

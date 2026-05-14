@@ -83,9 +83,8 @@ export default function LobbyView({
                   {isLeader && p.id !== myPlayerId && (
                     <Button 
                       size="sm"
-                      variant="light"
-                      color="danger"
-                      disabled={isLocked}
+                      variant="danger"
+                      isDisabled={isLocked}
                       onPress={() => onKick(p.id)}
                       className="text-[9px] font-bold uppercase tracking-wider h-auto min-w-0 p-1"
                     >
@@ -109,7 +108,7 @@ export default function LobbyView({
         <div className="w-full flex flex-col items-center space-y-3">
           {isLeader ? (
             <Button 
-              disabled={questionsCount === 0 || isLocked} 
+              isDisabled={questionsCount === 0 || isLocked} 
               onPress={onStart} 
               className="w-full h-12 sm:h-14 rounded-2xl font-bold text-lg bg-white/10 border-white/20 text-foreground glass focus:ring-2 focus:ring-white/20 focus:outline-none"
             >

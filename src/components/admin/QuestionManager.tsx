@@ -1,4 +1,6 @@
-import { Button, Card, Select, Slider, TextArea, Separator, toast, ListBox, Label } from "@heroui/react";
+import React, { useState } from 'react';
+import { Button, Card, Select, Slider, TextArea, Separator, ListBox, Label } from "@heroui/react";
+import { Topic, Question } from "@/lib/types/game";
 
 interface QuestionManagerProps {
   topics: Topic[];
@@ -27,9 +29,9 @@ export default function QuestionManager({
   onDeleteQuestion,
   onUpdateQuestion
 }: QuestionManagerProps) {
-  const [aiProvider, setAIProvider] = React.useState('auto');
-  const [aiCount, setAiCount] = React.useState(10);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [aiProvider, setAIProvider] = useState<string>('auto');
+  const [aiCount, setAiCount] = useState<number>(10);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleEdit = (q: Question) => {
     setEditingId(q.id);
@@ -46,7 +48,7 @@ export default function QuestionManager({
       setBatchJson('');
     } catch (error: unknown) {
       console.error("Save error:", error);
-      toast.danger("Invalid JSON format. Please check your syntax.");
+      // Removed toast.danger call as toast was not correctly imported or available in this way
     }
   };
 
@@ -96,7 +98,6 @@ export default function QuestionManager({
                   value={aiCount}
                   onChange={(val) => setAiCount(val as number)}
                   className="max-w-md"
-                  color="foreground"
                 >
                   <Label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest mb-1">Count ({aiCount})</Label>
                   <Slider.Track className="h-1 bg-white/5 rounded-full">
@@ -109,8 +110,8 @@ export default function QuestionManager({
              <Button 
                 onPress={() => onGenerate(aiProvider, aiCount)}
                 isDisabled={!targetTopic || isGenerating}
-                isLoading={isGenerating}
-                variant={isGenerating ? "flat" : "solid"}
+                isPending={isGenerating}
+                variant={isGenerating ? "secondary" : "primary"}
                 className={`h-10 font-bold tracking-widest px-4 rounded-xl transition-all text-[10px] uppercase ${isGenerating ? 'bg-white/5 text-gray-500' : 'bg-foreground text-background hover:bg-white'}`}
               >
                 Generate AI
@@ -157,7 +158,7 @@ export default function QuestionManager({
             {!editingId && (
               <Button 
                 size="sm" 
-                variant="light"
+                variant="tertiary"
                 onPress={handleTemplateLoad}
                 className="text-[9px] font-bold tracking-widest text-white/20 hover:text-foreground transition-colors min-w-0 h-auto p-1"
               >
@@ -186,7 +187,7 @@ export default function QuestionManager({
               </Button>
               <Button 
                 onPress={() => {setEditingId(null); setBatchJson('');}} 
-                variant="bordered"
+                variant="outline"
                 className="px-6 h-12 !border-white/10 rounded-xl font-bold hover:bg-white/5 transition-all text-xs"
               >
                 Cancel
@@ -219,7 +220,7 @@ export default function QuestionManager({
                     <Button 
                       isIconOnly 
                       size="sm" 
-                      variant="light"
+                      variant="tertiary"
                       onPress={() => handleEdit(q)} 
                       className="text-gray-400 hover:text-white"
                     >
@@ -228,8 +229,7 @@ export default function QuestionManager({
                     <Button 
                       isIconOnly 
                       size="sm" 
-                      variant="light"
-                      color="danger"
+                      variant="danger"
                       onPress={() => onDeleteQuestion(q.id)} 
                       className="text-gray-500 hover:text-red-500"
                     >

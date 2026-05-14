@@ -98,7 +98,8 @@ describe('Sync Logic Transitions', () => {
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
-        topic: 'General'
+        topic: 'General',
+        version: 1
       },
       players: mockPlayers,
       allAnswers: [
@@ -123,7 +124,8 @@ describe('Sync Logic Transitions', () => {
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
-        topic: 'General'
+        topic: 'General',
+        version: 1
       },
       players: mockPlayers,
       allAnswers: [
@@ -148,7 +150,8 @@ describe('Sync Logic Transitions', () => {
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
-        topic: 'General'
+        topic: 'General',
+        version: 1
       },
       players: mockPlayers,
       allAnswers: [
@@ -183,7 +186,8 @@ describe('Sync Logic Transitions', () => {
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
-        topic: 'General'
+        topic: 'General',
+        version: 1
       },
       players: mockPlayers,
       allAnswers: []
@@ -206,7 +210,8 @@ describe('Sync Logic Transitions', () => {
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'leader-id',
-        topic: 'General'
+        topic: 'General',
+        version: 1
       },
       players: mockPlayers,
       allAnswers: [

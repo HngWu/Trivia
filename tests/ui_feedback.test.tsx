@@ -44,7 +44,8 @@ describe("RoomPage UI Feedback", () => {
         leader_id: "p1",
         questions: [{ id: "q1", summary: "Test Question", text: "What is 1+1?", correct_answer: "2", type: "multiple_choice", options: ["1", "2"] }],
         code: "TEST12",
-        topic: "General"
+        topic: "General",
+        version: 1
       },
       players: [{ id: "p1", name: "Player 1", score: 0, is_leader: true }, { id: "p2", name: "Player 2", score: 0, is_leader: false }],
       allAnswers: [{ player_id: "p1", question_id: "q1", wager: 5, submitted_answer: "", is_correct: false }]
@@ -69,7 +70,8 @@ describe("RoomPage UI Feedback", () => {
         leader_id: "p1",
         questions: [{ id: "q1", summary: "Test Question", text: "What is 1+1?", correct_answer: "2", type: "multiple_choice", options: ["1", "2"] }],
         code: "TEST12",
-        topic: "General"
+        topic: "General",
+        version: 1
       },
       players: [{ id: "p1", name: "Player 1", score: 0, is_leader: true }, { id: "p2", name: "Player 2", score: 0, is_leader: false }],
       allAnswers: [{ player_id: "p1", question_id: "q1", wager: 5, submitted_answer: "2", is_correct: true }]

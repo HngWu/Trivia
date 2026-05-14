@@ -51,8 +51,8 @@ export default function JoinGameForm({
             </div>
             <Button 
               type="submit"
-              isLoading={isLoading}
-              disabled={isLoading || !nickname || !roomCode}
+              isPending={isLoading}
+              isDisabled={isLoading || !nickname || !roomCode}
               className="h-12 px-6 rounded-xl font-bold bg-foreground text-background shrink-0"
             >
               Join

@@ -55,7 +55,7 @@ export default function AdminLogin({ email, setEmail, password, setPassword, onL
           </Button>
         </form>
         <Button 
-          variant="light"
+          variant="tertiary"
           onPress={() => window.location.href = "/"} 
           className="w-full text-[10px] font-bold tracking-widest text-gray-700 hover:text-foreground transition-colors uppercase h-auto min-w-0 p-0"
         >

@@ -22,7 +22,7 @@ export default function RoomNav({
     <nav className="glass sticky top-0 z-50 px-4 sm:px-8 py-2 sm:py-3 flex justify-between items-center border-x-0 border-t-0 rounded-none backdrop-blur-xl shadow-lg bg-transparent">
       <div className="flex items-center space-x-4 sm:space-x-6">
         <Button 
-          variant="light"
+          variant="tertiary"
           isIconOnly
           onPress={onHome} 
           className="text-foreground transition-all min-w-0 h-auto p-1"
@@ -51,7 +51,7 @@ export default function RoomNav({
             <Chip 
               key={p.id} 
               size="sm"
-              variant={p.id === myPlayerId ? "solid" : "bordered"}
+              variant={p.id === myPlayerId ? "primary" : "soft"}
               className={`rounded-xl text-[9px] font-bold border-none transition-all whitespace-nowrap h-7 px-3 ${
                 p.id === myPlayerId 
                   ? "bg-foreground text-background shadow-md" 

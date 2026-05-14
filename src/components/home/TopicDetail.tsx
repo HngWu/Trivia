@@ -1,4 +1,5 @@
 import { Button, Input, Card, TextField, Label } from "@heroui/react";
+import { Topic } from "@/lib/types/game";
 
 interface TopicDetailProps {
   topicData: Topic;
@@ -31,7 +32,7 @@ export default function TopicDetail({
   return (
     <Card className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden bg-transparent">
       <Button 
-        variant="light"
+        variant="tertiary"
         onPress={onBack}
         className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground mb-2 transition-colors min-w-0 h-auto p-0"
       >
@@ -81,8 +82,8 @@ export default function TopicDetail({
 
         <Button
           type="submit"
-          isLoading={isLoading}
-          disabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
+          isPending={isLoading}
+          isDisabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
           className="w-full h-14 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all"
         >
           {isLoading ? 'Starting game...' : 'Create room'}

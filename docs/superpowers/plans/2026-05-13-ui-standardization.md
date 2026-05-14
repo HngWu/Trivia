@@ -15,7 +15,7 @@
 **Files:**
 - Modify: `src/components/room/ResultsView.tsx`
 
-- [ ] **Step 1: Add isRowHeader prop to the Player column**
+- [x] **Step 1: Add isRowHeader prop to the Player column**
 
 ```tsx
 // src/components/room/ResultsView.tsx
@@ -24,7 +24,7 @@
 <Table.Column isRowHeader className="px-8 py-4 text-[10px] font-bold text-gray-500 tracking-widest uppercase bg-transparent border-none">Player</Table.Column>
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/components/room/ResultsView.tsx
@@ -38,7 +38,7 @@ git commit -m "fix(ui): add isRowHeader to ResultsView table for HeroUI complian
 **Files:**
 - Modify: `src/components/room/LobbyView.tsx`
 
-- [ ] **Step 1: Reduce vertical padding and spacing**
+- [x] **Step 1: Reduce vertical padding and spacing**
 
 ```tsx
 // src/components/room/LobbyView.tsx
@@ -50,7 +50,7 @@ git commit -m "fix(ui): add isRowHeader to ResultsView table for HeroUI complian
 <Card className="glass p-4 sm:p-6 rounded-[2rem] w-full max-w-lg space-y-6 border-white/[0.03] shadow-xl relative overflow-visible bg-transparent">
 ```
 
-- [ ] **Step 2: Reduce Start Game button height**
+- [x] **Step 2: Reduce Start Game button height**
 
 ```tsx
 // src/components/room/LobbyView.tsx
@@ -63,7 +63,7 @@ git commit -m "fix(ui): add isRowHeader to ResultsView table for HeroUI complian
 >
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/room/LobbyView.tsx
@@ -77,7 +77,7 @@ git commit -m "style(ui): reduce lobby padding and start button height"
 **Files:**
 - Modify: `src/components/room/WagerView.tsx`
 
-- [ ] **Step 1: Reduce wager button heights**
+- [x] **Step 1: Reduce wager button heights**
 
 ```tsx
 // src/components/room/WagerView.tsx
@@ -95,7 +95,7 @@ git commit -m "style(ui): reduce lobby padding and start button height"
 >
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/components/room/WagerView.tsx
@@ -109,7 +109,7 @@ git commit -m "style(ui): reduce wager button heights in WagerView"
 **Files:**
 - Modify: `src/components/room/QuestionView.tsx`
 
-- [ ] **Step 1: Reduce Text Answer input and button heights**
+- [x] **Step 1: Reduce Text Answer input and button heights**
 
 ```tsx
 // src/components/room/QuestionView.tsx
@@ -128,7 +128,7 @@ git commit -m "style(ui): reduce wager button heights in WagerView"
 >
 ```
 
-- [ ] **Step 2: Reduce Boolean and Multiple Choice button heights**
+- [x] **Step 2: Reduce Boolean and Multiple Choice button heights**
 
 ```tsx
 // src/components/room/QuestionView.tsx
@@ -165,7 +165,7 @@ git commit -m "style(ui): reduce wager button heights in WagerView"
 >
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/room/QuestionView.tsx
@@ -179,7 +179,7 @@ git commit -m "style(ui): reduce component heights in QuestionView"
 **Files:**
 - Modify: `src/components/room/FinalView.tsx`
 
-- [ ] **Step 1: Fix leaderboard row background and reduce rank spacing**
+- [x] **Step 1: Fix leaderboard row background and reduce rank spacing**
 
 ```tsx
 // src/components/room/FinalView.tsx
@@ -188,7 +188,7 @@ git commit -m "style(ui): reduce component heights in QuestionView"
 <div className={`flex items-center justify-between p-4 sm:p-6 transition-all`}>
 ```
 
-- [ ] **Step 2: Reduce Leave Game button height**
+- [x] **Step 2: Reduce Leave Game button height**
 
 ```tsx
 // src/components/room/FinalView.tsx
@@ -200,7 +200,7 @@ git commit -m "style(ui): reduce component heights in QuestionView"
 >
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/room/FinalView.tsx
@@ -215,7 +215,7 @@ git commit -m "style(ui): reduce button height and fix leaderboard visuals in Fi
 - Modify: `src/components/home/JoinGameForm.tsx`
 - Modify: `src/components/home/TopicDetail.tsx`
 
-- [ ] **Step 1: Update JoinGameForm input and button heights**
+- [x] **Step 1: Update JoinGameForm input and button heights**
 
 ```tsx
 // src/components/home/JoinGameForm.tsx
@@ -227,7 +227,7 @@ git commit -m "style(ui): reduce button height and fix leaderboard visuals in Fi
 // Join button: Change h-12 to h-12 (already h-12, good)
 ```
 
-- [ ] **Step 2: Update TopicDetail create button height**
+- [x] **Step 2: Update TopicDetail create button height**
 
 ```tsx
 // src/components/home/TopicDetail.tsx
@@ -241,7 +241,7 @@ git commit -m "style(ui): reduce button height and fix leaderboard visuals in Fi
 >
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/home/JoinGameForm.tsx src/components/home/TopicDetail.tsx
@@ -252,5 +252,5 @@ git commit -m "style(ui): standardize home component action heights"
 
 ### Task 7: Verification
 
-- [ ] **Step 1: Check for Table error in console**
-- [ ] **Step 2: Visual inspection of all views (Lobby, Wager, Question, Results, Final)**
+- [x] **Step 1: Check for Table error in console**
+- [x] **Step 2: Visual inspection of all views (Lobby, Wager, Question, Results, Final)**

@@ -74,7 +74,8 @@ describe('Explanation Display', () => {
         current_question_index: 0,
         questions: mockQuestions,
         leader_id: 'player-id',
-        topic: 'General'
+        topic: 'General',
+        version: 1
       },
       players: mockPlayers,
       allAnswers: [

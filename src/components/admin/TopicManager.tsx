@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Topic } from '@/lib/types/game';
 import { Button, Card, Input, TextArea, Separator, TextField } from "@heroui/react";
 
@@ -12,7 +12,7 @@ interface TopicManagerProps {
 }
 
 export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onDelete, onUpdate }: TopicManagerProps) {
-  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const startEdit = (topic: Topic) => {
     setEditingId(topic.id);
@@ -46,14 +46,14 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
              <Input 
                required
                placeholder="ID (e.g. history)" 
-               className="glass !border-white/10 h-11 rounded-xl px-3 font-semibold"
+               className="glass !border-white/10 h-12 rounded-xl px-3 font-semibold"
              />
            </TextField>
            <TextField value={newTopic.name} onChange={val => setNewTopic({...newTopic, name: val})}>
              <Input 
                required
                placeholder="Name" 
-               className="glass !border-white/10 h-11 rounded-xl px-3 font-semibold"
+               className="glass !border-white/10 h-12 rounded-xl px-3 font-semibold"
              />
            </TextField>
         </div>
@@ -61,7 +61,7 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
           <Input 
             required
             placeholder="Emoji icon" 
-            className="glass !border-white/10 h-11 rounded-xl px-3 font-semibold"
+            className="glass !border-white/10 h-12 rounded-xl px-3 font-semibold"
           />
         </TextField>
         <TextField value={newTopic.description} onChange={val => setNewTopic({...newTopic, description: val})}>
@@ -74,7 +74,7 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
         <TextField value={newTopic.example_question} onChange={val => setNewTopic({...newTopic, example_question: val})}>
           <Input 
             placeholder="Example question" 
-            className="glass !border-white/10 h-11 rounded-xl px-3 font-semibold italic"
+            className="glass !border-white/10 h-12 rounded-xl px-3 font-semibold italic"
           />
         </TextField>
         <div className="flex gap-2">
@@ -87,7 +87,7 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
           {editingId && (
             <Button 
               onPress={cancelEdit} 
-              variant="bordered"
+              variant="outline"
               className="px-6 h-12 !border-white/10 rounded-xl font-bold hover:bg-white/5 transition-all text-xs"
             >
               Cancel
@@ -110,7 +110,7 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
                 <Button 
                   isIconOnly 
                   size="sm" 
-                  variant="light"
+                  variant="tertiary"
                   onPress={() => startEdit(t)} 
                   className="text-gray-400 hover:text-white"
                 >
@@ -119,8 +119,7 @@ export default function TopicManager({ topics, newTopic, setNewTopic, onAdd, onD
                 <Button 
                   isIconOnly 
                   size="sm" 
-                  variant="light"
-                  color="danger"
+                  variant="danger"
                   onPress={() => onDelete(t.id)} 
                   className="text-gray-500 hover:text-red-500"
                 >

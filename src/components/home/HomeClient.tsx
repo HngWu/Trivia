@@ -109,10 +109,10 @@ export default function HomeClient({ initialTopics }: HomeClientProps) {
       <div className="absolute top-4 right-4 sm:top-6 sm:right-8 z-50">
         <Button 
           isIconOnly
-          variant="light"
+          variant="tertiary"
           onPress={() => window.location.href = '/admin'}
           className="p-2 glass !border-white/5 hover:!border-white/20 transition-all group min-w-0 h-10 w-10 rounded-xl"
-          title="Admin Settings"
+          aria-label="Admin Settings"
         >
           <svg className="w-4 h-4 text-gray-500 group-hover:text-foreground transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 0012 21a10.003 10.003 0 008.384-4.51l.054.09m-4.283-9.958L17.163 2m-3.733 3.103c.181.013.362.019.544.019a10.003 10.003 0 008.384-4.51c.054.09.11.178.163.266m-12.115 1.5l-1.077 1.077a2 2 0 000 2.828l1.077 1.077m2.828 0l1.077-1.077a2 2 0 000-2.828l-1.077-1.077M9 10a1 1 0 112 0 1 1 0 01-2 0zm5 2a1 1 0 112 0 1 1 0 01-2 0z" />

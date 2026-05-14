@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import AdminLogin from '@/components/admin/AdminLogin';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 import { User } from '@supabase/supabase-js';
 
@@ -19,6 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const supabase = createClient();
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const checkUser = async () => {
@@ -45,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    window.location.href = "/";
+    router.push("/");
   };
 
   if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse">Establishing Command...</div>;
@@ -68,17 +69,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <nav className="hidden md:flex items-center space-x-2">
           <Button 
-            as={Link}
-            href="/admin/topics" 
-            variant={pathname === '/admin/topics' ? "solid" : "light"}
+            onPress={() => router.push("/admin/topics")}
+            variant={pathname === '/admin/topics' ? "primary" : "tertiary"}
             className={`h-9 px-4 rounded-xl text-[10px] font-bold tracking-wider transition-all ${pathname === '/admin/topics' ? 'bg-white text-black' : 'text-gray-500'}`}
           >
             Topics
           </Button>
           <Button 
-            as={Link}
-            href="/admin/questions" 
-            variant={pathname === '/admin/questions' ? "solid" : "light"}
+            onPress={() => router.push("/admin/questions")}
+            variant={pathname === '/admin/questions' ? "primary" : "tertiary"}
             className={`h-9 px-4 rounded-xl text-[10px] font-bold tracking-wider transition-all ${pathname === '/admin/questions' ? 'bg-white text-black' : 'text-gray-500'}`}
           >
             Questions
@@ -87,7 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <Button 
           onPress={handleSignOut}
-          variant="flat"
+          variant="tertiary"
           className="h-9 px-4 glass !border-white/5 rounded-xl text-[10px] font-bold tracking-wider hover:text-red-500 transition-colors bg-white/5"
         >
           Sign out

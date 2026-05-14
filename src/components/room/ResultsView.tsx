@@ -73,7 +73,7 @@ export default function ResultsView({
           </div>
           
           <div className="hidden sm:block overflow-hidden">
-            <Table className="bg-transparent" variant="transparent">
+            <Table className="bg-transparent">
               <Table.ScrollContainer className="max-h-[400px] overflow-y-auto no-scrollbar">
                 <Table.Content aria-label="Round recap" className="min-w-full">
                   <Table.Header>
