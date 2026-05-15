@@ -393,8 +393,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   // --- RENDER ---
   if (isJoining) return (
-    <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-3xl flex items-center justify-center p-6">
-      <div className="glass p-10 rounded-[3rem] w-full max-w-md space-y-6 animate-slide-up border-white/10 shadow-2xl">
+    <div className="fixed inset-0 z-[100] bg-background/20 backdrop-blur-sm flex items-center justify-center p-6">
+      <div className="glass p-10 rounded-[3rem] w-full max-w-md space-y-6 animate-slide-up border-white/10 shadow-2xl bg-background/50 backdrop-blur-xl">
         <div className="text-center space-y-2">
           <h2 className="text-4xl font-bold tracking-tight text-foreground">Enter Game</h2>
           <p className="text-gray-500 font-bold tracking-widest text-[10px] uppercase">Identify yourself to join</p>
@@ -407,7 +407,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     </div>
   );
 
-  if (isLoading) return <div className="min-h-screen bg-background text-foreground flex items-center justify-center font-bold tracking-widest animate-pulse text-center p-8">Loading room...</div>;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center font-bold tracking-widest animate-pulse text-center p-8 text-foreground/50">Loading room...</div>;
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
   const displayedSortedPlayers = [...displayedPlayers].sort((a, b) => b.score - a.score);

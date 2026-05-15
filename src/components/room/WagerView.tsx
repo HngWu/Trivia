@@ -12,7 +12,7 @@ interface WagerViewProps {
   usedWagers: number[];
   onSelectWager: (weight: number) => void;
   isLeader: boolean;
-  onForceAdvance: (target?: any) => void;
+  onForceAdvance: (phase: string) => void;
 }
 
 export default function WagerView({ 
@@ -44,7 +44,7 @@ export default function WagerView({
 
   if (!roundData.wager) {
     return (
-      <div className="flex-1 flex flex-col justify-center items-center w-full max-w-4xl mx-auto space-y-6 animate-slide-up text-center py-4 min-h-[50vh]">
+      <div className="flex-1 flex flex-col justify-center items-center min-h-[60vh] w-full max-w-4xl mx-auto space-y-6 animate-slide-up text-center py-4">
         <div className="space-y-1.5">
           <p className="text-gray-600 font-bold tracking-widest text-[9px] uppercase">Points at stake</p>
           <h2 className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight">How many points?</h2>
@@ -102,7 +102,7 @@ export default function WagerView({
             {isLeader && (
               <div className="pt-6 animate-fade-in w-full flex justify-center">
                 <GlassButton 
-                  onClick={() => onForceAdvance("question" as any)}
+                  onClick={() => onForceAdvance("question")}
                   className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase"
                 >
                   Reveal Question

@@ -42,7 +42,7 @@ export default function RoomNav({
       
       {!isWaiting && (
         <div className="flex-[2] flex items-center justify-center md:justify-center overflow-x-auto no-scrollbar px-2 mx-2 py-4">
-          <div className="flex items-center space-x-2 md:space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-4 flex-nowrap">
             {displayedSortedPlayers.map((p, i) => {
               // Calculate rank with tie handling
               const rank = i > 0 && p.score === displayedSortedPlayers[i - 1].score 

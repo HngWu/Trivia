@@ -61,10 +61,10 @@ export default function QuestionView({
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4">
-       <div className="glass p-6 sm:p-12 rounded-[2rem] shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
+       <div className="glass p-4 sm:p-12 rounded-[2rem] shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
-          <h2 className="text-xl sm:text-3xl font-bold tracking-tight leading-tight text-foreground">
+          <h2 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight text-foreground">
              &quot;{currentQuestion?.text}&quot;
           </h2>
 
