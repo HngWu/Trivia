@@ -1,5 +1,6 @@
 import React from 'react';
 import { Player } from '@/lib/types/game';
+import { GlassButton } from '../shared/GlassButton';
 
 interface LobbyViewProps {
   topic: string;
@@ -89,13 +90,13 @@ export default function LobbyView({
       <div className="mt-8 flex flex-col items-center space-y-6 w-full max-w-lg">
         <div className="w-full flex flex-col items-center space-y-3">
           {isLeader ? (
-            <button 
+            <GlassButton 
               disabled={questionsCount === 0 || isLocked} 
               onClick={onStart} 
-              className="w-full glass-button py-4 rounded-xl font-bold text-lg sm:text-xl bg-white/10 border-white/20 focus:ring-2 focus:ring-white/20 focus:outline-none"
+              className="w-full py-4 rounded-xl font-bold text-lg sm:text-xl"
             >
               {questionsCount === 0 ? "Loading questions..." : "Start game"}
-            </button>
+            </GlassButton>
           ) : (
             <div className="glass px-6 py-3 rounded-xl animate-pulse border-white/5">
               <p className="text-gray-500 font-bold text-[10px] text-center italic">Waiting for host to start...</p>
@@ -109,19 +110,19 @@ export default function LobbyView({
             <span className="text-xs font-mono text-white/40 truncate mr-4">
               {typeof window !== 'undefined' ? window.location.href : `.../room/${roomCode}`}
             </span>
-            <button 
+            <GlassButton 
               onClick={onCopy}
-              className="h-9 px-5 bg-white text-black hover:bg-gray-200 rounded-lg transition-all shadow-md group flex items-center space-x-2 shrink-0 focus:ring-2 focus:ring-white/20 focus:outline-none"
+              className="h-9 px-5 rounded-lg shadow-md group flex items-center space-x-2 shrink-0 border-white/10"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider">
                 {copied ? "Copied" : "Copy"}
               </span>
               {!copied && (
-                <svg className="w-3 h-3 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                 </svg>
               )}
-            </button>
+            </GlassButton>
           </div>
         </div>
       </div>

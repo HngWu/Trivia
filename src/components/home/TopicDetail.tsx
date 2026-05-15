@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Topic } from '@/lib/types/game';
+import { GlassButton } from '../shared/GlassButton';
 
 interface TopicDetailProps {
   topicData: Topic;
@@ -84,13 +85,13 @@ export default function TopicDetail({
           </div>
         </div>
 
-        <button
+        <GlassButton
           type="submit"
           disabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
-          className="w-full glass-button py-4 rounded-xl font-bold text-lg bg-foreground text-background hover:bg-white transition-all"
+          className="w-full py-4 rounded-xl font-bold text-lg"
         >
           {isLoading ? 'Starting game...' : 'Create room'}
-        </button>
+        </GlassButton>
       </form>
     </section>
   );

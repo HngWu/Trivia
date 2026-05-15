@@ -140,9 +140,59 @@ export async function getRoomState(code: string) {
 
 export async function updateRoomStatus(code: string, status: GameState, index?: number) {
   const normalizedCode = code.toUpperCase();
-  const room = await redis.get<Room>(`room:${normalizedCode}`);
+  const { room, players, allAnswers } = await getFullState(normalizedCode);
   if (!room) throw new Error("Room not found");
   
+  const targetIndex = index !== undefined ? index : room.current_question_index;
+  const currentQuestion = room.questions[targetIndex];
+
+  // Auto-fill missing wagers/answers when advancing
+  if (currentQuestion) {
+    const updates: Record<string, string> = {};
+    
+    if (status === "question" && room.status === "wager") {
+      // Advancing from wager to question: fill missing wagers
+      for (const p of players) {
+        const existing = allAnswers.find(a => a.player_id === p.id && a.question_id === currentQuestion.id);
+        if (!existing) {
+          const answer: Answer = {
+            player_id: p.id,
+            question_id: currentQuestion.id,
+            wager: 1, // Default
+            submitted_answer: "",
+            is_correct: false,
+          };
+          updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(answer);
+        }
+      }
+    } else if (status === "results" && room.status === "question") {
+      // Advancing from question to results: fill missing answers
+      for (const p of players) {
+        const existing = allAnswers.find(a => a.player_id === p.id && a.question_id === currentQuestion.id);
+        if (existing && existing.submitted_answer === "") {
+          existing.submitted_answer = "TIMEOUT_EXPIRED";
+          existing.is_correct = false;
+          updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(existing);
+        } else if (!existing) {
+          const answer: Answer = {
+            player_id: p.id,
+            question_id: currentQuestion.id,
+            wager: 1,
+            submitted_answer: "TIMEOUT_EXPIRED",
+            is_correct: false,
+          };
+          updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(answer);
+        }
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await redis.hset(`answers:${normalizedCode}`, updates);
+      await redis.expire(`answers:${normalizedCode}`, ROOM_TTL);
+    }
+  }
+
+  // Explicit status update: ensure we respect the intended destination
   advanceRoomState(room, { 
     status, 
     ...(index !== undefined && { current_question_index: index })
@@ -168,10 +218,11 @@ export async function submitWager(code: string, playerId: string, questionId: st
   const state = await getFullState(normalizedCode);
   if (state.room && state.room.status === "wager") {
     const qAnswers = state.allAnswers.filter(a => a.question_id === questionId);
+    // Automatic transition only if NOT a single player room (leader must push for 1 player)
+    // or if we want automatic for everyone including 1 player
     if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
        advanceRoomState(state.room, { status: "question" });
     } else {
-       // Increment version even without state change to sync player counts
        advanceRoomState(state.room, {});
     }
     await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });

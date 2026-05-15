@@ -16,6 +16,7 @@ import WagerView from "@/components/room/WagerView";
 import QuestionView from "@/components/room/QuestionView";
 import ResultsView from "@/components/room/ResultsView";
 import FinalView from "@/components/room/FinalView";
+import { GlassButton } from "@/components/shared/GlassButton";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const unwrappedParams = use(params);
@@ -28,6 +29,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [displayStatus, setDisplayStatus] = useState<GameState>("waiting");
   const scheduledUpdateRef = useRef<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [displayIndex, setDisplayIndex] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [allRoomAnswers, setAllRoomAnswers] = useState<Answer[]>([]);
@@ -72,17 +74,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     return {
       wager: myAns?.wager || null,
       answer: myAns?.submitted_answer || "",
-      results: (myAns && roomStatus === "results") ? {
-        correct: myAns.is_correct,
+      results: {
+        correct: myAns?.is_correct || false,
         answer: currentQuestion.correct_answer,
         explanation: currentQuestion.explanation,
         qId: currentQuestion.id
-      } : null,
+      },
       competitors: qAnswers,
       wagerCount: qAnswers.filter(a => a.wager > 0).length,
       answerCount: qAnswers.filter(a => a.submitted_answer !== "").length
     };
-  }, [allRoomAnswers, currentQuestion, myPlayerId, roomStatus]);
+  }, [allRoomAnswers, currentQuestion, myPlayerId]);
 
   const usedWagers = useMemo(() => {
     return allRoomAnswers.filter(a => a.player_id === myPlayerId).map(a => a.wager);
@@ -135,11 +137,18 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     const targetTime = room.status_updated_at || (Date.now() + serverOffset);
     const now = Date.now() + serverOffset;
     
-    if (now >= targetTime) setDisplayStatus(room.status as GameState);
-    else {
+    if (now >= targetTime) {
+      React.startTransition(() => {
+        setDisplayStatus(room.status as GameState);
+        setDisplayIndex(room.current_question_index);
+      });
+    } else {
       const syncLoop = () => {
         if (Date.now() + serverOffset >= targetTime) {
-          setDisplayStatus(room.status as GameState);
+          React.startTransition(() => {
+            setDisplayStatus(room.status as GameState);
+            setDisplayIndex(room.current_question_index);
+          });
           scheduledUpdateRef.current = null;
         } else scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
       };
@@ -225,17 +234,22 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
   }, [questions.length, roomCode, triggerSync]);
 
-  const handleForceAdvance = useCallback(async () => {
+  const handleForceAdvance = useCallback(async (targetStatus?: GameState) => {
     if (!isLeader) return;
-    let nextStatus: GameState = roomStatus;
-    if (roomStatus === "wager") nextStatus = "question";
-    else if (roomStatus === "question") nextStatus = "results";
     
-    if (nextStatus !== roomStatus) {
+    // Determine the next status based on current roomStatus or explicit target
+    const nextStatus = targetStatus || (roomStatus === "wager" ? "question" : "results");
+    
+    try {
       const newState = await updateRoomStatus(roomCode, nextStatus, currentIndex);
+      // Synchronize immediately for the leader to ensure responsiveness
+      applyState(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
       triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    } catch (error) { 
+      console.error("Force advance failed:", error);
+      showToast("Failed to advance stage.");
     }
-  }, [isLeader, roomStatus, currentIndex, roomCode, triggerSync]);
+  }, [isLeader, roomStatus, currentIndex, roomCode, triggerSync, applyState, showToast]);
 
   const handleJoin = useCallback(async () => {
     if (isLoading || !nickname.trim()) return;
@@ -260,6 +274,30 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);
+
+  // --- DERIVED DATA (FOR RENDERING) ---
+  const displayedQuestion = useMemo(() => questions[displayIndex], [questions, displayIndex]);
+  const displayedRoundData = useMemo(() => {
+    const q = questions[displayIndex];
+    if (!q) return { wager: null, answer: "", results: null, competitors: [] as Answer[], wagerCount: 0, answerCount: 0 };
+    
+    const qAnswers = allRoomAnswers.filter(a => a.question_id === q.id);
+    const myAns = qAnswers.find(a => a.player_id === myPlayerId);
+    
+    return {
+      wager: myAns?.wager || null,
+      answer: myAns?.submitted_answer || "",
+      results: {
+        correct: myAns?.is_correct || false,
+        answer: q.correct_answer,
+        explanation: q.explanation,
+        qId: q.id
+      },
+      competitors: qAnswers,
+      wagerCount: qAnswers.filter(a => a.wager > 0).length,
+      answerCount: qAnswers.filter(a => a.submitted_answer !== "").length
+    };
+  }, [allRoomAnswers, questions, displayIndex, myPlayerId]);
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -363,7 +401,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         </div>
         <div className="space-y-5">
           <input type="text" autoFocus value={nickname} onChange={e => setNickname(e.target.value)} placeholder="Your Nickname" onKeyDown={e => e.key === "Enter" && handleJoin()} className="w-full h-12 glass-input rounded-xl px-4 font-semibold text-lg placeholder:text-gray-500 focus:border-white transition-all text-foreground" />
-          <button onClick={handleJoin} disabled={!nickname.trim() || isLoading} className="w-full h-12 bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all active:scale-95 disabled:opacity-50">Join room</button>
+          <GlassButton onClick={handleJoin} disabled={!nickname.trim() || isLoading} className="w-full h-12 rounded-xl font-bold">Join room</GlassButton>
         </div>
       </div>
     </div>
@@ -377,43 +415,51 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   return (
     <div className="min-h-screen text-foreground flex flex-col page-transition selection:bg-white/20 overflow-y-auto relative z-10">
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-      <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} />
+      <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} displayStatus={displayStatus} />
 
-      <main key={`round-view-${currentIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-6 md:p-10 max-w-6xl mx-auto w-full relative">
-        <RoomHeader currentIndex={currentIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={currentQuestion} />
+      <main key={`round-view-${displayIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-6 md:p-10 max-w-6xl mx-auto w-full relative">
+        <RoomHeader currentIndex={displayIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={displayedQuestion} />
         <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
-        {roomStatus === "wager" && displayStatus !== "wager" && (
+        {/* Transition Overlay / Loading State */}
+        {roomStatus !== displayStatus ? (
            <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 py-12">
               <div className="relative group"><div className="w-20 h-20 border-4 border-white/[0.03] border-t-foreground rounded-full animate-spin" /></div>
               <div className="text-center space-y-2">
-                 <h2 className="text-2xl sm:text-4xl font-bold text-foreground">Preparing Next Round</h2>
+                 <h2 className="text-2xl sm:text-4xl font-bold text-foreground">
+                    {roomStatus === "results" ? "Revealing Answer" : 
+                     roomStatus === "question" ? "Revealing Question" : 
+                     roomStatus === "wager" ? "Preparing Next Round" : "Synchronizing"}
+                 </h2>
                  <p className="text-gray-600 font-bold tracking-wider text-[10px] animate-pulse italic uppercase">Setting the stage...</p>
               </div>
            </div>
-        )}
+        ) : (
+          <>
+            {displayStatus === "waiting" && (
+              <LobbyView topic={topic} players={players} roomCode={roomCode} myPlayerId={myPlayerId} roomLeaderId={roomLeaderId} isLeader={isLeader} isLocked={isLocked} questionsCount={questions.length} onKick={handleKick} onStart={handleStartGame} onCopy={handleCopyLink} copied={copied} />
+            )}
 
-        {displayStatus === "waiting" && roomStatus === "waiting" && (
-          <LobbyView topic={topic} players={players} roomCode={roomCode} myPlayerId={myPlayerId} roomLeaderId={roomLeaderId} isLeader={isLeader} isLocked={isLocked} questionsCount={questions.length} onKick={handleKick} onStart={handleStartGame} onCopy={handleCopyLink} copied={copied} />
-        )}
+            {displayStatus === "wager" && (
+              <WagerView roundData={displayedRoundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
+            )}
 
-        {displayStatus === "wager" && (
-          <WagerView roundData={roundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
-        )}
+            {displayStatus === "question" && (
+              <QuestionView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
+            )}
 
-        {displayStatus === "question" && (
-          <QuestionView currentQuestion={currentQuestion} roundData={roundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
-        )}
+            {displayStatus === "results" && (
+              <ResultsView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked} onKick={handleKick} onNextRound={handleNextRound} />
+            )}
 
-        {displayStatus === "results" && roomStatus === "results" && (
-          <ResultsView roundData={roundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked} onKick={handleKick} onNextRound={handleNextRound} />
-        )}
-
-        {displayStatus === "final" && (
-          <FinalView sortedPlayers={sortedPlayers} myPlayerId={myPlayerId} onHome={() => window.location.href = "/"} allAnswers={allRoomAnswers} questions={questions} />
+            {displayStatus === "final" && (
+              <FinalView sortedPlayers={sortedPlayers} myPlayerId={myPlayerId} onHome={() => window.location.href = "/"} allAnswers={allRoomAnswers} questions={questions} />
+            )}
+          </>
         )}
       </main>
       <footer className="p-8 text-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">TriviaDuel • v4.2-GLASS</footer>
     </div>
   );
 }
+

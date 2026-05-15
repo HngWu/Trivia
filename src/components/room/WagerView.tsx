@@ -1,5 +1,6 @@
 import React from 'react';
 import { Player } from '@/lib/types/game';
+import { GlassButton } from '../shared/GlassButton';
 
 interface WagerViewProps {
   roundData: {
@@ -11,7 +12,7 @@ interface WagerViewProps {
   usedWagers: number[];
   onSelectWager: (weight: number) => void;
   isLeader: boolean;
-  onForceAdvance: () => void;
+  onForceAdvance: (target?: any) => void;
 }
 
 export default function WagerView({ 
@@ -43,31 +44,37 @@ export default function WagerView({
 
   if (!roundData.wager) {
     return (
-      <div className="w-full max-w-4xl mx-auto space-y-6 animate-slide-up text-center py-4">
+      <div className="flex-1 flex flex-col justify-center items-center w-full max-w-4xl mx-auto space-y-6 animate-slide-up text-center py-4 min-h-[50vh]">
         <div className="space-y-1.5">
           <p className="text-gray-600 font-bold tracking-widest text-[9px] uppercase">Points at stake</p>
           <h2 className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight">How many points?</h2>
         </div>
         
-        <div className="grid grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-5 gap-3 sm:gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(weight => {
             const isUsed = usedWagers.includes(weight);
             return (
-              <button 
+              <GlassButton 
                 key={weight} 
                 disabled={isUsed || isLocked} 
                 onClick={() => onSelectWager(weight)} 
-                className={`h-16 sm:h-24 rounded-xl sm:rounded-2xl font-bold text-2xl sm:text-4xl transition-all border-2 relative overflow-hidden group shadow-lg focus:ring-2 focus:ring-white/20 focus:outline-none ${
+                className={`aspect-square p-6 sm:p-10 rounded-xl sm:rounded-3xl font-bold transition-all relative overflow-hidden group shadow-lg flex items-center justify-center ${
                   isUsed || isLocked
                   ? "bg-transparent border-white/5 text-gray-900 cursor-not-allowed" 
-                  : "glass-button hover:border-blue-400/50"
+                  : "hover:border-blue-400/50"
                 }`}
               >
-                <span className={isUsed ? "line-through opacity-20" : ""}>{weight}</span>
+                <span className={`inline-block transition-all duration-500 will-change-transform ${
+                  isUsed 
+                    ? "line-through opacity-20 text-xl sm:text-2xl" 
+                    : "text-xl sm:text-2xl group-hover:scale-[2] group-hover:-translate-y-1 group-hover:text-white"
+                }`}>
+                  {weight}
+                </span>
                 {!isUsed && !isLocked && (
                    <span className="absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{weight === 10 ? '0' : weight}]</span>
                 )}
-              </button>
+              </GlassButton>
             );
           })}
         </div>
@@ -93,13 +100,13 @@ export default function WagerView({
             </div>
 
             {isLeader && (
-              <div className="pt-6 animate-fade-in">
-                <button 
-                  onClick={onForceAdvance}
-                  className="text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 border border-white/5 glass px-4 py-2 rounded-xl text-foreground transition-all active:scale-95"
+              <div className="pt-6 animate-fade-in w-full flex justify-center">
+                <GlassButton 
+                  onClick={() => onForceAdvance("question" as any)}
+                  className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase"
                 >
-                  Next Round
-                </button>
+                  Reveal Question
+                </GlassButton>
               </div>
             )}
           </div>

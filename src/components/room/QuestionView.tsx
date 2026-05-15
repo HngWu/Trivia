@@ -1,5 +1,6 @@
 import React from 'react';
 import { Question, Player } from '@/lib/types/game';
+import { GlassButton } from '../shared/GlassButton';
 
 interface QuestionViewProps {
   currentQuestion: Question | undefined;
@@ -57,7 +58,6 @@ export default function QuestionView({
   }, [currentQuestion, isLocked, roundData.answer, onSubmitAnswer]);
 
   const booleanOptions = currentQuestion?.type === "boolean_yes_no" ? ["Yes", "No"] : ["True", "False"];
-  const getShortcut = (val: string) => currentQuestion?.type === "boolean_yes_no" ? val[0] : val[0]; // Both Y/N and T/F use first char
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4">
@@ -71,11 +71,11 @@ export default function QuestionView({
           {!roundData.answer ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {currentQuestion?.type === "multiple_choice" && currentQuestion.options?.map((option, i) => (
-                <button 
+                <GlassButton 
                   key={i} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(option)} 
-                  className="p-4 sm:p-6 rounded-xl text-left transition-all font-bold text-base sm:text-lg glass-button hover:border-blue-400/50 active:scale-95 group disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                  className="p-4 sm:p-6 rounded-xl text-left font-bold text-base sm:text-lg hover:border-blue-400/50 active:scale-95 group"
                 >
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center">
@@ -84,18 +84,18 @@ export default function QuestionView({
                     </div>
                     <span className="text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{i + 1}]</span>
                   </div>
-                </button>
+                </GlassButton>
               ))}
               {(currentQuestion?.type === "boolean" || currentQuestion?.type === "boolean_yes_no") && booleanOptions.map(val => (
-                <button 
+                <GlassButton 
                   key={val} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(val)} 
-                  className="p-8 rounded-2xl font-bold text-2xl transition-all glass-button hover:border-blue-400/50 active:scale-95 disabled:opacity-50 focus:ring-2 focus:ring-white/20 focus:outline-none group relative"
+                  className="p-8 rounded-2xl font-bold text-2xl hover:border-blue-400/50 active:scale-95 group relative"
                 >
                   {val}
                   <span className="absolute bottom-2 right-4 text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{val[0]}]</span>
-                </button>
+                </GlassButton>
               ))}
               {currentQuestion?.type === "text" && (
                 <form 
@@ -111,29 +111,29 @@ export default function QuestionView({
                     placeholder="Type your answer..." 
                     className="flex-1 w-full py-3 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/10" 
                   />
-                  <button 
+                  <GlassButton 
                     type="submit"
                     disabled={isLocked || !textAnswer.trim()}
-                    className="w-full sm:w-auto py-3 px-8 bg-foreground text-background rounded-xl font-bold text-base hover:bg-white transition-all active:scale-95"
+                    className="w-full sm:w-auto py-3 px-8 rounded-xl font-bold text-base active:scale-95"
                   >
                     Submit
-                  </button>
+                  </GlassButton>
                 </form>
               )}
             </div>
           ) : (
-            <div className="space-y-4 pt-8">
+            <div className="space-y-4 pt-8 flex flex-col items-center">
               <p className="text-foreground text-2xl sm:text-4xl font-bold tracking-tight animate-pulse italic">Answer submitted</p>
               <p className="text-gray-600 text-[10px] font-bold tracking-widest uppercase">Waiting for everyone ({roundData.answerCount}/{players.length})</p>
               
               {isLeader && (
-                <div className="pt-6 animate-fade-in">
-                  <button 
+                <div className="pt-6 animate-fade-in w-full flex justify-center">
+                  <GlassButton 
                     onClick={onForceAdvance}
-                    className="text-[10px] font-bold tracking-widest uppercase hover:bg-white/10 border border-white/5 glass px-4 py-2 rounded-xl text-foreground transition-all active:scale-95"
+                    className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase"
                   >
-                    Next Round
-                  </button>
+                    Reveal Answer
+                  </GlassButton>
                 </div>
               )}
             </div>

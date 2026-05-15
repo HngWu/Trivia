@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { addTopic, deleteTopic, updateTopic } from '@/lib/actions';
 import Toast from '@/components/shared/Toast';
 import TopicManager from '@/components/admin/TopicManager';

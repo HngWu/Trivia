@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Player, Answer, Question } from '@/lib/types/game';
 import { generateLocalRoasts } from '@/lib/roasts';
+import { GlassButton } from '../shared/GlassButton';
 
 interface FinalViewProps {
   sortedPlayers: Player[];
@@ -106,9 +107,9 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
         )}
       </div>
       
-      <button onClick={onHome} className="mt-16 sm:mt-24 glass-button px-16 sm:px-32 py-5 rounded-2xl font-bold text-xl sm:text-2xl transition-all active:scale-95 bg-white/5 border-white/10 hover:bg-foreground hover:text-background uppercase tracking-widest">
+      <GlassButton onClick={onHome} className="mt-16 sm:mt-24 px-16 sm:px-32 py-5 rounded-2xl font-bold text-xl sm:text-2xl transition-all bg-white/5 border-white/10 uppercase tracking-widest">
         Leave game
-      </button>
+      </GlassButton>
     </div>
   );
 }

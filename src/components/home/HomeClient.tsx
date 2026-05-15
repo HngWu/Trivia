@@ -10,6 +10,7 @@ import JoinGameForm from '@/components/home/JoinGameForm';
 import { AIProvider } from '@/lib/ai';
 import BackgroundToggle from '@/components/shared/BackgroundToggle';
 import { Topic } from '@/lib/types/game';
+import { GlassButton } from '@/components/shared/GlassButton';
 
 interface HomeClientProps {
   initialTopics: Topic[];
@@ -107,7 +108,7 @@ export default function HomeClient({ initialTopics }: HomeClientProps) {
   }, [initialTopics]);
 
   return (
-    <main className="min-h-screen text-foreground flex flex-col items-center p-3 sm:p-6 md:p-10 page-transition overflow-y-auto relative z-10 selection:bg-white/20">
+    <main className={`min-h-screen text-foreground flex flex-col items-center p-3 sm:p-6 md:p-10 page-transition overflow-y-auto relative z-10 selection:bg-white/20 ${(showJoinInput || selectedTopic) ? 'justify-center' : ''}`}>
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       
       <div className="absolute top-4 left-4 sm:top-6 sm:left-8 z-50">
@@ -126,18 +127,18 @@ export default function HomeClient({ initialTopics }: HomeClientProps) {
         </button>
       </div>
 
-      <div className="max-w-4xl w-full space-y-6 sm:space-y-10 relative z-10 py-4 sm:py-8">
+      <div className={`max-w-4xl w-full space-y-6 sm:space-y-10 relative z-10 py-4 sm:py-8 ${(showJoinInput || selectedTopic) ? 'flex flex-col justify-center' : ''}`}>
         {!selectedTopic && !showJoinInput && (
           <>
             <HomeHeader />
             
             <section className="w-full max-w-md mx-auto text-center">
-              <button 
+              <GlassButton 
                 onClick={() => setShowJoinInput(true)}
-                className="glass-button w-full px-10 py-3 rounded-2xl font-bold text-lg hover:bg-foreground hover:text-background transition-all focus:ring-2 focus:ring-white/20 focus:outline-none"
+                className="w-full px-10 py-3 rounded-2xl font-bold text-lg"
               >
                 Join a game
-              </button>
+              </GlassButton>
             </section>
 
             <TopicGrid 
@@ -150,15 +151,17 @@ export default function HomeClient({ initialTopics }: HomeClientProps) {
         )}
 
         {showJoinInput && (
-          <JoinGameForm 
-            nickname={nickname}
-            setNickname={setNickname}
-            roomCode={roomCode}
-            setRoomCode={setRoomCode}
-            onJoin={handleJoinRoom}
-            onBack={() => setShowJoinInput(false)}
-            isLoading={isLoading}
-          />
+          <div className="w-full">
+            <JoinGameForm 
+              nickname={nickname}
+              setNickname={setNickname}
+              roomCode={roomCode}
+              setRoomCode={setRoomCode}
+              onJoin={handleJoinRoom}
+              onBack={() => setShowJoinInput(false)}
+              isLoading={isLoading}
+            />
+          </div>
         )}
 
         {selectedTopic && selectedTopicData && (
