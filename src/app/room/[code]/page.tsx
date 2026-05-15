@@ -441,11 +441,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             )}
 
             {displayStatus === "wager" && (
-              <WagerView roundData={displayedRoundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
+              <WagerView roundData={displayedRoundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("question" as any)} />
             )}
 
             {displayStatus === "question" && (
-              <QuestionView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={handleForceAdvance} />
+              <QuestionView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("results" as any)} />
             )}
 
             {displayStatus === "results" && (
