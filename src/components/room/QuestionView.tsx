@@ -129,7 +129,7 @@ export default function QuestionView({
               {isLeader && (
                 <div className="pt-6 animate-fade-in w-full flex justify-center">
                   <GlassButton 
-                    onClick={onForceAdvance}
+                    onClick={() => onForceAdvance()}
                     className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase"
                   >
                     Reveal Answer
