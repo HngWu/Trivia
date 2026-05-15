@@ -423,7 +423,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
         {/* Transition Overlay / Loading State */}
         {roomStatus !== displayStatus ? (
-           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 py-12">
+           <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-[400px]">
               <div className="relative group"><div className="w-20 h-20 border-4 border-white/[0.03] border-t-foreground rounded-full animate-spin" /></div>
               <div className="text-center space-y-2">
                  <h2 className="text-2xl sm:text-4xl font-bold text-foreground">

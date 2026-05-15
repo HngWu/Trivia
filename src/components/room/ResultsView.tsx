@@ -90,7 +90,7 @@ export default function ResultsView({
       <div className="w-full flex justify-center mt-8">
         <Card className="w-full max-w-4xl border-white/10 bg-white/5 shadow-2xl overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-1" />
-          <CardContent className="p-8 sm:p-12 text-left space-y-6">
+          <CardContent className="p-6 sm:p-12 text-left space-y-6">
             <div className="space-y-1">
               <p className="text-green-500/60 font-bold text-xs tracking-[0.3em] uppercase">The Correct Answer</p>
               <p className="text-2xl sm:text-4xl font-black text-foreground leading-none tracking-tighter">
