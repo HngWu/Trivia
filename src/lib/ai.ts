@@ -6,13 +6,27 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || "";
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-// Extremely concise prompt to minimize token usage
-const SYSTEM_PROMPT = `You generate trivia questions in a valid JSON array of objects. 
-Properties: id (string), summary (short), text (full), type (multiple_choice/boolean/boolean_yes_no/text), options (4 strings or null), correct_answer, explanation.`;
+// High-difficulty prompt with strict summary rules
+const SYSTEM_PROMPT = `You generate professional-grade, high-difficulty trivia questions in a valid JSON array of objects. 
+Target experts and enthusiasts; avoid common knowledge, famous dates, or overly-popular facts.
+Difficulty level: 9/10. Focus on obscure details, historical nuances, secondary figures, and complex relationships.
+
+Properties: 
+- id (string)
+- summary (Short, cryptic title that sets the mood but DOES NOT give clues or reveal the answer. Example: instead of "Capital of France", use "Seine City Secrets")
+- text (The full, challenging question)
+- type (multiple_choice/boolean/boolean_yes_no/text)
+- options (4 strings or null)
+- correct_answer
+- explanation.`;
 
 const USER_PROMPT = (topic: string, count: number, excluded: string[]) => 
-  `Topic: "${topic}". Generate ${count} NEW unique questions.
-  ${excluded.length > 0 ? `DO NOT duplicate these existing questions: ${excluded.slice(0, 40).join(' | ')}` : ''}
+  `Topic: "${topic}". Generate ${count} unique, expert-level questions.
+  Requirements:
+  - High difficulty: Questions should be challenging even for well-read individuals.
+  - No Spoilers: The 'summary' field must be enigmatic and never hint at the answer.
+  - Clean Text: Do NOT include the topic name "${topic}" in the question text or options if it gives away the answer.
+  ${excluded.length > 0 ? `DO NOT duplicate these: ${excluded.slice(0, 40).join(' | ')}` : ''}
   Respond ONLY with the JSON array.`;
 
 async function generateWithGemini(topic: string, count: number, excluded: string[]): Promise<Question[] | null> {
