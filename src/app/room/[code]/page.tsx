@@ -163,17 +163,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     } catch (error) { console.error("Sync error:", error); }
   }, [roomCode, applyState]);
 
-  const triggerSync = useCallback((data?: { room: Room | null; players: Player[]; allAnswers: Answer[] }) => {
+  const triggerSync = useCallback(() => {
     if (channelRef.current) {
-      channelRef.current.send({ type: "broadcast", event: "STATE_UPDATED", payload: { t: Date.now(), state: data } });
+      channelRef.current.send({ type: "broadcast", event: "STATE_UPDATED", payload: { t: Date.now() } });
     }
   }, []);
 
   const handleKick = useCallback(async (targetPlayerId: string) => {
     if (!isLeader || targetPlayerId === myPlayerId) return;
     try {
-      const newState = await kickPlayer(roomCode, targetPlayerId, myPlayerId);
-      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      await kickPlayer(roomCode, targetPlayerId, myPlayerId);
+      triggerSync();
     } catch (error) { 
       console.error("Kick failed:", error);
       showToast("Failed to kick player."); 
@@ -187,9 +187,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     pendingSubmissionsRef.current[key] = optimisticAnswer;
     setAllRoomAnswers(prev => [...prev.filter(a => !(a.player_id === myPlayerId && a.question_id === currentQuestion.id)), optimisticAnswer]);
     try {
-      const newState = await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
+      await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
       delete pendingSubmissionsRef.current[key];
-      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      triggerSync();
     } catch (error) { 
       console.error("Wager failed:", error);
       delete pendingSubmissionsRef.current[key]; 
@@ -204,9 +204,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     pendingSubmissionsRef.current[key] = optimisticAnswer;
     setAllRoomAnswers(prev => prev.map(a => (a.player_id === myPlayerId && a.question_id === currentQuestion.id) ? optimisticAnswer : a));
     try {
-      const newState = await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
+      await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
       delete pendingSubmissionsRef.current[key];
-      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      triggerSync();
     } catch (error) { 
       console.error("Answer failed:", error);
       delete pendingSubmissionsRef.current[key]; 
@@ -224,14 +224,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (!isLeader) return;
     const nextIndex = currentIndex + 1;
     const nextStatus = nextIndex < questions.length ? "wager" : "final";
-    const newState = await updateRoomStatus(roomCode, nextStatus, nextIndex);
-    triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    await updateRoomStatus(roomCode, nextStatus, nextIndex);
+    triggerSync();
   }, [isLeader, currentIndex, questions.length, roomCode, triggerSync]);
 
   const handleStartGame = useCallback(async () => {
     if (questions.length === 0) return;
-    const newState = await updateRoomStatus(roomCode, "wager");
-    triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+    await updateRoomStatus(roomCode, "wager");
+    triggerSync();
   }, [questions.length, roomCode, triggerSync]);
 
   const handleForceAdvance = useCallback(async (targetStatus?: GameState) => {
@@ -244,7 +244,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       const newState = await updateRoomStatus(roomCode, nextStatus, currentIndex);
       // Synchronize immediately for the leader to ensure responsiveness
       applyState(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
-      triggerSync(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      triggerSync();
     } catch (error) { 
       console.error("Force advance failed:", error);
       showToast("Failed to advance stage.");
@@ -262,7 +262,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       const state = await getRoomState(roomCode);
       applyState(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
       setIsJoining(false);
-      triggerSync(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      triggerSync();
     } catch (error) { 
       console.error("Join error:", error);
       showToast("Failed to join room."); 
@@ -341,7 +341,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
              localStorage.setItem("player_id", player.id);
              const s = await getRoomState(roomCode);
              applyState(s as { room: Room | null; players: Player[]; allAnswers: Answer[] });
-             triggerSync(s as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+             triggerSync();
            } catch (error) { 
              console.error("Auto-join failed:", error);
              setIsJoining(true); 
@@ -354,10 +354,9 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     };
     initialFetch();
     const channel = supabase.channel(`game:${roomCode}`, { config: { broadcast: { self: true } } })
-      .on("broadcast", { event: "STATE_UPDATED" }, ({ payload }) => {
-         if (payload.state) applyState(payload.state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
-         else fetchData();
-      }).subscribe();
+     .on("broadcast", { event: "STATE_UPDATED" }, () => {
+        fetchData();
+     }).subscribe();
     channelRef.current = channel;
     return () => { supabase.removeChannel(channel); channelRef.current = null; };
   }, [roomCode, supabase, fetchData, applyState, triggerSync, showToast]);
@@ -441,15 +440,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             )}
 
             {displayStatus === "wager" && (
-              <WagerView roundData={displayedRoundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("question" as any)} />
+              <WagerView roundData={displayedRoundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("question" as GameState)} />
             )}
 
             {displayStatus === "question" && (
-              <QuestionView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("results" as any)} />
+              <QuestionView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("results" as GameState)} />
             )}
 
             {displayStatus === "results" && (
-              <ResultsView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked} onKick={handleKick} onNextRound={handleNextRound} />
+              <ResultsView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} onNextRound={handleNextRound} />
             )}
 
             {displayStatus === "final" && (

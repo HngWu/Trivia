@@ -54,7 +54,7 @@ export default function FluidTimer({ statusUpdatedAt, displayStatus, timer, serv
             cx="50"
             cy="50"
             r="40"
-            stroke={isLocked ? "white" : (timer < 10 ? "#ef4444" : "white")}
+            stroke={isLocked ? "white" : (timer < 10 ? "oklch(0.6 0.2 27.3)" : "white")}
             strokeWidth="4"
             fill="transparent"
             strokeDasharray="251.2"
@@ -66,7 +66,7 @@ export default function FluidTimer({ statusUpdatedAt, displayStatus, timer, serv
             cx="50"
             cy="50"
             r="40"
-            stroke={isLocked ? "white" : (timer < 10 ? "#ef4444" : "white")}
+            stroke={isLocked ? "white" : (timer < 10 ? "oklch(0.6 0.2 27.3)" : "white")}
             strokeWidth="1.5"
             fill="transparent"
             strokeDasharray="251.2"
@@ -76,10 +76,10 @@ export default function FluidTimer({ statusUpdatedAt, displayStatus, timer, serv
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`text-xl sm:text-2xl font-bold tracking-tight tabular-nums transition-all duration-300 ${isLocked ? "text-white/20 blur-sm" : (timer < 10 ? "text-red-500 animate-pulse" : "text-white")}`}>
+          <span className={`text-xl sm:text-2xl font-bold tracking-tight tabular-nums transition-all duration-300 ${isLocked ? "text-white/20 blur-sm" : (timer < 10 ? "text-destructive animate-pulse" : "text-white")}`}>
             {timer}
           </span>
-          <span className="text-[6px] font-bold tracking-wider text-gray-600 -mt-0.5">Secs</span>
+          <span className="text-[6px] font-bold tracking-wider text-muted-foreground -mt-0.5">Secs</span>
         </div>
         
         {isLocked && (

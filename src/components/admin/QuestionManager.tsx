@@ -65,17 +65,17 @@ export default function QuestionManager({
   };
 
   return (
-    <section className="glass p-6 sm:p-8 rounded-[2rem] border-white/[0.03] space-y-6 shadow-xl h-full flex flex-col">
+    <section className="glass p-6 sm:p-8 rounded-3xl border-white/[0.03] space-y-6 shadow-xl h-full flex flex-col">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-bold text-gray-500 tracking-tight">{editingId ? 'Edit question' : 'Add questions'}</h2>
+        <h2 className="text-lg font-bold text-muted-foreground tracking-tight">{editingId ? 'Edit question' : 'Add questions'}</h2>
         {!editingId && (
           <div className="flex gap-3 items-end">
              <div className="flex flex-col gap-1">
-                <label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest ml-1">Provider</label>
+                <label className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Provider</label>
                 <select 
                   value={aiProvider}
                   onChange={(e) => setAIProvider(e.target.value)}
-                  className="h-9 min-w-[80px] text-[10px] font-bold glass-input rounded-xl px-2 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-white/10"
+                  className="h-9 min-w-[80px] text-[10px] font-bold glass-input rounded-xl px-2 outline-none appearance-none cursor-pointer focus:ring-2 focus:ring-white/20 focus:outline-none"
                 >
                   <option value="auto" className="bg-background">Auto AI</option>
                   <option value="gemini" className="bg-background">Gemini</option>
@@ -83,7 +83,7 @@ export default function QuestionManager({
                 </select>
              </div>
              <div className="flex flex-col gap-1">
-                <label className="text-[7px] font-bold text-gray-600 uppercase tracking-widest ml-1">Count ({aiCount})</label>
+                <label className="text-[7px] font-bold text-muted-foreground uppercase tracking-widest ml-1">Count ({aiCount})</label>
                 <div className="flex items-center gap-2 h-9 bg-white/5 border border-white/10 rounded-xl px-3 group focus-within:border-white/20 transition-all">
                    <input 
                      type="range" 
@@ -99,7 +99,7 @@ export default function QuestionManager({
                 type="button"
                 onClick={() => onGenerate(aiProvider, aiCount)}
                 disabled={!targetTopic || isGenerating}
-                className={`h-9 font-bold tracking-widest px-4 rounded-xl transition-all active:scale-95 border text-[10px] uppercase focus:ring-2 focus:ring-white/20 focus:outline-none ${isGenerating ? 'bg-white/5 text-gray-500 border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
+                className={`h-9 font-bold tracking-widest px-4 rounded-xl transition-all active:scale-95 border text-[10px] uppercase focus:ring-2 focus:ring-white/20 focus:outline-none ${isGenerating ? 'bg-white/5 text-muted-foreground border-white/5' : 'bg-foreground text-background hover:bg-white'}`}
               >
                 {isGenerating ? "..." : "Generate AI"}
               </button>
@@ -120,12 +120,12 @@ export default function QuestionManager({
       >
         {!editingId && (
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold tracking-widest text-gray-700 ml-1 uppercase">Select topic</label>
+            <label className="text-[10px] font-bold tracking-widest text-muted-foreground ml-1 uppercase">Select topic</label>
             <select 
               required
               value={targetTopic}
               onChange={e => setTargetTopic(e.target.value)}
-              className="w-full h-11 glass-input rounded-xl px-4 font-bold text-sm bg-transparent border-white/5 text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-white/10"
+              className="w-full h-11 glass-input rounded-xl px-4 font-bold text-sm bg-transparent border-white/5 text-foreground appearance-none cursor-pointer focus:ring-2 focus:ring-white/20 focus:outline-none"
             >
               <option value="" className="bg-background">Choose a topic...</option>
               {topics.map(t => (
@@ -137,7 +137,7 @@ export default function QuestionManager({
         
         <div className="space-y-1.5">
           <div className="flex justify-between items-center px-1">
-            <label className="text-[10px] font-bold tracking-widest text-gray-700 uppercase">JSON Data</label>
+            <label className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">JSON Data</label>
             {!editingId && (
               <button 
                 type="button"
@@ -153,7 +153,7 @@ export default function QuestionManager({
             placeholder='JSON array of questions...'
             value={batchJson}
             onChange={e => setBatchJson(e.target.value)}
-            className="w-full h-64 glass-input rounded-xl p-6 font-mono text-xs text-foreground resize-none border-white/5 shadow-inner leading-relaxed focus:ring-2 focus:ring-white/10"
+            className="w-full h-64 glass-input rounded-xl p-6 font-mono text-xs text-foreground resize-none border-white/5 shadow-inner leading-relaxed focus:ring-2 focus:ring-white/20 focus:outline-none"
           />
         </div>
         
@@ -175,7 +175,7 @@ export default function QuestionManager({
 
       {targetTopic && !editingId && (
         <div className="pt-6 border-t border-white/[0.02] space-y-4">
-          <h3 className="text-[10px] font-bold tracking-widest text-gray-700 text-center uppercase">Current questions ({questions.length})</h3>
+          <h3 className="text-[10px] font-bold tracking-widest text-muted-foreground text-center uppercase">Current questions ({questions.length})</h3>
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
              {questions.map(q => (
                <div key={q.id} className="p-3 glass rounded-xl border-white/[0.02] flex items-center justify-between group hover:border-white/10 transition-all">

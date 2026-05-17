@@ -59,7 +59,7 @@ export default function DataStreamBackground({ isEnabled }: { isEnabled: boolean
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      ctx.fillStyle = '#121212'; // Lighter background
+      ctx.fillStyle = 'oklch(0.145 0 0)'; // Background color from CSS variable
       ctx.fillRect(0, 0, width, height);
 
       // Handle shockwaves

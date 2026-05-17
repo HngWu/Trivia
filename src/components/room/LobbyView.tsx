@@ -46,21 +46,21 @@ export default function LobbyView({
   return (
     <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-4">
       <div className="text-center space-y-3 mb-8">
-        <div className="flex items-center justify-center space-x-3 text-[10px] font-bold tracking-widest text-gray-700 uppercase">
+        <div className="flex items-center justify-center space-x-3 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
           <span>Selected Topic</span>
         </div>
-        <h2 className="text-3xl sm:text-5xl font-bold tracking-tight capitalize text-gray-400">
+        <h2 className="text-3xl sm:text-5xl font-bold tracking-tight capitalize text-foreground">
           {topic || "General"}
         </h2>
       </div>
       
-      <div className="glass p-5 sm:p-8 rounded-[2rem] w-full max-w-lg space-y-6 border-white/[0.03] shadow-xl relative overflow-hidden">
+      <div className="glass p-6 sm:p-8 rounded-3xl w-full max-w-lg space-y-6 border-white/[0.03] shadow-xl relative overflow-hidden">
          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
          <div className="flex justify-between items-center border-b border-white/[0.03] pb-4">
             <div className="flex flex-col">
-              <p className="text-gray-600 text-[10px] font-bold tracking-widest uppercase">Players joined ({players.length}/10)</p>
+              <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Players joined ({players.length}/10)</p>
               <div className="flex items-center mt-1 space-x-2">
-                <span className="text-[9px] font-bold text-gray-700 uppercase">Room:</span>
+                <span className="text-[9px] font-bold text-muted-foreground uppercase">Room:</span>
                 <span className="text-xs font-bold text-foreground tracking-widest font-mono bg-white/[0.03] px-2 py-0.5 rounded-lg border border-white/5">{roomCode}</span>
               </div>
             </div>
@@ -68,14 +68,14 @@ export default function LobbyView({
          </div>
          <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 no-scrollbar">
            {players.map(p => (
-             <div key={p.id} className={`flex justify-between items-center p-3 sm:p-4 rounded-xl transition-all border focus-within:ring-2 focus-within:ring-white/10 ${p.id === myPlayerId ? 'bg-white/10 border-white/20' : 'bg-white/[0.02] border-white/[0.03] hover:border-white/10'} text-foreground`}>
+             <div key={p.id} className={`flex justify-between items-center p-3 sm:p-4 rounded-xl transition-all border focus-within:ring-2 focus-within:ring-white/20 ${p.id === myPlayerId ? 'bg-white/10 border-white/20' : 'bg-white/[0.02] border-white/[0.03] hover:border-white/10'} text-foreground`}>
                 <div className="flex items-center gap-3">
                   <span className="font-bold text-base">{p.id === roomLeaderId ? "• " : ""}{p.name}</span>
                   {isLeader && p.id !== myPlayerId && (
                     <button 
                       disabled={isLocked}
                       onClick={() => onKick(p.id)}
-                      className="text-[9px] text-red-500 font-bold uppercase tracking-wider hover:text-red-400 ml-2 focus:outline-none focus:ring-1 focus:ring-red-500/50 rounded"
+                      className="text-[9px] text-destructive font-bold uppercase tracking-wider hover:text-destructive/80 ml-2 focus:outline-none focus:ring-2 focus:ring-white/20 rounded"
                     >
                       Remove
                     </button>
@@ -93,26 +93,26 @@ export default function LobbyView({
             <GlassButton 
               disabled={questionsCount === 0 || isLocked} 
               onClick={onStart} 
-              className="w-full py-4 rounded-xl font-bold text-lg sm:text-xl"
+              className="w-full py-4 rounded-xl font-bold text-lg sm:text-xl focus:ring-2 focus:ring-white/20 focus:outline-none"
             >
               {questionsCount === 0 ? "Loading questions..." : "Start game"}
             </GlassButton>
           ) : (
             <div className="glass px-6 py-3 rounded-xl animate-pulse border-white/5">
-              <p className="text-gray-500 font-bold text-[10px] text-center italic">Waiting for host to start...</p>
+              <p className="text-muted-foreground font-bold text-[10px] text-center italic">Waiting for host to start...</p>
             </div>
           )}
         </div>
 
         <div className="w-full flex flex-col items-center space-y-3">
-          <p className="text-[9px] font-bold tracking-widest text-gray-700 uppercase">Invite others</p>
-          <div className="glass flex items-center justify-between pl-5 pr-2 py-2 rounded-xl w-full border-white/[0.03] shadow-lg">
+          <p className="text-[9px] font-bold tracking-widest text-muted-foreground uppercase">Invite others</p>
+          <div className="glass flex items-center justify-between pl-6 pr-2 py-2 rounded-xl w-full border-white/[0.03] shadow-lg">
             <span className="text-xs font-mono text-white/40 truncate mr-4">
               {typeof window !== 'undefined' ? window.location.href : `.../room/${roomCode}`}
             </span>
             <GlassButton 
               onClick={onCopy}
-              className="h-9 px-5 rounded-lg shadow-md group flex items-center space-x-2 shrink-0 border-white/10"
+              className="h-9 px-5 rounded-lg shadow-md group flex items-center space-x-2 shrink-0 border-white/10 focus:ring-2 focus:ring-white/20 focus:outline-none"
             >
               <span className="text-[10px] font-bold uppercase tracking-wider">
                 {copied ? "Copied" : "Copy"}

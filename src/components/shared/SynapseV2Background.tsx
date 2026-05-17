@@ -120,7 +120,7 @@ export default function SynapseV2Background({ isEnabled }: { isEnabled: boolean 
     function render() {
       if (!ctx) return;
       ctx.clearRect(0, 0, can_w, can_h);
-      ctx.fillStyle = '#121212'; // Lightened background
+      ctx.fillStyle = 'oklch(0.145 0 0)'; // Background color from CSS variable
       ctx.fillRect(0, 0, can_w, can_h);
 
       const allBalls = [...balls, mouse_ball];

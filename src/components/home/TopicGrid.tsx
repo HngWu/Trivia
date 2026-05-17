@@ -24,22 +24,22 @@ export default function TopicGrid({ topics, selectedTopic, onSelect, isLoading }
 
   return (
     <section className="w-full max-w-4xl mx-auto space-y-6">
-      <h2 className="text-center text-[10px] font-bold tracking-[0.4em] text-gray-600 uppercase">Select a topic</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <h2 className="text-center text-[10px] font-bold tracking-[0.4em] text-muted-foreground uppercase">Select a topic</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         {topics.map((topic) => (
           <button
             key={topic.id}
             onClick={() => onSelect(topic.id)}
-            className={`group relative p-5 rounded-[1.5rem] flex flex-col items-center justify-center gap-3 transition-all duration-500 focus:ring-2 focus:ring-white/20 focus:outline-none ${
+            className={`group relative p-4 rounded-3xl flex flex-col items-center justify-center gap-4 focus:ring-2 focus:ring-white/20 focus:outline-none ${
               selectedTopic === topic.id 
                 ? 'glass border-foreground bg-white/10 scale-105 shadow-xl border-2' 
                 : 'glass-button opacity-90 hover:opacity-100'
             }`}
           >
-            <span className={`inline-block transition-all duration-500 will-change-transform origin-center ${
+            <span className={`inline-block transition-all duration-500 origin-center scale-100 ${
               selectedTopic === topic.id
                 ? "text-2xl sm:text-3xl"
-                : "text-xl sm:text-2xl group-hover:scale-[2] group-hover:-translate-y-1 group-hover:text-white"
+                : "text-xl sm:text-2xl group-hover:scale-[1.25] group-hover:-translate-y-1 group-hover:text-white"
             }`}>
               {topic.icon}
             </span>

@@ -35,10 +35,10 @@ export default function JoinGameForm({
         <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">
           Join Game
         </h2>
-        <p className="text-gray-500 font-bold tracking-widest text-[10px] uppercase">Enter a room code to play</p>
+        <p className="text-muted-foreground font-bold tracking-widest text-[10px] uppercase">Enter a room code to play</p>
       </div>
       <Card className="glass border-white/10 shadow-xl overflow-hidden">
-        <CardContent className="p-5 sm:p-6">
+        <CardContent className="p-6 sm:p-6">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Input
               type="text"
@@ -46,7 +46,7 @@ export default function JoinGameForm({
               placeholder="Your Name"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="h-10 rounded-xl px-4 font-semibold text-base bg-white/5 border-white/10 text-foreground placeholder:text-gray-500"
+              className="h-10 rounded-xl px-4 font-semibold text-base bg-white/5 border-white/10 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-white/20 focus:outline-none"
             />
             <div className="flex items-center gap-2 w-full">
               <Input
@@ -55,12 +55,12 @@ export default function JoinGameForm({
                 placeholder="Room Code"
                 value={roomCode}
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                className="flex-1 min-w-0 h-10 rounded-xl px-4 font-bold tracking-widest uppercase text-base bg-white/5 border-white/10 text-foreground placeholder:text-gray-500"
+                className="flex-1 min-w-0 h-10 rounded-xl px-4 font-bold tracking-widest uppercase text-base bg-white/5 border-white/10 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-white/20 focus:outline-none"
               />
               <GlassButton 
                 type="submit"
                 disabled={isLoading || !nickname || !roomCode}
-                className="h-10 px-5 rounded-xl font-bold text-sm whitespace-nowrap shrink-0"
+                className="h-10 px-5 rounded-xl font-bold text-sm whitespace-nowrap shrink-0 focus:ring-2 focus:ring-white/20 focus:outline-none"
               >
                 Join
               </GlassButton>
@@ -70,7 +70,7 @@ export default function JoinGameForm({
       </Card>
       <button 
         onClick={onBack}
-        className="text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground transition-colors w-full text-center mt-6"
+        className="text-[10px] font-bold tracking-widest text-muted-foreground hover:text-foreground transition-colors w-full text-center mt-6 focus:ring-2 focus:ring-white/20 focus:outline-none rounded"
       >
         ← Back to topics
       </button>

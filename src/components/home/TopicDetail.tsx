@@ -32,55 +32,55 @@ export default function TopicDetail({
   };
 
   return (
-    <section className="glass w-full max-w-2xl mx-auto p-5 rounded-[2rem] animate-slide-up space-y-5 border-white/10 shadow-xl relative overflow-hidden">
+    <section className="glass w-full max-w-2xl mx-auto p-6 rounded-3xl animate-slide-up space-y-4 border-white/10 shadow-xl relative overflow-hidden">
       <button 
         onClick={onBack}
-        className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-gray-500 hover:text-foreground mb-6 transition-colors"
+        className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-muted-foreground hover:text-foreground mb-6 transition-colors focus:ring-2 focus:ring-white/20 focus:outline-none"
       >
         ← Back to topics
       </button>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div className="flex items-center gap-4">
           <span className="text-4xl">{topicData.icon}</span>
           <h3 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{topicData.name}</h3>
         </div>
-        <p className="text-sm font-medium text-gray-400 leading-snug">
+        <p className="text-sm font-medium text-muted-foreground leading-snug">
           {topicData.description}
         </p>
       </div>
 
-      <div className="p-4 bg-white/[0.02] rounded-xl border border-white/5 space-y-1.5">
-        <span className="text-[9px] font-bold tracking-[0.2em] text-gray-600 block uppercase">Example question</span>
+      <div className="p-4 bg-white/[0.02] rounded-xl border border-white/5 space-y-2">
+        <span className="text-[9px] font-bold tracking-[0.2em] text-muted-foreground block uppercase">Example question</span>
         <p className="italic text-foreground font-semibold text-base sm:text-lg leading-tight">
           &quot;{topicData.example_question}&quot;
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 pt-2">
+      <form onSubmit={handleSubmit} className="space-y-4 pt-2">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {topicData.id === 'custom' && (
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Topic name</label>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-[10px] font-bold tracking-widest text-muted-foreground ml-1 uppercase">Topic name</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. 90s Music"
                 value={customTopic}
                 onChange={(e) => setCustomTopic(e.target.value)}
-                className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
+                className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/20 focus:outline-none"
               />
             </div>
           )}
-          <div className="space-y-1.5 sm:col-span-2">
-            <label className="text-[10px] font-bold tracking-widest text-gray-600 ml-1 uppercase">Your name</label>
+          <div className="space-y-2 sm:col-span-2">
+            <label className="text-[10px] font-bold tracking-widest text-muted-foreground ml-1 uppercase">Your name</label>
             <input
               type="text"
               required
               placeholder="Enter nickname"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground"
+              className="w-full h-10 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/20 focus:outline-none"
             />
           </div>
         </div>

@@ -17,8 +17,6 @@ interface ResultsViewProps {
   players: Player[];
   myPlayerId: string;
   isLeader: boolean;
-  isLocked: boolean;
-  onKick: (id: string) => void;
   onNextRound: () => void;
 }
 
@@ -28,8 +26,6 @@ export default function ResultsView({
   players, 
   myPlayerId, 
   isLeader,
-  isLocked,
-  onKick,
   onNextRound
 }: ResultsViewProps) {
   if (!roundData.results) return null;
@@ -55,12 +51,12 @@ export default function ResultsView({
 
             const highlightClass = isMe ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/10 text-foreground';
             const textHighlight = hasAnswered 
-              ? (isCorrect ? 'text-green-400' : 'text-red-400')
-              : 'text-gray-500';
+              ? (isCorrect ? 'text-success' : 'text-destructive')
+              : 'text-muted-foreground';
 
             const wagerHighlight = hasAnswered 
-              ? (isCorrect ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30')
-              : 'bg-white/5 text-gray-500 border-white/10';
+              ? (isCorrect ? 'bg-success/10 text-success border-success/30' : 'bg-destructive/10 text-destructive border-destructive/30')
+              : 'bg-white/5 text-muted-foreground border-white/10';
 
             return (
               <div 
@@ -92,14 +88,14 @@ export default function ResultsView({
           <div className="absolute top-0 left-0 w-full h-1" />
           <CardContent className="p-6 sm:p-12 text-left space-y-6">
             <div className="space-y-1">
-              <p className="text-green-500/60 font-bold text-xs tracking-[0.3em] uppercase">The Correct Answer</p>
+              <p className="text-success/60 font-bold text-xs tracking-[0.3em] uppercase">The Correct Answer</p>
               <p className="text-2xl sm:text-4xl font-black text-foreground leading-none tracking-tighter">
                 {roundData.results.answer}
               </p>
             </div>
             {roundData.results.explanation && (
               <div className="pt-6 border-t border-white/5">
-                <p className="text-gray-400 text-lg sm:text-xl font-medium leading-relaxed max-w-3xl italic">
+                <p className="text-muted-foreground text-lg sm:text-xl font-medium leading-relaxed max-w-3xl italic">
                   &quot;{roundData.results.explanation}&quot;
                 </p>
               </div>
@@ -110,7 +106,7 @@ export default function ResultsView({
 
       {isLeader && (
         <div className="flex flex-col items-center gap-4 mt-8 pt-4">
-          <p className="text-gray-500 text-[12px] font-bold tracking-widest animate-pulse uppercase">
+          <p className="text-muted-foreground text-[12px] font-bold tracking-widest animate-pulse uppercase">
             Next round starting soon...
           </p>
           <GlassButton 

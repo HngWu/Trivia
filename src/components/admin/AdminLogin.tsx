@@ -12,14 +12,14 @@ interface AdminLoginProps {
 export default function AdminLogin({ email, setEmail, password, setPassword, onLogin, error }: AdminLoginProps) {
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 page-transition">
-      <div className="glass p-8 sm:p-12 rounded-[2rem] w-full max-w-md space-y-6 border-white/10 shadow-xl">
+      <div className="glass p-8 sm:p-12 rounded-3xl w-full max-w-md space-y-6 border-white/10 shadow-xl">
         <div className="text-center space-y-1.5">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Admin login</h1>
-          <p className="text-gray-500 font-medium text-xs">Enter credentials to manage game settings</p>
+          <p className="text-muted-foreground font-medium text-xs">Enter credentials to manage game settings</p>
         </div>
 
         {error && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold text-center">
+          <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold text-center">
             {error}
           </div>
         )}
@@ -41,7 +41,7 @@ export default function AdminLogin({ email, setEmail, password, setPassword, onL
           />
           <button type="submit" className="w-full h-11 glass-button bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all">Sign in</button>
         </form>
-        <button onClick={() => window.location.href = "/"} className="w-full text-[10px] font-bold tracking-widest text-gray-700 hover:text-foreground transition-colors uppercase">Back to home</button>
+        <button onClick={() => window.location.href = "/"} className="w-full text-[10px] font-bold tracking-widest text-muted-foreground hover:text-foreground transition-colors uppercase">Back to home</button>
       </div>
     </main>
   );

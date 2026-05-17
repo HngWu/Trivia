@@ -61,7 +61,7 @@ export default function QuestionView({
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4">
-       <div className="glass p-4 sm:p-12 rounded-[2rem] shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
+       <div className="glass p-6 sm:p-8 rounded-3xl shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
           <h2 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight text-foreground">
@@ -75,7 +75,7 @@ export default function QuestionView({
                   key={i} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(option)} 
-                  className="p-4 sm:p-6 rounded-xl text-left font-bold text-base sm:text-lg hover:border-blue-400/50 active:scale-95 group"
+                  className="p-4 sm:p-6 rounded-xl text-left font-bold text-base sm:text-lg hover:border-white/30 active:scale-95 group focus:ring-2 focus:ring-white/20 focus:outline-none"
                 >
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center">
@@ -91,7 +91,7 @@ export default function QuestionView({
                   key={val} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(val)} 
-                  className="p-8 rounded-2xl font-bold text-2xl hover:border-blue-400/50 active:scale-95 group relative"
+                  className="p-8 rounded-2xl font-bold text-2xl hover:border-white/30 active:scale-95 group relative focus:ring-2 focus:ring-white/20 focus:outline-none"
                 >
                   {val}
                   <span className="absolute bottom-2 right-4 text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{val[0]}]</span>
@@ -100,7 +100,7 @@ export default function QuestionView({
               {currentQuestion?.type === "text" && (
                 <form 
                   onSubmit={(e) => { e.preventDefault(); onSubmitAnswer(textAnswer); }}
-                  className="col-span-full flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+                  className="col-span-full flex flex-col sm:flex-row gap-4 items-stretch sm:items-center"
                 >
                   <input 
                     type="text" 
@@ -109,12 +109,12 @@ export default function QuestionView({
                     value={textAnswer}
                     onChange={(e) => setTextAnswer(e.target.value)}
                     placeholder="Type your answer..." 
-                    className="flex-1 w-full py-3 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/10" 
+                    className="flex-1 w-full py-3 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/20 focus:outline-none" 
                   />
                   <GlassButton 
                     type="submit"
                     disabled={isLocked || !textAnswer.trim()}
-                    className="w-full sm:w-auto py-3 px-8 rounded-xl font-bold text-base active:scale-95"
+                    className="w-full sm:w-auto py-3 px-8 rounded-xl font-bold text-base active:scale-95 focus:ring-2 focus:ring-white/20 focus:outline-none"
                   >
                     Submit
                   </GlassButton>
@@ -124,13 +124,13 @@ export default function QuestionView({
           ) : (
             <div className="space-y-4 pt-8 flex flex-col items-center">
               <p className="text-foreground text-2xl sm:text-4xl font-bold tracking-tight animate-pulse italic">Answer submitted</p>
-              <p className="text-gray-600 text-[10px] font-bold tracking-widest uppercase">Waiting for everyone ({roundData.answerCount}/{players.length})</p>
+              <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Waiting for everyone ({roundData.answerCount}/{players.length})</p>
               
               {isLeader && (
                 <div className="pt-6 animate-fade-in w-full flex justify-center">
                   <GlassButton 
                     onClick={() => onForceAdvance()}
-                    className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase"
+                    className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
                   >
                     Reveal Answer
                   </GlassButton>
@@ -140,7 +140,7 @@ export default function QuestionView({
           )}
        </div>
        <div className="pt-4">
-          <span className="glass px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider text-gray-500 border-white/[0.03]">
+          <span className="glass px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-white/[0.03]">
             Your wager: <span className="text-foreground">{roundData.wager} Points</span>
           </span>
        </div>

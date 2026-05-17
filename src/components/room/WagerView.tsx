@@ -45,12 +45,12 @@ export default function WagerView({
   if (!roundData.wager) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-16rem)] w-full max-w-4xl mx-auto space-y-6 animate-slide-up text-center py-4">
-        <div className="space-y-1.5">
-          <p className="text-gray-600 font-bold tracking-widest text-[9px] uppercase">Points at stake</p>
+        <div className="space-y-2">
+           <p className="text-muted-foreground font-bold tracking-widest text-[9px] uppercase">Points at stake</p>
           <h2 className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight">How many points?</h2>
         </div>
         
-        <div className="grid grid-cols-5 gap-3 sm:gap-6">
+         <div className="grid grid-cols-5 gap-4 sm:gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(weight => {
             const isUsed = usedWagers.includes(weight);
             return (
@@ -58,10 +58,10 @@ export default function WagerView({
                 key={weight} 
                 disabled={isUsed || isLocked} 
                 onClick={() => onSelectWager(weight)} 
-                className={`aspect-square p-6 sm:p-10 rounded-xl sm:rounded-3xl font-bold transition-all relative overflow-hidden group shadow-lg flex items-center justify-center ${
+                 className={`aspect-square p-6 sm:p-10 rounded-xl sm:rounded-3xl font-bold transition-all relative overflow-hidden group shadow-lg flex items-center justify-center focus:ring-2 focus:ring-white/20 focus:outline-none ${
                   isUsed || isLocked
-                  ? "bg-transparent border-white/5 text-gray-900 cursor-not-allowed" 
-                  : "hover:border-blue-400/50"
+                  ? "bg-transparent border-white/5 text-muted-foreground cursor-not-allowed" 
+                   : "hover:border-white/30"
                 }`}
               >
                 <span className={`inline-block transition-all duration-500 will-change-transform ${
@@ -89,7 +89,7 @@ export default function WagerView({
              <p className="text-foreground text-2xl sm:text-4xl font-bold tracking-tight animate-pulse italic">Point stake locked</p>
           </div>
           <div className="space-y-4">
-            <p className="text-gray-600 font-bold text-[10px] tracking-widest uppercase">
+              <p className="text-muted-foreground font-bold text-[10px] tracking-widest uppercase">
               Waiting for others ({roundData.wagerCount}/{players.length})
             </p>
             <div className="h-1.5 w-56 bg-white/[0.03] rounded-full mx-auto overflow-hidden border border-white/[0.05]">
@@ -103,7 +103,7 @@ export default function WagerView({
               <div className="pt-6 animate-fade-in w-full flex justify-center">
                 <GlassButton 
                   onClick={() => onForceAdvance("question")}
-                  className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase"
+                    className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
                 >
                   Reveal Question
                 </GlassButton>
