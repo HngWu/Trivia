@@ -30,7 +30,7 @@ The application is built using a modern, performant, and type-safe stack:
 ### Architecture
 - **Server-Authoritative State:** All critical game logic (scoring, wager validation, answer verification) happens on the server via Next.js Server Actions. Correctness and score deltas are calculated on the server to prevent client-side manipulation.
 - **Redis Sync:** Active game sessions (rooms, players, wagers) are stored in Redis for low-latency synchronization and restored on page reloads.
-- **Supabase Persistence:** Room archival and permanent records are stored in Postgres. Supabase Broadcast is used for real-time signaling between clients.
+- **Supabase Persistence:** Room archival and permanent records are stored in Postgres. Supabase Broadcast is used for lightweight real-time signaling (signals trigger a re-fetch from Redis rather than carrying full state payloads to avoid payload size limits).
 - **Optimized Loading:** The application uses **Next.js Server Components** to pre-render topics and data, ensuring instant page loads without client-side waterfalls.
 - **Redis Caching:** Static data like Topic lists are cached in Redis with automatic cache invalidation during administrative CRUD operations, ensuring high performance.
 - **Graceful Fallback:** If Gemini AI is throttled or fails, the application automatically falls back to DeepSeek, then to a pool of high-quality "filler questions" in the database, or finally to global random scavenging.
@@ -38,6 +38,12 @@ The application is built using a modern, performant, and type-safe stack:
 ---
 
 ## Core Systems
+
+### Layout & UI Principles
+- **Balanced Vertical Centering:** The room page utilizes a viewport-aligned layout where the active interaction area (e.g., the Wager grid) is perfectly centered between the navbar and footer.
+- **Symmetric Sizing:** Navbar and footer share identical heights to create a stable, centered frame for game content.
+- **Anchored Floating Header:** The `RoomHeader` is absolutely positioned at the top of the content area, keeping it atmospheric and readable without pushing interaction elements out of the vertical center.
+- **Fixed-Position Timer:** The `FluidTimer` is fixed to the bottom-right of the viewport, ensuring it's always visible across all device sizes without requiring scrolling.
 
 ### Fuzzy Answer Matching
 The application uses a robust `validateAnswer` utility (`src/lib/validation.ts`) to provide a fair and forgiving experience:
@@ -144,7 +150,9 @@ The application employs a resilient multi-model approach for generating trivia q
 2. **Fallback Provider:** DeepSeek (`deepseek-chat`). If Gemini fails due to rate limits or errors, the system automatically falls back to DeepSeek to ensure uninterrupted gameplay.
 3. **Question Types:** Supports `multiple_choice`, `boolean`, `boolean_yes_no`, and `text`.
 4. **Mandatory Custom Topics:** If a user requests a custom topic, the system MUST generate it via AI. If AI generation fails, an error is shown instead of falling back to random database questions, ensuring topical integrity.
-5. **Personality-Driven Roasts:** The end-game roast engine assigns distinct personas (e.g., *Gordon Ramsay*, *Sarcastic Butler*) to provide unique, witty, and varied commentary for each player.
+5. **High-Difficulty Enforcement:** AI is strictly tuned to generate "Expert Level" questions (Difficulty 9/10), avoiding common knowledge and focusing on obscure details, historical nuances, and complex relationships.
+6. **Cryptic Summaries:** Question summaries (round titles) are generated to be enigmatic and atmospheric without revealing the answer (e.g., using "Seine City Secrets" instead of "Capital of France").
+7. **Personality-Driven Roasts:** The end-game roast engine assigns distinct personas (e.g., *Gordon Ramsay*, *Sarcastic Butler*) to provide unique, witty, and varied commentary for each player.
 
 ### Testing Practices
 - **TDD:** New features should include a test case in `tests/`.

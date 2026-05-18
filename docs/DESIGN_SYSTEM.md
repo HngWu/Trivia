@@ -158,8 +158,15 @@ All page layouts follow this structure:
 <RootLayout>                           {/* full viewport, dark background */}
   <DynamicBackground />                {/* atmospheric canvas (fixed, behind) */}
   <GlobalShortcuts />                  {/* keyboard event listeners */}
-  <main className="container mx-auto"> {/* centered, max-width ~1024px */}
-    <PageContent>                      {/* flex flex-col items-center justify-center */}
+  <main className="h-screen flex flex-col"> {/* full height container */}
+    <RoomNav />                        {/* sticky top, fixed height */}
+    <main className="flex-1 flex flex-col relative overflow-y-auto no-scrollbar">
+      <RoomHeader />                   {/* absolutely positioned at top */}
+      <div className="flex-1 justify-center items-center">
+        <ActiveView />                 {/* perfectly centered vertically */}
+      </div>
+    </main>
+    <Footer />                         {/* symmetrical height to RoomNav */}
   </main>
 </RootLayout>
 ```
@@ -167,8 +174,10 @@ All page layouts follow this structure:
 #### Container Rules
 - **Max-width:** 1024px for desktop, full width on mobile
 - **Horizontal padding:** 1rem (16px) on mobile, 1.5rem (24px) on tablet+
-- **Vertical padding:** 2rem (32px) minimum, 3rem (48px) preferred
-- **Centering:** Always `flex flex-col items-center justify-center` for viewport-relative layouts
+- **Vertical Centering:** Interaction content is centered within the viewport using a **symmetrical frame** (Navbar height = Footer height).
+- **Absolute Overlay (Header):** Atmospheric round info (`RoomHeader`) is removed from the flex flow via `absolute` positioning to prevent it from pushing game content out of the vertical center.
+- **Fixed Elements:** Secondary information like the `FluidTimer` is fixed to the viewport edges (e.g., bottom-right) to ensure constant visibility regardless of content height.
+- **Scroll Management:** The main content area handles internal scrolling while the root remains fixed, maintaining the "Glass" aesthetic.
 
 ---
 
