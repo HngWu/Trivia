@@ -44,7 +44,7 @@ export default function WagerView({
 
   if (!roundData.wager) {
     return (
-      <div className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto space-y-6 animate-slide-up text-center py-4">
+      <div className="w-full max-w-4xl mx-auto space-y-8 animate-slide-up text-center">
         <div className="space-y-2">
            <p className="text-muted-foreground font-bold tracking-widest text-[9px] uppercase">Points at stake</p>
           <h2 className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight">How many points?</h2>
@@ -83,8 +83,8 @@ export default function WagerView({
   }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 py-8">
-       <div className="text-center space-y-8">
+    <div className="w-full animate-fade-in space-y-10 text-center">
+       <div className="space-y-8">
           <div className="inline-block px-8 py-4 glass border-white/10 rounded-2xl shadow-xl relative overflow-hidden">
              <p className="text-foreground text-2xl sm:text-4xl font-bold tracking-tight animate-pulse italic">Point stake locked</p>
           </div>

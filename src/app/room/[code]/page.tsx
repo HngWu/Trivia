@@ -416,11 +416,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} displayStatus={displayStatus} />
 
-      <main key={`round-view-${displayIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-6 md:p-10 max-w-6xl mx-auto w-full relative overflow-y-auto no-scrollbar">
-        <RoomHeader currentIndex={displayIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={displayedQuestion} />
+      <main key={`round-view-${displayIndex}`} className="flex-1 flex flex-col items-center max-w-6xl mx-auto w-full relative overflow-y-auto no-scrollbar">
+        {/* Header is now absolute to not interfere with vertical centering of the main content */}
+        <div className="absolute top-0 left-0 w-full p-3 sm:p-6 md:p-10 pointer-events-none z-20">
+          <div className="pointer-events-auto">
+            <RoomHeader currentIndex={displayIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={displayedQuestion} />
+          </div>
+        </div>
+        
         <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
-        <div className="flex-1 w-full flex flex-col items-center justify-center min-h-0">
+        <div className="flex-1 w-full flex flex-col items-center justify-center min-h-full p-3 sm:p-6 md:p-10">
           {/* Transition Overlay / Loading State */}
           {roomStatus !== displayStatus ? (
              <div className="flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-full">
@@ -459,7 +465,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           )}
         </div>
       </main>
-      <footer className="py-4 text-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">TriviaDuel • v4.2-GLASS</footer>
+      <footer className="min-h-[4rem] sm:min-h-[5rem] flex items-center justify-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">TriviaDuel • v4.2-GLASS</footer>
     </div>
   );
 }
