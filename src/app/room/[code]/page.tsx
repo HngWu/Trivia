@@ -416,14 +416,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} displayStatus={displayStatus} />
 
-      <main key={`round-view-${displayIndex}`} className="flex-1 flex flex-col items-center justify-center p-3 sm:p-6 md:p-10 max-w-6xl mx-auto w-full relative overflow-y-auto no-scrollbar">
-        <div className="w-full flex flex-col items-center justify-center min-h-full">
-          <RoomHeader currentIndex={displayIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={displayedQuestion} />
-          <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
+      <main key={`round-view-${displayIndex}`} className="flex-1 flex flex-col items-center p-3 sm:p-6 md:p-10 max-w-6xl mx-auto w-full relative overflow-y-auto no-scrollbar">
+        <RoomHeader currentIndex={displayIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={displayedQuestion} />
+        <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
+        <div className="flex-1 w-full flex flex-col items-center justify-center min-h-0">
           {/* Transition Overlay / Loading State */}
           {roomStatus !== displayStatus ? (
-             <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-[400px]">
+             <div className="flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-full">
                 <div className="relative group"><div className="w-20 h-20 border-4 border-white/[0.03] border-t-foreground rounded-full animate-spin" /></div>
                 <div className="text-center space-y-2">
                    <h2 className="text-2xl sm:text-4xl font-bold text-foreground">
