@@ -1,4 +1,4 @@
-﻿import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -70,6 +70,35 @@ db.exec(`
   );
 
   CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lower_email ON users(lower(email));
+
+  CREATE TABLE IF NOT EXISTS active_rooms (
+    code TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS active_players (
+    room_code TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (room_code, player_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS active_answers (
+    room_code TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    data TEXT NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (room_code, player_id, question_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_active_players_room ON active_players(room_code);
+  CREATE INDEX IF NOT EXISTS idx_active_answers_room ON active_answers(room_code);
+  CREATE INDEX IF NOT EXISTS idx_active_rooms_updated_at ON active_rooms(updated_at);
 `);
 
 const hasProvider = db.prepare("SELECT value FROM system_settings WHERE key = 'db_provider'").get();
