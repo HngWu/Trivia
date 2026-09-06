@@ -14,6 +14,15 @@ jest.mock('../src/lib/redis', () => ({
   ROOM_TTL: 3600,
 }));
 
+// Mock db
+jest.mock('../src/lib/db', () => ({
+  getDatabase: jest.fn().mockResolvedValue({
+    getQuestionsForTopic: jest.fn().mockResolvedValue([
+      { id: 'q1', text: 'Test?', topic: 'test', correct_answer: 'Yes', summary: 'test', type: 'text', explanation: '' }
+    ]),
+  }),
+}));
+
 // Mock supabase
 jest.mock('../src/lib/supabase/server', () => ({
   createClient: jest.fn().mockResolvedValue({

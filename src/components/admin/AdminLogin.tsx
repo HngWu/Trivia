@@ -31,6 +31,7 @@ export default function AdminLogin({ email, setEmail, password, setPassword, onL
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full h-11 glass-input rounded-xl px-4 font-medium text-foreground" 
+            required
           />
           <input 
             type="password" 
@@ -38,9 +39,16 @@ export default function AdminLogin({ email, setEmail, password, setPassword, onL
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full h-11 glass-input rounded-xl px-4 font-medium text-foreground" 
+            required
           />
           <button type="submit" className="w-full h-11 glass-button bg-foreground text-background rounded-xl font-bold hover:bg-white transition-all">Sign in</button>
         </form>
+
+        <div className="p-3 rounded-2xl bg-white/5 border border-white/5 text-center space-y-1">
+          <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Default Local Credentials</p>
+          <p className="text-xs text-foreground font-mono">admin@trivia.local &bull; admin123</p>
+        </div>
+
         <button onClick={() => window.location.href = "/"} className="w-full text-[10px] font-bold tracking-widest text-muted-foreground hover:text-foreground transition-colors uppercase">Back to home</button>
       </div>
     </main>

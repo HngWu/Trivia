@@ -38,3 +38,7 @@ next-env.d.ts
 
 # worktrees
 .worktrees/
+
+.gemini/
+gha-creds-*.json
+data/*.db*

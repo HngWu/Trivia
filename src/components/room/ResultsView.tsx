@@ -31,11 +31,11 @@ export default function ResultsView({
   if (!roundData.results) return null;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-start w-full animate-fade-in py-4 sm:py-8 space-y-6">
+    <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-4 pt-16 sm:pt-24 sm:-translate-y-10 space-y-6">
       
       {currentQuestion && (
         <div className="text-center w-full max-w-4xl space-y-2 mb-4">
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm break-words">
             {currentQuestion.text}
           </h2>
         </div>
@@ -95,7 +95,7 @@ export default function ResultsView({
             </div>
             {roundData.results.explanation && (
               <div className="pt-6 border-t border-white/5">
-                <p className="text-muted-foreground text-lg sm:text-xl font-medium leading-relaxed max-w-3xl italic">
+                <p className="text-muted-foreground text-lg sm:text-xl font-medium leading-relaxed max-w-3xl italic break-words">
                   &quot;{roundData.results.explanation}&quot;
                 </p>
               </div>

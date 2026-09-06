@@ -8,9 +8,11 @@ describe('QuestionView Responsive Layout', () => {
   test('applies responsive padding and text classes', () => {
     const mockQuestion = {
         id: '1',
+        summary: 'Test Summary',
         text: 'Test Question',
         type: 'multiple_choice' as const,
         options: ['A', 'B', 'C', 'D'],
+        correct_answer: 'A',
         topic: 'Test'
     };
 

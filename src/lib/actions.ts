@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from "./supabase/server";
+import { getDatabase, getActiveProviderName, getActiveProviderNameSync } from "./db";
 import { redis, ROOM_TTL } from "./redis";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
@@ -37,22 +38,25 @@ function advanceRoomState(room: Room, updates: Partial<Room>) {
   room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
 }
 
+// Helper to persist room and its lightweight sync record to Redis
+async function saveRoom(normalizedCode: string, room: Room) {
+  const syncData = {
+    version: room.version || 0,
+    status: room.status,
+    status_updated_at: room.status_updated_at || Date.now(),
+    current_question_index: room.current_question_index ?? 0,
+  };
+  await Promise.all([
+    redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL }),
+    redis.set(`room_sync:${normalizedCode}`, syncData, { ex: ROOM_TTL }),
+  ]);
+}
+
 export async function createRoom(topic: string, leaderName: string, provider: AIProvider = "auto", count: number = 10) {
-  const supabase = await createClient();
+  const db = await getDatabase();
   const normalizedTopic = topic.toLowerCase();
   
-  const { data: allQuestions } = await supabase
-    .from("questions")
-    .select("*")
-    .eq("topic", normalizedTopic);
-    
-  let questions = allQuestions;
-
-  if (questions && questions.length > 0) {
-    questions = questions
-      .sort(() => Math.random() - 0.5)
-      .slice(0, count);
-  }
+  let questions = await db.getQuestionsForTopic(normalizedTopic, count);
     
   if (!questions || questions.length === 0) {
     try {
@@ -97,9 +101,11 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
     version: 1
   };
   
-  await redis.set(`room:${code}`, roomData, { ex: ROOM_TTL });
-  await redis.hset(`players:${code}`, { [player.id]: JSON.stringify(player) });
-  await redis.expire(`players:${code}`, ROOM_TTL);
+  await Promise.all([
+    saveRoom(code, roomData),
+    redis.hset(`players:${code}`, { [player.id]: JSON.stringify(player) }),
+    redis.expire(`players:${code}`, ROOM_TTL),
+  ]);
   
   return { room: roomData, player };
 }
@@ -128,7 +134,7 @@ export async function joinRoom(code: string, playerName: string) {
   
   await Promise.all([
     redis.hset(`players:${normalizedCode}`, { [player.id]: JSON.stringify(player) }),
-    redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL })
+    saveRoom(normalizedCode, room)
   ]);
   
   return { room, player };
@@ -198,7 +204,7 @@ export async function updateRoomStatus(code: string, status: GameState, index?: 
     ...(index !== undefined && { current_question_index: index })
   });
   
-  await redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL });
+  await saveRoom(normalizedCode, room);
   return await getFullState(normalizedCode);
 }
 
@@ -225,7 +231,7 @@ export async function submitWager(code: string, playerId: string, questionId: st
     } else {
        advanceRoomState(state.room, {});
     }
-    await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
+    await saveRoom(normalizedCode, state.room);
     return await getFullState(normalizedCode);
   }
   return state;
@@ -271,7 +277,7 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
        // Increment version even without state change to sync player counts
        advanceRoomState(state.room, {});
     }
-    await redis.set(`room:${normalizedCode}`, state.room, { ex: ROOM_TTL });
+    await saveRoom(normalizedCode, state.room);
     return await getFullState(normalizedCode);
   }
   return state;
@@ -295,20 +301,147 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
 
   // Increment room version to trigger UI sync for everyone (especially the kicked player)
   advanceRoomState(room, {});
-  await redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL });
+  await saveRoom(normalizedCode, room);
 
   return await getFullState(normalizedCode);
 }
 
+// Lightweight sync check for Redis fallback
+export async function getRoomSync(code: string): Promise<{
+  version: number;
+  statusUpdatedAt: number;
+  status: GameState;
+  currentQuestionIndex: number;
+} | null> {
+  const normalizedCode = code.toUpperCase();
+  try {
+    const sync = await redis.get<{
+      version: number;
+      status_updated_at: number;
+      status: GameState;
+      current_question_index: number;
+    }>(`room_sync:${normalizedCode}`);
+
+    if (sync) {
+      return {
+        version: sync.version || 0,
+        statusUpdatedAt: sync.status_updated_at || 0,
+        status: sync.status,
+        currentQuestionIndex: sync.current_question_index ?? 0,
+      };
+    }
+
+    const room = await redis.get<Room>(`room:${normalizedCode}`);
+    if (!room) return null;
+    return {
+      version: room.version || 0,
+      statusUpdatedAt: room.status_updated_at || 0,
+      status: room.status,
+      currentQuestionIndex: room.current_question_index ?? 0,
+    };
+  } catch (error) {
+    console.error("[Redis] getRoomSync error:", error);
+    return null;
+  }
+}
+
+// Explicit Redis sync trigger for fallback signaling
+export async function touchRoomSync(code: string): Promise<number> {
+  const normalizedCode = code.toUpperCase();
+  try {
+    const room = await redis.get<Room>(`room:${normalizedCode}`);
+    if (!room) return 0;
+    advanceRoomState(room, {});
+    await saveRoom(normalizedCode, room);
+    return room.version || 0;
+  } catch (error) {
+    console.error("[Redis] touchRoomSync error:", error);
+    return 0;
+  }
+}
+
+// Ultra-fast in-memory cache for topics (0.001ms response time)
+let inMemoryTopics: Topic[] | null = null;
+let inMemoryTopicsTime = 0;
+const IN_MEMORY_TOPICS_TTL = 300_000; // 5 minutes
+
+// Circuit breaker for Redis operations
+let redisFailureTimestamp = 0;
+const REDIS_COOLDOWN_MS = 60_000; // 60 seconds cooldown after a failure
+
+export async function safeRedisOp<T>(op: () => Promise<T>, timeoutMs = 300): Promise<T | null> {
+  // If active provider is SQLite, skip Redis entirely to avoid network latency and offline errors
+  if (getActiveProviderNameSync() === 'sqlite') {
+    return null;
+  }
+  // If recently failed, skip without waiting
+  if (Date.now() - redisFailureTimestamp < REDIS_COOLDOWN_MS) {
+    return null;
+  }
+  try {
+    const result = await Promise.race([
+      op(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Redis timeout')), timeoutMs)
+      )
+    ]);
+    return result;
+  } catch (err) {
+    redisFailureTimestamp = Date.now();
+    console.warn('[Redis] Operation failed or timed out, tripping circuit breaker:', (err as Error).message);
+    return null;
+  }
+}
+
+export async function invalidateTopicCache() {
+  inMemoryTopics = null;
+  inMemoryTopicsTime = 0;
+}
+
 export const getTopics = cache(async (): Promise<Topic[]> => {
   try {
-    const cached = await redis.get<Topic[]>(TOPICS_CACHE_KEY);
-    if (cached) return cached;
+    // 1. Return in-memory cached topics immediately if fresh
+    if (inMemoryTopics && inMemoryTopics.length > 0 && (Date.now() - inMemoryTopicsTime < IN_MEMORY_TOPICS_TTL)) {
+      return inMemoryTopics;
+    }
 
-    const supabase = await createClient();
-    const { data: topics } = await supabase.from("topics").select("*").order("name");
-    const result = topics || [];
-    await redis.set(TOPICS_CACHE_KEY, result, { ex: 86400 });
+    // 2. For non-sqlite providers, check Redis with circuit breaker & 300ms timeout
+    if (getActiveProviderNameSync() !== 'sqlite') {
+      const cached = await safeRedisOp(() => redis.get<Topic[]>(TOPICS_CACHE_KEY), 300);
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        const result = cached.map(t => ({
+          id: String(t.id),
+          name: String(t.name),
+          icon: String(t.icon),
+          description: t.description ? String(t.description) : undefined,
+          example_question: t.example_question ? String(t.example_question) : undefined
+        }));
+        inMemoryTopics = result;
+        inMemoryTopicsTime = Date.now();
+        return result;
+      }
+    }
+
+    // 3. Query active database (local SQLite completes in <0.1ms)
+    const db = await getDatabase();
+    const topics = await db.getTopics();
+    const result = (topics || []).map(t => ({
+      id: String(t.id),
+      name: String(t.name),
+      icon: String(t.icon),
+      description: t.description ? String(t.description) : undefined,
+      example_question: t.example_question ? String(t.example_question) : undefined
+    }));
+
+    // Cache in process memory
+    inMemoryTopics = result;
+    inMemoryTopicsTime = Date.now();
+
+    // Asynchronously write to Redis for cloud sync without awaiting/blocking
+    if (getActiveProviderNameSync() !== 'sqlite') {
+      safeRedisOp(() => redis.set(TOPICS_CACHE_KEY, result, { ex: 86400 }), 300).catch(() => {});
+    }
+
     return result;
   } catch (error) {
     console.error("Fetch Topics Error:", error);
@@ -317,81 +450,80 @@ export const getTopics = cache(async (): Promise<Topic[]> => {
 });
 
 export async function addTopic(topic: Topic) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("topics").insert([topic]);
-  if (error) throw error;
-  await redis.del(TOPICS_CACHE_KEY);
+  const db = await getDatabase();
+  await db.addTopic(topic);
+  invalidateTopicCache();
+  if (getActiveProviderNameSync() !== 'sqlite') {
+    safeRedisOp(() => redis.del(TOPICS_CACHE_KEY), 300).catch(() => {});
+  }
 }
 
 export async function addQuestions(questions: Question[]) {
-  const supabase = await createClient();
-  
-  // 1. Identify which questions already exist in the DB by their text
-  const texts = questions.map(q => q.text);
-  const { data: existing } = await supabase.from("questions").select("text").in("text", texts);
-  const existingTexts = new Set(existing?.map(e => e.text) || []);
-  
-  // 2. Filter out duplicates and sanitize for insertion
-  const sanitizedQuestions = questions
-    .filter(q => !existingTexts.has(q.text))
-    .map(q => ({
-      topic: q.topic,
-      summary: q.summary,
-      text: q.text,
-      type: q.type,
-      options: q.options || null,
-      correct_answer: q.correct_answer,
-      explanation: q.explanation || "No explanation provided."
-    }));
-
-  if (sanitizedQuestions.length === 0) {
-    return { count: 0, message: "All questions in this batch are already in the database." };
-  }
-
-  // 3. Perform batch insert
-  const { error } = await supabase.from("questions").insert(sanitizedQuestions);
-  
-  if (error) {
-    console.error("Database Insert Error:", error);
-    throw new Error(`Failed to upload questions: ${error.message}`);
-  }
-
-  return { 
-    count: sanitizedQuestions.length, 
-    message: `Successfully added ${sanitizedQuestions.length} new questions.` 
-  };
+  const db = await getDatabase();
+  return await db.addQuestions(questions);
 }
 
 export async function deleteTopic(id: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("topics").delete().eq("id", id);
-  if (error) throw error;
-  await redis.del(TOPICS_CACHE_KEY);
+  const db = await getDatabase();
+  await db.deleteTopic(id);
+  invalidateTopicCache();
+  if (getActiveProviderNameSync() !== 'sqlite') {
+    safeRedisOp(() => redis.del(TOPICS_CACHE_KEY), 300).catch(() => {});
+  }
 }
 
 export async function updateTopic(id: string, updates: Partial<Topic>) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("topics").update(updates).eq("id", id);
-  if (error) throw error;
-  await redis.del(TOPICS_CACHE_KEY);
+  const db = await getDatabase();
+  await db.updateTopic(id, updates);
+  invalidateTopicCache();
+  if (getActiveProviderNameSync() !== 'sqlite') {
+    safeRedisOp(() => redis.del(TOPICS_CACHE_KEY), 300).catch(() => {});
+  }
 }
 
 export async function deleteQuestion(id: string) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("questions").delete().eq("id", id);
-  if (error) throw error;
+  const db = await getDatabase();
+  await db.deleteQuestion(id);
 }
 
 export async function updateQuestion(id: string, updates: Partial<Question>) {
-  const supabase = await createClient();
-  const { error } = await supabase.from("questions").update(updates).eq("id", id);
-  if (error) throw error;
+  const db = await getDatabase();
+  await db.updateQuestion(id, updates);
 }
 
 export async function getQuestionsByTopic(topicId: string): Promise<Question[]> {
-  const supabase = await createClient();
-  const { data } = await supabase.from("questions").select("*").eq("topic", topicId).order("created_at", { ascending: false });
-  return data || [];
+  const db = await getDatabase();
+  const questions = await db.getQuestionsByTopic(topicId);
+  return (questions || []).map(q => ({
+    id: String(q.id),
+    topic: String(q.topic),
+    summary: String(q.summary),
+    text: String(q.text),
+    type: q.type,
+    options: q.options ? [...q.options] : null,
+    correct_answer: String(q.correct_answer),
+    explanation: q.explanation ? String(q.explanation) : undefined
+  }));
+}
+
+export async function getQuestionCountsByTopic(): Promise<Record<string, number>> {
+  const db = await getDatabase();
+  return await db.getQuestionCountsByTopic();
+}
+
+export async function getAllQuestions(limit: number = 100): Promise<Question[]> {
+  const db = await getDatabase();
+  const questions = await db.getAllQuestions(limit);
+  return (questions || []).map(q => ({
+    id: String(q.id),
+    topic: String(q.topic),
+    summary: String(q.summary),
+    text: String(q.text),
+    type: q.type,
+    options: q.options ? [...q.options] : null,
+    correct_answer: String(q.correct_answer),
+    explanation: q.explanation ? String(q.explanation) : undefined
+  }));
 }
 
 export async function getMatchRoasts(playerHistory: { name: string, wrongAnswers: { question: string, answer: string, correct: string }[] }[]) {

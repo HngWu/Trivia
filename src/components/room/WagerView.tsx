@@ -44,46 +44,50 @@ export default function WagerView({
 
   if (!roundData.wager) {
     return (
-      <div className="w-full max-w-4xl mx-auto space-y-8 animate-slide-up text-center">
-        <div className="space-y-2">
+      <div className="w-full h-full flex flex-col max-w-4xl mx-auto animate-slide-up text-center relative">
+        {/* Header - Positioned below the RoomHeader to avoid overlap */}
+        <div className="w-full absolute top-16 sm:top-24 left-0 z-10 pointer-events-none">
            <p className="text-muted-foreground font-bold tracking-widest text-[9px] uppercase">Points at stake</p>
           <h2 className="text-2xl sm:text-4xl font-bold text-foreground tracking-tight">How many points?</h2>
         </div>
         
-         <div className="grid grid-cols-5 gap-4 sm:gap-6">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(weight => {
-            const isUsed = usedWagers.includes(weight);
-            return (
-              <GlassButton 
-                key={weight} 
-                disabled={isUsed || isLocked} 
-                onClick={() => onSelectWager(weight)} 
-                 className={`aspect-square p-6 sm:p-10 rounded-xl sm:rounded-3xl font-bold transition-all relative overflow-hidden group shadow-lg flex items-center justify-center focus:ring-2 focus:ring-white/20 focus:outline-none ${
-                  isUsed || isLocked
-                  ? "bg-transparent border-white/5 text-muted-foreground cursor-not-allowed" 
-                   : "hover:border-white/30"
-                }`}
-              >
-                <span className={`inline-block transition-all duration-500 will-change-transform ${
-                  isUsed 
-                    ? "line-through opacity-20 text-xl sm:text-2xl" 
-                    : "text-xl sm:text-2xl group-hover:scale-[2] group-hover:-translate-y-1 group-hover:text-white"
-                }`}>
-                  {weight}
-                </span>
-                {!isUsed && !isLocked && (
-                   <span className="absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{weight === 10 ? '0' : weight}]</span>
-                )}
-              </GlassButton>
-            );
-          })}
+        {/* Grid Container - Perfectly centered in the full height, adjusted for navbar visual weight */}
+        <div className="flex-1 flex items-center justify-center sm:-translate-y-10">
+          <div className="grid grid-cols-5 gap-4 sm:gap-6 w-full">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(weight => {
+              const isUsed = usedWagers.includes(weight);
+              return (
+                <GlassButton 
+                  key={weight} 
+                  disabled={isUsed || isLocked} 
+                  onClick={() => onSelectWager(weight)} 
+                  className={`aspect-square p-6 sm:p-10 rounded-xl sm:rounded-3xl font-bold transition-all relative overflow-hidden group shadow-lg flex items-center justify-center focus:ring-2 focus:ring-white/20 focus:outline-none ${
+                    isUsed || isLocked
+                    ? "bg-transparent border-white/5 text-muted-foreground cursor-not-allowed" 
+                    : "hover:border-white/30"
+                  }`}
+                >
+                  <span className={`inline-block transition-all duration-500 will-change-transform ${
+                    isUsed 
+                      ? "line-through opacity-20 text-xl sm:text-2xl" 
+                      : "text-xl sm:text-2xl group-hover:scale-125 group-hover:-translate-y-1 group-hover:text-white"
+                  }`}>
+                    {weight}
+                  </span>
+                  {!isUsed && !isLocked && (
+                    <span className="absolute bottom-1 right-2 text-[8px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{weight === 10 ? '0' : weight}]</span>
+                  )}
+                </GlassButton>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full animate-fade-in space-y-10 text-center">
+    <div className="w-full animate-fade-in space-y-10 text-center sm:-translate-y-10">
        <div className="space-y-8">
           <div className="inline-block px-8 py-4 glass border-white/10 rounded-2xl shadow-xl relative overflow-hidden">
              <p className="text-foreground text-2xl sm:text-4xl font-bold tracking-tight animate-pulse italic">Point stake locked</p>

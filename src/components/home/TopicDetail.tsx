@@ -90,7 +90,9 @@ export default function TopicDetail({
           disabled={!nickname || (topicData.id === 'custom' && !customTopic) || isLoading}
           className="w-full py-4 rounded-xl font-bold text-lg"
         >
-          {isLoading ? 'Starting game...' : 'Create room'}
+          {isLoading 
+            ? (topicData.id === 'custom' ? 'AI is curating questions...' : 'Starting game...') 
+            : 'Create room'}
         </GlassButton>
       </form>
     </section>

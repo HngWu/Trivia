@@ -51,10 +51,19 @@ describe('Sync Logic Transitions', () => {
 
   beforeEach(() => {
     jest.useFakeTimers();
+    mockedActions.getServerTime.mockResolvedValue(Date.now());
+    mockedActions.getRoomSync.mockResolvedValue({
+      version: 1,
+      statusUpdatedAt: Date.now(),
+      status: 'waiting',
+      currentQuestionIndex: 0,
+    });
+    mockedActions.touchRoomSync.mockResolvedValue(1);
     mockChannel = {
       on: jest.fn().mockReturnThis(),
       subscribe: jest.fn().mockReturnThis(),
-      send: jest.fn(),
+      send: jest.fn().mockResolvedValue('ok'),
+      httpSend: jest.fn().mockResolvedValue({ success: true }),
     };
     mockedCreateClient.mockReturnValue({
       channel: () => mockChannel as RealtimeChannel,

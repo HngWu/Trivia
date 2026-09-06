@@ -7,6 +7,7 @@ export type Question = {
   options: string[] | null;
   correct_answer: string;
   explanation?: string;
+  created_at?: string;
 };
 
 export type Player = {

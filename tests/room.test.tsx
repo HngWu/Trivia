@@ -31,6 +31,9 @@ jest.mock('../src/lib/actions', () => ({
   updateRoomStatus: jest.fn(),
   submitWager: jest.fn(),
   submitAnswer: jest.fn(),
+  getServerTime: jest.fn().mockResolvedValue(Date.now()),
+  getRoomSync: jest.fn().mockResolvedValue({ version: 1, statusUpdatedAt: Date.now(), status: 'waiting', currentQuestionIndex: 0 }),
+  touchRoomSync: jest.fn().mockResolvedValue(1),
 }));
 
 import RoomPage from '../src/app/room/[code]/page'

@@ -60,11 +60,11 @@ export default function QuestionView({
   const booleanOptions = currentQuestion?.type === "boolean_yes_no" ? ["Yes", "No"] : ["True", "False"];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4">
+    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4 pt-16 sm:pt-24 sm:-translate-y-10">
        <div className="glass p-6 sm:p-8 rounded-3xl shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
-          <h2 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight text-foreground">
+          <h2 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight text-foreground break-words max-w-full">
              &quot;{currentQuestion?.text}&quot;
           </h2>
 
@@ -75,14 +75,14 @@ export default function QuestionView({
                   key={i} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(option)} 
-                  className="p-4 sm:p-6 rounded-xl text-left font-bold text-base sm:text-lg hover:border-white/30 active:scale-95 group focus:ring-2 focus:ring-white/20 focus:outline-none"
+                  className="p-4 sm:p-6 rounded-xl text-left font-bold text-base sm:text-lg hover:border-white/30 active:scale-95 group focus:ring-2 focus:ring-white/20 focus:outline-none h-auto"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center">
-                      <span className="mr-3 opacity-20 font-bold group-hover:opacity-100 transition-all">{String.fromCharCode(65 + i)}</span> 
-                      {option}
+                  <div className="flex items-start justify-between w-full gap-2">
+                    <div className="flex items-start">
+                      <span className="mr-3 opacity-20 font-bold group-hover:opacity-100 transition-all shrink-0">{String.fromCharCode(65 + i)}</span> 
+                      <span className="break-words">{option}</span>
                     </div>
-                    <span className="text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{i + 1}]</span>
+                    <span className="text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono shrink-0 mt-1">[{i + 1}]</span>
                   </div>
                 </GlassButton>
               ))}

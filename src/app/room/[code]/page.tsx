@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use, useMemo, useRef, useCallback } from "react";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, kickPlayer, getServerTime } from "@/lib/actions";
+import { getRoomState, updateRoomStatus, submitWager, submitAnswer, joinRoom, kickPlayer, getServerTime, getRoomSync, touchRoomSync } from "@/lib/actions";
 import { Player, Question, Answer, GameState, Room } from "@/lib/types/game";
 import { validateAnswer } from "@/lib/validation";
 
@@ -56,6 +56,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const currentIndexRef = useRef(0);
   const pendingSubmissionsRef = useRef<Record<string, Answer>>({});
   const lastSyncTimeRef = useRef(0);
+  const isRealtimeConnectedRef = useRef(false);
+  const isSyncingRef = useRef(false);
 
   // --- DERIVED DATA ---
   const currentQuestion = useMemo(() => questions[currentIndex], [questions, currentIndex]);
@@ -163,11 +165,53 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     } catch (error) { console.error("Sync error:", error); }
   }, [roomCode, applyState]);
 
-  const triggerSync = useCallback(() => {
-    if (channelRef.current) {
-      channelRef.current.send({ type: "broadcast", event: "STATE_UPDATED", payload: { t: Date.now() } });
+  const triggerSync = useCallback(async () => {
+    const payload = { t: Date.now() };
+    const channel = channelRef.current;
+    let delivered = false;
+
+    if (channel) {
+      // Check if WebSocket connection is joined and ready to push broadcast messages
+      const canPush = Boolean(
+        (channel as any).channelAdapter?.canPush?.() ??
+        (channel.state === "joined")
+      );
+
+      if (canPush) {
+        try {
+          const res = await channel.send({
+            type: "broadcast",
+            event: "STATE_UPDATED",
+            payload,
+          });
+          if (res === "ok") delivered = true;
+        } catch (err) {
+          console.warn("[Realtime] WebSocket broadcast failed, attempting httpSend fallback:", err);
+        }
+      }
+
+      // If WebSocket is not ready or send failed, explicitly use httpSend for REST delivery to avoid deprecation warning
+      if (!delivered && typeof channel.httpSend === "function") {
+        try {
+          const res = await channel.httpSend("STATE_UPDATED", payload);
+          if (res && (res.success || (res as any).status === 202)) {
+            delivered = true;
+          }
+        } catch (err) {
+          console.warn("[Realtime] httpSend failed:", err);
+        }
+      }
     }
-  }, []);
+
+    // Redis Fallback: If Realtime broadcast was not delivered, signal update through Redis fallback
+    if (!delivered) {
+      try {
+        await touchRoomSync(roomCode);
+      } catch (err) {
+        console.warn("[Realtime] Redis touch fallback failed:", err);
+      }
+    }
+  }, [roomCode]);
 
   const handleKick = useCallback(async (targetPlayerId: string) => {
     if (!isLeader || targetPlayerId === myPlayerId) return;
@@ -354,19 +398,64 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     };
     initialFetch();
     const channel = supabase.channel(`game:${roomCode}`, { config: { broadcast: { self: true } } })
-     .on("broadcast", { event: "STATE_UPDATED" }, () => {
+      .on("broadcast", { event: "STATE_UPDATED" }, () => {
         fetchData();
-     }).subscribe();
+      })
+      .subscribe((status, err) => {
+        if (status === "SUBSCRIBED") {
+          isRealtimeConnectedRef.current = true;
+        } else {
+          isRealtimeConnectedRef.current = false;
+          if (err) {
+            console.warn(`[Realtime] Subscription status: ${status}`, err);
+          }
+        }
+      });
     channelRef.current = channel;
-    return () => { supabase.removeChannel(channel); channelRef.current = null; };
+    return () => { 
+      isRealtimeConnectedRef.current = false;
+      supabase.removeChannel(channel); 
+      channelRef.current = null; 
+    };
   }, [roomCode, supabase, fetchData, applyState, triggerSync, showToast]);
 
+  // Redis fallback sync loop:
+  // Dynamically adapts based on Supabase Realtime connection health.
+  // When Realtime is active, runs as a relaxed background safety check (every 3.5s).
+  // When Realtime is disconnected/degraded, actively polls Redis (every 1s) to ensure instant synchronization.
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isLoading && roomStatus !== "final" && Date.now() - lastSyncTimeRef.current > 3000) fetchData();
-    }, 5000);
+    if (isLoading || roomStatus === "final") return;
+
+    const interval = setInterval(async () => {
+      if (isSyncingRef.current) return;
+      const now = Date.now();
+      const timeSinceLastSync = now - lastSyncTimeRef.current;
+      const minThreshold = isRealtimeConnectedRef.current ? 3500 : 1000;
+
+      if (timeSinceLastSync < minThreshold) return;
+
+      isSyncingRef.current = true;
+      try {
+        const sync = await getRoomSync(roomCode);
+        if (sync) {
+          if (sync.version > currentVersionRef.current) {
+            await fetchData();
+          }
+        } else if (timeSinceLastSync > 5000) {
+          await fetchData();
+        }
+      } catch (err) {
+        console.warn("[Redis Fallback] Sync check error:", err);
+        if (timeSinceLastSync > 6000) {
+          await fetchData().catch(() => {});
+        }
+      } finally {
+        isSyncingRef.current = false;
+      }
+    }, 1000);
+
     return () => clearInterval(interval);
-  }, [isLoading, roomStatus, fetchData]);
+  }, [isLoading, roomStatus, roomCode, fetchData]);
 
   useEffect(() => {
     if (roomStatus === "waiting" || roomStatus === "final" || isLoading || !statusUpdatedAt) return;
@@ -417,8 +506,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       <RoomNav roomCode={roomCode} myPlayerId={myPlayerId} displayedMyPlayer={displayedMyPlayer} displayedSortedPlayers={displayedSortedPlayers} onHome={() => window.location.href = "/"} displayStatus={displayStatus} />
 
       <main key={`round-view-${displayIndex}`} className="flex-1 flex flex-col items-center max-w-6xl mx-auto w-full relative overflow-y-auto no-scrollbar">
-        {/* Header is now absolute to not interfere with vertical centering of the main content */}
-        <div className="absolute top-0 left-0 w-full p-3 sm:p-6 md:p-10 pointer-events-none z-20">
+        {/* Header is now absolute to ensure it doesn't push content down, allowing for true vertical centering */}
+        <div className="absolute top-0 left-0 w-full p-3 sm:p-6 md:p-10 z-20 pointer-events-none">
           <div className="pointer-events-auto">
             <RoomHeader currentIndex={displayIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={displayedQuestion} />
           </div>
@@ -426,7 +515,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         
         <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
-        <div className="flex-1 w-full flex flex-col items-center justify-center min-h-full p-3 sm:p-6 md:p-10">
+        <div className="flex-1 w-full flex flex-col items-center justify-center min-h-[50vh] p-3 sm:p-6 md:p-10">
           {/* Transition Overlay / Loading State */}
           {roomStatus !== displayStatus ? (
              <div className="flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-full">

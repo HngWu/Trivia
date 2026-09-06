@@ -14,9 +14,9 @@ Difficulty level: 9/10. Focus on obscure details, historical nuances, secondary 
 Properties: 
 - id (string)
 - summary (Short, cryptic title that sets the mood but DOES NOT give clues or reveal the answer. Example: instead of "Capital of France", use "Seine City Secrets")
-- text (The full, challenging question)
+- text (The full, challenging question. KEEP IT CONCISE: Max 160 characters.)
 - type (multiple_choice/boolean/boolean_yes_no/text)
-- options (4 strings or null)
+- options (4 strings or null. KEEP OPTIONS CONCISE: Max 60 characters each.)
 - correct_answer
 - explanation.`;
 
@@ -32,7 +32,7 @@ const USER_PROMPT = (topic: string, count: number, excluded: string[]) =>
 async function generateWithGemini(topic: string, count: number, excluded: string[]): Promise<Question[] | null> {
   if (!GEMINI_API_KEY) return null;
   const model = genAI.getGenerativeModel({ 
-    model: "gemini-3-flash-preview",
+    model: "gemini-2.5-flash-preview",
     systemInstruction: SYSTEM_PROMPT 
   });
 
@@ -134,7 +134,7 @@ export async function generateRoasts(playerHistory: { name: string, wrongAnswers
   // Try Gemini first
   if (GEMINI_API_KEY) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
       const result = await model.generateContent(prompt);
       const text = result.response.text();
       
