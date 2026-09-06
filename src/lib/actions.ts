@@ -1,8 +1,7 @@
 'use server';
 
-import { createClient } from "./supabase/server";
-import { getDatabase, getActiveProviderName, getActiveProviderNameSync } from "./db";
-import { redis, ROOM_TTL } from "./redis";
+import { getDatabase, getActiveProviderNameSync } from "./db";
+import { redis } from "./redis";
 import { gameStore } from "./game-store";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
