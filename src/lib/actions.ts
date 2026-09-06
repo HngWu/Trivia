@@ -3,6 +3,7 @@
 import { createClient } from "./supabase/server";
 import { getDatabase, getActiveProviderName, getActiveProviderNameSync } from "./db";
 import { redis, ROOM_TTL } from "./redis";
+import { gameStore } from "./game-store";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
 import { AIProvider, generateRoasts, generateAIQuestions } from "./ai";
@@ -18,17 +19,7 @@ export async function getServerTime() {
 
 // Helper for consistent state retrieval
 async function getFullState(code: string) {
-  const normalizedCode = code.toUpperCase();
-  const [room, playersMap, answersMap] = await Promise.all([
-    redis.get<Room>(`room:${normalizedCode}`),
-    redis.hgetall<Record<string, string | Player>>(`players:${normalizedCode}`),
-    redis.hgetall<Record<string, string | Answer>>(`answers:${normalizedCode}`)
-  ]);
-  
-  const players: Player[] = playersMap ? Object.values(playersMap).map(p => typeof p === "string" ? JSON.parse(p) : p) : [];
-  const allAnswers: Answer[] = answersMap ? Object.values(answersMap).map(a => typeof a === "string" ? JSON.parse(a) : a) : [];
-  
-  return { room, players, allAnswers };
+  return await gameStore.getFullState(code);
 }
 
 // Internal helper for consistent room state transitions
@@ -38,18 +29,9 @@ function advanceRoomState(room: Room, updates: Partial<Room>) {
   room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
 }
 
-// Helper to persist room and its lightweight sync record to Redis
+// Helper to persist room and its lightweight sync record
 async function saveRoom(normalizedCode: string, room: Room) {
-  const syncData = {
-    version: room.version || 0,
-    status: room.status,
-    status_updated_at: room.status_updated_at || Date.now(),
-    current_question_index: room.current_question_index ?? 0,
-  };
-  await Promise.all([
-    redis.set(`room:${normalizedCode}`, room, { ex: ROOM_TTL }),
-    redis.set(`room_sync:${normalizedCode}`, syncData, { ex: ROOM_TTL }),
-  ]);
+  await gameStore.saveRoom(normalizedCode, room);
 }
 
 export async function createRoom(topic: string, leaderName: string, provider: AIProvider = "auto", count: number = 10) {
@@ -103,8 +85,7 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
   
   await Promise.all([
     saveRoom(code, roomData),
-    redis.hset(`players:${code}`, { [player.id]: JSON.stringify(player) }),
-    redis.expire(`players:${code}`, ROOM_TTL),
+    gameStore.setPlayer(code, player),
   ]);
   
   return { room: roomData, player };
@@ -133,7 +114,7 @@ export async function joinRoom(code: string, playerName: string) {
   advanceRoomState(room, {});
   
   await Promise.all([
-    redis.hset(`players:${normalizedCode}`, { [player.id]: JSON.stringify(player) }),
+    gameStore.setPlayer(normalizedCode, player),
     saveRoom(normalizedCode, room)
   ]);
   
@@ -193,8 +174,8 @@ export async function updateRoomStatus(code: string, status: GameState, index?: 
     }
 
     if (Object.keys(updates).length > 0) {
-      await redis.hset(`answers:${normalizedCode}`, updates);
-      await redis.expire(`answers:${normalizedCode}`, ROOM_TTL);
+      const answersList: Answer[] = Object.values(updates).map(u => JSON.parse(u) as Answer);
+      await gameStore.setAnswers(normalizedCode, answersList);
     }
   }
 
@@ -218,8 +199,7 @@ export async function submitWager(code: string, playerId: string, questionId: st
     is_correct: false,
   };
   
-  await redis.hset(`answers:${normalizedCode}`, { [`${playerId}:${questionId}`]: JSON.stringify(answer) });
-  await redis.expire(`answers:${normalizedCode}`, ROOM_TTL);
+  await gameStore.setAnswer(normalizedCode, answer);
 
   const state = await getFullState(normalizedCode);
   if (state.room && state.room.status === "wager") {
@@ -239,32 +219,28 @@ export async function submitWager(code: string, playerId: string, questionId: st
 
 export async function submitAnswer(code: string, playerId: string, questionId: string, answerText: string) {
   const normalizedCode = code.toUpperCase();
-  const key = `${playerId}:${questionId}`;
   
-  const room = await redis.get<Room>(`room:${normalizedCode}`);
+  const room = await gameStore.getRoom(normalizedCode);
   if (!room) throw new Error("Room not found");
   
   const question = room.questions.find(q => q.id === questionId);
   if (!question) throw new Error("Question not found");
 
-  const existingRaw = await redis.hget<string | Answer>(`answers:${normalizedCode}`, key);
-  if (!existingRaw) throw new Error("Wager not found");
-  
-  const existing = typeof existingRaw === "string" ? JSON.parse(existingRaw) as Answer : existingRaw;
+  const existing = await gameStore.getAnswer(normalizedCode, playerId, questionId);
+  if (!existing) throw new Error("Wager not found");
   
   const isCorrect = validateAnswer(answerText, question.correct_answer, question.type);
   const scoreDelta = isCorrect ? existing.wager : 0;
   
   existing.submitted_answer = answerText;
   existing.is_correct = isCorrect;
-  await redis.hset(`answers:${normalizedCode}`, { [key]: JSON.stringify(existing) });
+  await gameStore.setAnswer(normalizedCode, existing);
   
   if (scoreDelta > 0) {
-    const playerRaw = await redis.hget<string | Player>(`players:${normalizedCode}`, playerId);
-    if (playerRaw) {
-      const player = typeof playerRaw === "string" ? JSON.parse(playerRaw) as Player : playerRaw;
-      player.score += scoreDelta;
-      await redis.hset(`players:${normalizedCode}`, { [playerId]: JSON.stringify(player) });
+    const player = await gameStore.getPlayer(normalizedCode, playerId);
+    if (player) {
+      player.score = (player.score || 0) + scoreDelta;
+      await gameStore.setPlayer(normalizedCode, player);
     }
   }
 
@@ -288,16 +264,7 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
   const { room } = await getFullState(normalizedCode);
   if (!room || room.leader_id !== leaderId) throw new Error("Unauthorized");
 
-  await redis.hdel(`players:${normalizedCode}`, playerId);
-  
-  const answersRaw = await redis.hgetall(`answers:${normalizedCode}`);
-  if (answersRaw) {
-    for (const [key] of Object.entries(answersRaw)) {
-      if (key.startsWith(`${playerId}:`)) {
-        await redis.hdel(`answers:${normalizedCode}`, key);
-      }
-    }
-  }
+  await gameStore.removePlayer(normalizedCode, playerId);
 
   // Increment room version to trigger UI sync for everyone (especially the kicked player)
   advanceRoomState(room, {});
@@ -306,58 +273,19 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
   return await getFullState(normalizedCode);
 }
 
-// Lightweight sync check for Redis fallback
+// Lightweight sync check for room synchronization (Redis + Local Fallback)
 export async function getRoomSync(code: string): Promise<{
   version: number;
   statusUpdatedAt: number;
   status: GameState;
   currentQuestionIndex: number;
 } | null> {
-  const normalizedCode = code.toUpperCase();
-  try {
-    const sync = await redis.get<{
-      version: number;
-      status_updated_at: number;
-      status: GameState;
-      current_question_index: number;
-    }>(`room_sync:${normalizedCode}`);
-
-    if (sync) {
-      return {
-        version: sync.version || 0,
-        statusUpdatedAt: sync.status_updated_at || 0,
-        status: sync.status,
-        currentQuestionIndex: sync.current_question_index ?? 0,
-      };
-    }
-
-    const room = await redis.get<Room>(`room:${normalizedCode}`);
-    if (!room) return null;
-    return {
-      version: room.version || 0,
-      statusUpdatedAt: room.status_updated_at || 0,
-      status: room.status,
-      currentQuestionIndex: room.current_question_index ?? 0,
-    };
-  } catch (error) {
-    console.error("[Redis] getRoomSync error:", error);
-    return null;
-  }
+  return await gameStore.getRoomSync(code);
 }
 
-// Explicit Redis sync trigger for fallback signaling
+// Explicit room sync trigger for fallback signaling (Redis + Local Fallback)
 export async function touchRoomSync(code: string): Promise<number> {
-  const normalizedCode = code.toUpperCase();
-  try {
-    const room = await redis.get<Room>(`room:${normalizedCode}`);
-    if (!room) return 0;
-    advanceRoomState(room, {});
-    await saveRoom(normalizedCode, room);
-    return room.version || 0;
-  } catch (error) {
-    console.error("[Redis] touchRoomSync error:", error);
-    return 0;
-  }
+  return await gameStore.touchRoomSync(code);
 }
 
 // Ultra-fast in-memory cache for topics (0.001ms response time)
@@ -509,6 +437,19 @@ export async function getQuestionsByTopic(topicId: string): Promise<Question[]> 
 export async function getQuestionCountsByTopic(): Promise<Record<string, number>> {
   const db = await getDatabase();
   return await db.getQuestionCountsByTopic();
+}
+
+export async function getPlayableTopics(minQuestions: number = 10): Promise<Topic[]> {
+  const [topics, counts] = await Promise.all([
+    getTopics(),
+    getQuestionCountsByTopic().catch(() => ({} as Record<string, number>))
+  ]);
+
+  return (topics || []).filter(topic => {
+    if (topic.id.toLowerCase() === 'custom') return true;
+    const count = counts[topic.id.toLowerCase()] || 0;
+    return count >= minQuestions;
+  });
 }
 
 export async function getAllQuestions(limit: number = 100): Promise<Question[]> {
