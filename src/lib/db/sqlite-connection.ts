@@ -22,12 +22,28 @@ export function resetSqliteDbForTesting() {
 export function getSqliteDb(): DatabaseSync {
   if (instance) return instance;
 
-  const targetPath = dbPathOverride || path.join(process.cwd(), 'data', 'trivia.db');
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const defaultDbPath = isServerless
+    ? path.join('/tmp', 'trivia.db')
+    : path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'trivia.db');
+
+  const targetPath = dbPathOverride || process.env.SQLITE_DB_PATH || defaultDbPath;
 
   if (targetPath !== ':memory:') {
     const dir = path.dirname(targetPath);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
+    }
+
+    if (isServerless && !fs.existsSync(targetPath)) {
+      const bundledPath = path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'trivia.db');
+      if (fs.existsSync(bundledPath)) {
+        try {
+          fs.copyFileSync(bundledPath, targetPath);
+        } catch (err) {
+          console.warn('[SQLite] Could not copy bundled db, will initialize fresh in /tmp:', err);
+        }
+      }
     }
   }
 

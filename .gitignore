@@ -41,4 +41,9 @@ next-env.d.ts
 
 .gemini/
 gha-creds-*.json
-data/*.db*
+# sqlite database and data folder
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
