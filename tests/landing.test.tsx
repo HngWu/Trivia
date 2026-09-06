@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
-import React from 'react';
+import React, { Suspense } from 'react';
 
 // Mock redis and gemini BEFORE importing components
 jest.mock('../src/lib/redis', () => ({
@@ -24,6 +24,9 @@ jest.mock('../src/lib/actions', () => ({
   getTopics: jest.fn().mockResolvedValue([
     { id: 'history', name: 'History', icon: '📜', description: 'Past events', example_question: 'Who was the first president?' }
   ]),
+  getPlayableTopics: jest.fn().mockResolvedValue([
+    { id: 'history', name: 'History', icon: '📜', description: 'Past events', example_question: 'Who was the first president?' }
+  ]),
 }));
 
 import Home from '../src/app/page'
@@ -31,15 +34,23 @@ import Home from '../src/app/page'
 describe('Landing Page', () => {
   it('renders landing page with main actions', async () => {
     await act(async () => {
-      render(<Home />);
+      render(
+        <Suspense fallback={<div>Loading...</div>}>
+          <Home />
+        </Suspense>
+      );
     });
-    expect(screen.getByRole('button', { name: /Join a Battle/i })).toBeInTheDocument();
-    expect(screen.getByText(/Select Category/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Join a game/i })).toBeInTheDocument();
+    expect(screen.getByText(/Select a topic/i)).toBeInTheDocument();
   });
 
   it('displays topic selection and reveals create flow on click', async () => {
     await act(async () => {
-      render(<Home />);
+      render(
+        <Suspense fallback={<div>Loading...</div>}>
+          <Home />
+        </Suspense>
+      );
     });
     
     await waitFor(() => {
@@ -53,6 +64,6 @@ describe('Landing Page', () => {
     
     // Now nickname and create button should appear
     expect(screen.getByPlaceholderText(/Enter Nickname/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Create Battle/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create room/i })).toBeInTheDocument();
   });
 });
