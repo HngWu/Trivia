@@ -88,13 +88,14 @@ export default function ResultsView({
           <div className="absolute top-0 left-0 w-full h-1" />
           <CardContent className="p-6 sm:p-12 text-left space-y-6">
             <div className="space-y-1">
-              <p className="text-success/60 font-bold text-xs tracking-[0.3em] uppercase">The Correct Answer</p>
+              <h3 className="text-success/60 font-bold text-xs tracking-[0.3em] uppercase">The Correct Answer</h3>
               <p className="text-2xl sm:text-4xl font-black text-foreground leading-none tracking-tighter">
                 {roundData.results.answer}
               </p>
             </div>
             {roundData.results.explanation && (
               <div className="pt-6 border-t border-white/5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Explanation</p>
                 <p className="text-muted-foreground text-lg sm:text-xl font-medium leading-relaxed max-w-3xl italic break-words">
                   &quot;{roundData.results.explanation}&quot;
                 </p>

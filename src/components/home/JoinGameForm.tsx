@@ -22,9 +22,19 @@ export default function JoinGameForm({
   onBack, 
   isLoading 
 }: JoinGameFormProps) {
+  const handleRoomCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    if (val.includes('/')) {
+      const parts = val.trim().split('/').filter(Boolean);
+      val = parts[parts.length - 1] || '';
+    }
+    val = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+    setRoomCode(val);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoading && nickname && roomCode) {
+    if (!isLoading && nickname.trim() && roomCode.trim()) {
       onJoin();
     }
   };
@@ -54,7 +64,8 @@ export default function JoinGameForm({
                 required
                 placeholder="Room Code"
                 value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                onChange={handleRoomCodeChange}
+                maxLength={6}
                 className="flex-1 min-w-0 h-10 rounded-xl px-4 font-bold tracking-widest uppercase text-base bg-white/5 border-white/10 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-white/20 focus:outline-none"
               />
               <GlassButton 

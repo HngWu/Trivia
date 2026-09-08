@@ -76,17 +76,19 @@ export default function HomeClient({ initialTopics }: HomeClientProps) {
   };
 
   const handleJoinRoom = async () => {
-    if (isLoading || !nickname || !roomCode) {
+    const trimmedNick = nickname.trim();
+    const cleanCode = roomCode.trim().toUpperCase();
+    if (isLoading || !trimmedNick || !cleanCode) {
       showToast('Enter your name and the room code.');
       return;
     }
     
     setIsLoading(true);
     try {
-      const { room, player } = await joinRoom(roomCode, nickname);
+      const { room, player } = await joinRoom(cleanCode, trimmedNick);
       
       localStorage.setItem('player_id', player.id);
-      localStorage.setItem('player_name', nickname);
+      localStorage.setItem('player_name', trimmedNick);
       
       window.location.href = `/room/${room.code}`;
     } catch (error) {

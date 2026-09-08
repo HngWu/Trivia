@@ -60,8 +60,8 @@ export default function QuestionView({
   const booleanOptions = currentQuestion?.type === "boolean_yes_no" ? ["Yes", "No"] : ["True", "False"];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4 pt-16 sm:pt-24 sm:-translate-y-10">
-       <div className="glass p-6 sm:p-8 rounded-3xl shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
+    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4 pt-20 sm:pt-28">
+       <div className="glass p-4 sm:p-12 rounded-3xl shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
           <h2 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight text-foreground break-words max-w-full">

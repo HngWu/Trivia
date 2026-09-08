@@ -5,8 +5,9 @@ import { getSqliteDb } from "./db/sqlite-connection";
 // Circuit breaker state
 let redisFailureTimestamp = 0;
 let lastWarnTimestamp = 0;
-const REDIS_COOLDOWN_MS = 30_000; // 30s cooldown after Redis failure
-const REDIS_TIMEOUT_MS = 400; // 400ms max wait before fallback
+const REDIS_COOLDOWN_MS = 10_000; // 10s cooldown after Redis failure
+const REDIS_READ_TIMEOUT_MS = 1500; // 1500ms max wait for read operations
+const REDIS_WRITE_TIMEOUT_MS = 2000; // 2000ms max wait for write operations
 
 function isTestEnv(): boolean {
   return process.env.NODE_ENV === "test";
@@ -22,53 +23,71 @@ export function canAttemptRedis(): boolean {
   return !isCircuitBreakerOpen();
 }
 
+function recordRedisSuccess(): void {
+  redisFailureTimestamp = 0;
+}
+
 function recordRedisFailure(err: unknown) {
   redisFailureTimestamp = Date.now();
   const now = Date.now();
   if (now - lastWarnTimestamp > 10_000) {
     lastWarnTimestamp = now;
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[Redis Failover] Upstash operation failed (${msg}). Serving from local store for next 30s.`);
+    console.warn(`[Redis Failover] Upstash operation failed (${msg}). Serving from local store for next 10s.`);
   }
 }
 
-export async function safeRedisCall<T>(op: () => Promise<T>, timeoutMs = REDIS_TIMEOUT_MS): Promise<T | null> {
+export async function safeRedisCall<T>(op: () => Promise<T>, timeoutMs = REDIS_READ_TIMEOUT_MS): Promise<T | null> {
   if (!canAttemptRedis()) return null;
 
+  let timerId: NodeJS.Timeout | null = null;
   try {
     const result = await Promise.race([
       op(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Redis operation timed out")), timeoutMs)
-      ),
+      new Promise<never>((_, reject) => {
+        timerId = setTimeout(() => reject(new Error("Redis operation timed out")), timeoutMs);
+        if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
+      }),
     ]);
+    recordRedisSuccess();
     return result;
   } catch (err) {
     recordRedisFailure(err);
     return null;
+  } finally {
+    if (timerId) clearTimeout(timerId);
   }
 }
 
-export async function safeRedisWrite(op: () => Promise<unknown>, timeoutMs = REDIS_TIMEOUT_MS): Promise<boolean> {
+export async function safeRedisWrite(op: () => Promise<unknown>, timeoutMs = REDIS_WRITE_TIMEOUT_MS): Promise<boolean> {
   if (!canAttemptRedis()) return false;
 
+  let timerId: NodeJS.Timeout | null = null;
   try {
     await Promise.race([
       op(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Redis write timed out")), timeoutMs)
-      ),
+      new Promise<never>((_, reject) => {
+        timerId = setTimeout(() => reject(new Error("Redis write timed out")), timeoutMs);
+        if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
+      }),
     ]);
+    recordRedisSuccess();
     return true;
   } catch (err) {
     recordRedisFailure(err);
     return false;
+  } finally {
+    if (timerId) clearTimeout(timerId);
   }
 }
 
 // ---------------------------------------------------------------------------
 // LOCAL STORE: In-Memory Cache + Persistent SQLite
 // ---------------------------------------------------------------------------
+
+export function normalizeCode(code: string): string {
+  return (code || "").trim().toUpperCase();
+}
 
 interface MemoryRoomState {
   room: Room | null;
@@ -80,7 +99,7 @@ interface MemoryRoomState {
 const memoryStore = new Map<string, MemoryRoomState>();
 
 function getOrCreateMemory(code: string): MemoryRoomState {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   let state = memoryStore.get(normalized);
   if (!state) {
     state = {
@@ -107,7 +126,7 @@ function runSqlite<T>(fn: (db: ReturnType<typeof getSqliteDb>) => T): T | null {
 
 // Local read helpers
 export function getLocalRoom(code: string): Room | null {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   if (state.room) return state.room;
 
@@ -125,7 +144,7 @@ export function getLocalRoom(code: string): Room | null {
 }
 
 export function getLocalPlayers(code: string): Player[] {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   if (state.players.size > 0) {
     return Array.from(state.players.values());
@@ -147,7 +166,7 @@ export function getLocalPlayers(code: string): Player[] {
 }
 
 export function getLocalPlayer(code: string, playerId: string): Player | null {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   const mem = state.players.get(playerId);
   if (mem) return mem;
@@ -164,7 +183,7 @@ export function getLocalPlayer(code: string, playerId: string): Player | null {
 }
 
 export function getLocalAnswers(code: string): Answer[] {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   if (state.answers.size > 0) {
     return Array.from(state.answers.values());
@@ -185,7 +204,7 @@ export function getLocalAnswers(code: string): Answer[] {
 }
 
 export function getLocalAnswer(code: string, playerId: string, questionId: string): Answer | null {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   const key = `${playerId}:${questionId}`;
   const mem = state.answers.get(key);
@@ -203,7 +222,7 @@ export function getLocalAnswer(code: string, playerId: string, questionId: strin
 }
 
 export function saveLocalRoom(code: string, room: Room): void {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   state.room = { ...room };
   state.updatedAt = Date.now();
@@ -222,7 +241,7 @@ export function saveLocalRoom(code: string, room: Room): void {
 }
 
 export function saveLocalPlayer(code: string, player: Player): void {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   state.players.set(player.id, { ...player });
   state.updatedAt = Date.now();
@@ -239,7 +258,7 @@ export function saveLocalPlayer(code: string, player: Player): void {
 }
 
 export function deleteLocalPlayer(code: string, playerId: string): void {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   state.players.delete(playerId);
   for (const key of Array.from(state.answers.keys())) {
@@ -256,7 +275,7 @@ export function deleteLocalPlayer(code: string, playerId: string): void {
 }
 
 export function saveLocalAnswer(code: string, answer: Answer): void {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   const key = `${answer.player_id}:${answer.question_id}`;
   state.answers.set(key, { ...answer });
@@ -274,7 +293,7 @@ export function saveLocalAnswer(code: string, answer: Answer): void {
 }
 
 export function saveLocalAnswers(code: string, answers: Answer[]): void {
-  const normalized = code.toUpperCase();
+  const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   for (const a of answers) {
     state.answers.set(`${a.player_id}:${a.question_id}`, { ...a });
@@ -315,21 +334,52 @@ export function getLocalFullState(code: string): { room: Room | null; players: P
 
 export const gameStore = {
   async getRoom(code: string): Promise<Room | null> {
-    const normalized = code.toUpperCase();
+    const normalized = (code || "").trim().toUpperCase();
 
     // 1. Try Redis
-    const redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`));
-    if (redisRoom) {
-      saveLocalRoom(normalized, redisRoom);
-      return redisRoom;
+    let redisRoom: Room | null = null;
+    if (canAttemptRedis()) {
+      redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`));
+      if (redisRoom) {
+        saveLocalRoom(normalized, redisRoom);
+        return redisRoom;
+      }
     }
 
     // 2. Fallback to Local Store
-    return getLocalRoom(normalized);
+    const localRoom = getLocalRoom(normalized);
+    if (localRoom) {
+      return localRoom;
+    }
+
+    // 3. Fallback: If local store has no room and Redis is configured, retry Redis once directly
+    if (redis && (isRedisConfigured || isTestEnv()) && !redisRoom) {
+      let timerId: NodeJS.Timeout | null = null;
+      try {
+        const directRoom = await Promise.race([
+          redis.get<Room>(`room:${normalized}`),
+          new Promise<never>((_, reject) => {
+            timerId = setTimeout(() => reject(new Error("Redis direct read timed out")), REDIS_READ_TIMEOUT_MS);
+            if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
+          }),
+        ]);
+        if (directRoom) {
+          recordRedisSuccess();
+          saveLocalRoom(normalized, directRoom);
+          return directRoom;
+        }
+      } catch (err) {
+        recordRedisFailure(err);
+      } finally {
+        if (timerId) clearTimeout(timerId);
+      }
+    }
+
+    return null;
   },
 
   async saveRoom(code: string, room: Room): Promise<void> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
 
     // 1. Always update local store (immediate write-through)
     saveLocalRoom(normalized, room);
@@ -351,7 +401,7 @@ export const gameStore = {
   },
 
   async getPlayer(code: string, playerId: string): Promise<Player | null> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
 
     // 1. Try Redis
     const redisPlayerRaw = await safeRedisCall(() =>
@@ -368,7 +418,7 @@ export const gameStore = {
   },
 
   async setPlayer(code: string, player: Player): Promise<void> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
 
     // 1. Update Local Store
     saveLocalPlayer(normalized, player);
@@ -383,7 +433,7 @@ export const gameStore = {
   },
 
   async removePlayer(code: string, playerId: string): Promise<void> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
 
     // 1. Update Local Store
     deleteLocalPlayer(normalized, playerId);
@@ -403,7 +453,7 @@ export const gameStore = {
   },
 
   async getAnswer(code: string, playerId: string, questionId: string): Promise<Answer | null> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
     const key = `${playerId}:${questionId}`;
 
     // 1. Try Redis
@@ -421,7 +471,7 @@ export const gameStore = {
   },
 
   async setAnswer(code: string, answer: Answer): Promise<void> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
     const key = `${answer.player_id}:${answer.question_id}`;
 
     // 1. Update Local Store
@@ -437,7 +487,7 @@ export const gameStore = {
   },
 
   async setAnswers(code: string, answers: Answer[]): Promise<void> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
 
     // 1. Update Local Store
     saveLocalAnswers(normalized, answers);
@@ -457,17 +507,25 @@ export const gameStore = {
   },
 
   async getFullState(code: string): Promise<{ room: Room | null; players: Player[]; allAnswers: Answer[] }> {
-    const normalized = code.toUpperCase();
+    const normalized = (code || "").trim().toUpperCase();
 
     // 1. Try Redis
-    const redisResult = await safeRedisCall(async () => {
-      const [room, playersMap, answersMap] = await Promise.all([
-        redis.get<Room>(`room:${normalized}`),
-        redis.hgetall<Record<string, string | Player>>(`players:${normalized}`),
-        redis.hgetall<Record<string, string | Answer>>(`answers:${normalized}`),
-      ]);
-      return { room, playersMap, answersMap };
-    });
+    let redisResult: {
+      room: Room | null;
+      playersMap: Record<string, string | Player> | null;
+      answersMap: Record<string, string | Answer> | null;
+    } | null = null;
+
+    if (canAttemptRedis()) {
+      redisResult = await safeRedisCall(async () => {
+        const [room, playersMap, answersMap] = await Promise.all([
+          redis.get<Room>(`room:${normalized}`),
+          redis.hgetall<Record<string, string | Player>>(`players:${normalized}`),
+          redis.hgetall<Record<string, string | Answer>>(`answers:${normalized}`),
+        ]);
+        return { room, playersMap, answersMap };
+      });
+    }
 
     if (redisResult && redisResult.room) {
       const players: Player[] = redisResult.playersMap
@@ -485,8 +543,51 @@ export const gameStore = {
       return { room: redisResult.room, players, allAnswers };
     }
 
-    // 2. Fallback to Local Store
-    return getLocalFullState(normalized);
+    // 2. Check Local Store
+    const localState = getLocalFullState(normalized);
+    if (localState.room) {
+      return localState;
+    }
+
+    // 3. Fallback: If local store has no room and Redis is configured, retry Redis once directly
+    if (redis && (isRedisConfigured || isTestEnv()) && (!redisResult || !redisResult.room)) {
+      let timerId: NodeJS.Timeout | null = null;
+      try {
+        const directResult = await Promise.race([
+          Promise.all([
+            redis.get<Room>(`room:${normalized}`),
+            redis.hgetall<Record<string, string | Player>>(`players:${normalized}`),
+            redis.hgetall<Record<string, string | Answer>>(`answers:${normalized}`),
+          ]),
+          new Promise<never>((_, reject) => {
+            timerId = setTimeout(() => reject(new Error("Redis direct state read timed out")), REDIS_READ_TIMEOUT_MS);
+            if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
+          }),
+        ]);
+        const [room, playersMap, answersMap] = directResult;
+        if (room) {
+          recordRedisSuccess();
+          const players: Player[] = playersMap
+            ? Object.values(playersMap).map(p => (typeof p === "string" ? JSON.parse(p) : p))
+            : [];
+          const allAnswers: Answer[] = answersMap
+            ? Object.values(answersMap).map(a => (typeof a === "string" ? JSON.parse(a) : a))
+            : [];
+
+          saveLocalRoom(normalized, room);
+          for (const p of players) saveLocalPlayer(normalized, p);
+          if (allAnswers.length > 0) saveLocalAnswers(normalized, allAnswers);
+
+          return { room, players, allAnswers };
+        }
+      } catch (err) {
+        recordRedisFailure(err);
+      } finally {
+        if (timerId) clearTimeout(timerId);
+      }
+    }
+
+    return localState;
   },
 
   async getRoomSync(code: string): Promise<{
@@ -495,7 +596,7 @@ export const gameStore = {
     status: GameState;
     currentQuestionIndex: number;
   } | null> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
 
     // 1. Try Redis
     const redisSync = await safeRedisCall(async () => {
@@ -543,7 +644,7 @@ export const gameStore = {
   },
 
   async touchRoomSync(code: string): Promise<number> {
-    const normalized = code.toUpperCase();
+    const normalized = normalizeCode(code);
 
     // 1. Try Redis first
     const redisTouched = await safeRedisCall(async () => {

@@ -2,7 +2,7 @@
 
 import { getDatabase, getActiveProviderNameSync } from "./db";
 import { redis } from "./redis";
-import { gameStore } from "./game-store";
+import { gameStore, normalizeCode } from "./game-store";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
 import { AIProvider, generateRoasts, generateAIQuestions } from "./ai";
@@ -12,13 +12,22 @@ import { cache } from 'react';
 const SYNC_BUFFER_MS = 1500;
 const TOPICS_CACHE_KEY = "cached_topics";
 
+function generateRoomCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 export async function getServerTime() {
   return Date.now();
 }
 
 // Helper for consistent state retrieval
 async function getFullState(code: string) {
-  return await gameStore.getFullState(code);
+  return await gameStore.getFullState(normalizeCode(code));
 }
 
 // Internal helper for consistent room state transitions
@@ -30,7 +39,7 @@ function advanceRoomState(room: Room, updates: Partial<Room>) {
 
 // Helper to persist room and its lightweight sync record
 async function saveRoom(normalizedCode: string, room: Room) {
-  await gameStore.saveRoom(normalizedCode, room);
+  await gameStore.saveRoom(normalizeCode(normalizedCode), room);
 }
 
 export async function createRoom(topic: string, leaderName: string, provider: AIProvider = "auto", count: number = 10) {
@@ -63,10 +72,10 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
     explanation: q.explanation || "No explanation provided."
   }));
 
-  const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const code = generateRoomCode();
   const player: Player = {
     id: crypto.randomUUID(),
-    name: leaderName,
+    name: leaderName.trim(),
     score: 0,
     is_leader: true,
   };
@@ -91,20 +100,24 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
 }
 
 export async function joinRoom(code: string, playerName: string) {
-  const normalizedCode = code.toUpperCase();
+  const normalizedCode = normalizeCode(code);
+  const trimmedName = (playerName || "").trim();
+  if (!normalizedCode) throw new Error("Room code is required");
+  if (!trimmedName) throw new Error("Player name is required");
+
   const { room, players } = await getFullState(normalizedCode);
   
   if (!room) throw new Error("Room not found");
   
   // Prevent duplicate joins with same name
-  const existingPlayer = players.find(p => p.name.toLowerCase() === playerName.toLowerCase());
+  const existingPlayer = players.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
   if (existingPlayer) {
     return { room, player: existingPlayer };
   }
   
   const player: Player = {
     id: crypto.randomUUID(),
-    name: playerName,
+    name: trimmedName,
     score: 0,
     is_leader: false,
   };
@@ -121,11 +134,11 @@ export async function joinRoom(code: string, playerName: string) {
 }
 
 export async function getRoomState(code: string) {
-  return await getFullState(code);
+  return await getFullState(normalizeCode(code));
 }
 
 export async function updateRoomStatus(code: string, status: GameState, index?: number) {
-  const normalizedCode = code.toUpperCase();
+  const normalizedCode = normalizeCode(code);
   const { room, players, allAnswers } = await getFullState(normalizedCode);
   if (!room) throw new Error("Room not found");
   
@@ -189,7 +202,7 @@ export async function updateRoomStatus(code: string, status: GameState, index?: 
 }
 
 export async function submitWager(code: string, playerId: string, questionId: string, wager: number) {
-  const normalizedCode = code.toUpperCase();
+  const normalizedCode = normalizeCode(code);
   const answer: Answer = {
     player_id: playerId,
     question_id: questionId,
@@ -217,7 +230,7 @@ export async function submitWager(code: string, playerId: string, questionId: st
 }
 
 export async function submitAnswer(code: string, playerId: string, questionId: string, answerText: string) {
-  const normalizedCode = code.toUpperCase();
+  const normalizedCode = normalizeCode(code);
   
   const room = await gameStore.getRoom(normalizedCode);
   if (!room) throw new Error("Room not found");
@@ -259,7 +272,7 @@ export async function submitAnswer(code: string, playerId: string, questionId: s
 }
 
 export async function kickPlayer(roomCode: string, playerId: string, leaderId: string) {
-  const normalizedCode = roomCode.toUpperCase();
+  const normalizedCode = normalizeCode(roomCode);
   const { room } = await getFullState(normalizedCode);
   if (!room || room.leader_id !== leaderId) throw new Error("Unauthorized");
 
@@ -279,12 +292,12 @@ export async function getRoomSync(code: string): Promise<{
   status: GameState;
   currentQuestionIndex: number;
 } | null> {
-  return await gameStore.getRoomSync(code);
+  return await gameStore.getRoomSync(normalizeCode(code));
 }
 
 // Explicit room sync trigger for fallback signaling (Redis + Local Fallback)
 export async function touchRoomSync(code: string): Promise<number> {
-  return await gameStore.touchRoomSync(code);
+  return await gameStore.touchRoomSync(normalizeCode(code));
 }
 
 // Ultra-fast in-memory cache for topics (0.001ms response time)

@@ -20,7 +20,7 @@ import { GlassButton } from "@/components/shared/GlassButton";
 
 export default function RoomPage({ params }: { params: Promise<{ code: string }> }) {
   const unwrappedParams = use(params);
-  const roomCode = unwrappedParams.code;
+  const roomCode = useMemo(() => decodeURIComponent(unwrappedParams.code || "").trim().toUpperCase(), [unwrappedParams.code]);
   const supabase = useMemo(() => createClient(), []);
   const channelRef = useRef<RealtimeChannel | null>(null);
   
@@ -173,7 +173,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (channel) {
       // Check if WebSocket connection is joined and ready to push broadcast messages
       const canPush = Boolean(
-        (channel as any).channelAdapter?.canPush?.() ??
+        (channel as unknown as { channelAdapter?: { canPush?: () => boolean } }).channelAdapter?.canPush?.() ??
         (channel.state === "joined")
       );
 
@@ -194,7 +194,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       if (!delivered && typeof channel.httpSend === "function") {
         try {
           const res = await channel.httpSend("STATE_UPDATED", payload);
-          if (res && (res.success || (res as any).status === 202)) {
+          if (res && (res.success || (res as { status?: number }).status === 202)) {
             delivered = true;
           }
         } catch (err) {
