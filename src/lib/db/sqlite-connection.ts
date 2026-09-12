@@ -31,13 +31,13 @@ export function getSqliteDb(): DatabaseSync {
 
   if (targetPath !== ':memory:') {
     const dir = path.dirname(targetPath);
-    if (!fs.existsSync(dir)) {
+    if (!fs.existsSync(/*turbopackIgnore: true*/ dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
 
-    if (isServerless && !fs.existsSync(targetPath)) {
+    if (isServerless && !fs.existsSync(/*turbopackIgnore: true*/ targetPath)) {
       const bundledPath = path.join(/*turbopackIgnore: true*/ process.cwd(), 'data', 'trivia.db');
-      if (fs.existsSync(bundledPath)) {
+      if (fs.existsSync(/*turbopackIgnore: true*/ bundledPath)) {
         try {
           fs.copyFileSync(bundledPath, targetPath);
         } catch (err) {
