@@ -4,17 +4,25 @@ import { getSqliteDb } from "./db/sqlite-connection";
 
 // Circuit breaker state
 let redisFailureTimestamp = 0;
+let consecutiveFailures = 0;
 let lastWarnTimestamp = 0;
-const REDIS_COOLDOWN_MS = 10_000; // 10s cooldown after Redis failure
-const REDIS_READ_TIMEOUT_MS = 1500; // 1500ms max wait for read operations
-const REDIS_WRITE_TIMEOUT_MS = 2000; // 2000ms max wait for write operations
+const BASE_COOLDOWN_MS = 10_000; // 10s base cooldown after Redis failure
+const MAX_COOLDOWN_MS = 60_000; // 60s max cooldown
+const REDIS_READ_TIMEOUT_MS = 800; // 800ms max wait for read operations
+const REDIS_WRITE_TIMEOUT_MS = 1000; // 1000ms max wait for write operations
 
 function isTestEnv(): boolean {
   return process.env.NODE_ENV === "test";
 }
 
+export function getRedisCooldownMs(): number {
+  if (consecutiveFailures <= 1) return BASE_COOLDOWN_MS;
+  return Math.min(BASE_COOLDOWN_MS * Math.pow(2, consecutiveFailures - 1), MAX_COOLDOWN_MS);
+}
+
 export function isCircuitBreakerOpen(): boolean {
-  return Date.now() - redisFailureTimestamp < REDIS_COOLDOWN_MS;
+  if (redisFailureTimestamp === 0) return false;
+  return Date.now() - redisFailureTimestamp < getRedisCooldownMs();
 }
 
 export function canAttemptRedis(): boolean {
@@ -25,15 +33,17 @@ export function canAttemptRedis(): boolean {
 
 function recordRedisSuccess(): void {
   redisFailureTimestamp = 0;
+  consecutiveFailures = 0;
 }
 
 function recordRedisFailure(err: unknown) {
+  consecutiveFailures++;
   redisFailureTimestamp = Date.now();
   const now = Date.now();
   if (now - lastWarnTimestamp > 10_000) {
     lastWarnTimestamp = now;
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[Redis Failover] Upstash operation failed (${msg}). Serving from local store for next 10s.`);
+    console.warn(`[Redis Failover] Upstash operation failed (${msg}). Serving from local store for next ${getRedisCooldownMs() / 1000}s.`);
   }
 }
 
@@ -124,52 +134,62 @@ function runSqlite<T>(fn: (db: ReturnType<typeof getSqliteDb>) => T): T | null {
   }
 }
 
+function cloneRoom(room: Room): Room {
+  return {
+    ...room,
+    questions: Array.isArray(room.questions)
+      ? room.questions.map(q => ({
+          ...q,
+          options: q.options ? [...q.options] : null,
+        }))
+      : [],
+  };
+}
+
 // Local read helpers
 export function getLocalRoom(code: string): Room | null {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
-  if (state.room) return state.room;
 
-  // Check SQLite
+  // Check SQLite first for authoritative shared state across workers/processes
   const room = runSqlite(db => {
     const row = db.prepare("SELECT data FROM active_rooms WHERE code = ?").get(normalized) as { data: string } | undefined;
     return row ? (JSON.parse(row.data) as Room) : null;
   });
 
   if (room) {
-    state.room = room;
+    state.room = cloneRoom(room);
     state.updatedAt = Date.now();
+    return cloneRoom(room);
   }
-  return room;
+
+  return state.room ? cloneRoom(state.room) : null;
 }
 
 export function getLocalPlayers(code: string): Player[] {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
-  if (state.players.size > 0) {
-    return Array.from(state.players.values());
-  }
 
-  // Check SQLite
+  // Check SQLite first for authoritative players
   const players = runSqlite(db => {
     const rows = db.prepare("SELECT data FROM active_players WHERE room_code = ?").all(normalized) as { data: string }[];
     return rows.map(r => JSON.parse(r.data) as Player);
   });
 
   if (players && players.length > 0) {
+    state.players.clear();
     for (const p of players) {
-      state.players.set(p.id, p);
+      state.players.set(p.id, { ...p });
     }
-    return players;
+    return players.map(p => ({ ...p }));
   }
-  return [];
+
+  return Array.from(state.players.values()).map(p => ({ ...p }));
 }
 
 export function getLocalPlayer(code: string, playerId: string): Player | null {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
-  const mem = state.players.get(playerId);
-  if (mem) return mem;
 
   const player = runSqlite(db => {
     const row = db.prepare("SELECT data FROM active_players WHERE room_code = ? AND player_id = ?").get(normalized, playerId) as { data: string } | undefined;
@@ -177,17 +197,17 @@ export function getLocalPlayer(code: string, playerId: string): Player | null {
   });
 
   if (player) {
-    state.players.set(playerId, player);
+    state.players.set(playerId, { ...player });
+    return { ...player };
   }
-  return player;
+
+  const mem = state.players.get(playerId);
+  return mem ? { ...mem } : null;
 }
 
 export function getLocalAnswers(code: string): Answer[] {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
-  if (state.answers.size > 0) {
-    return Array.from(state.answers.values());
-  }
 
   const answers = runSqlite(db => {
     const rows = db.prepare("SELECT data FROM active_answers WHERE room_code = ?").all(normalized) as { data: string }[];
@@ -195,20 +215,20 @@ export function getLocalAnswers(code: string): Answer[] {
   });
 
   if (answers && answers.length > 0) {
+    state.answers.clear();
     for (const a of answers) {
-      state.answers.set(`${a.player_id}:${a.question_id}`, a);
+      state.answers.set(`${a.player_id}:${a.question_id}`, { ...a });
     }
-    return answers;
+    return answers.map(a => ({ ...a }));
   }
-  return [];
+
+  return Array.from(state.answers.values()).map(a => ({ ...a }));
 }
 
 export function getLocalAnswer(code: string, playerId: string, questionId: string): Answer | null {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
   const key = `${playerId}:${questionId}`;
-  const mem = state.answers.get(key);
-  if (mem) return mem;
 
   const answer = runSqlite(db => {
     const row = db.prepare("SELECT data FROM active_answers WHERE room_code = ? AND player_id = ? AND question_id = ?").get(normalized, playerId, questionId) as { data: string } | undefined;
@@ -216,15 +236,18 @@ export function getLocalAnswer(code: string, playerId: string, questionId: strin
   });
 
   if (answer) {
-    state.answers.set(key, answer);
+    state.answers.set(key, { ...answer });
+    return { ...answer };
   }
-  return answer;
+
+  const mem = state.answers.get(key);
+  return mem ? { ...mem } : null;
 }
 
 export function saveLocalRoom(code: string, room: Room): void {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
-  state.room = { ...room };
+  state.room = cloneRoom(room);
   state.updatedAt = Date.now();
 
   runSqlite(db => {
@@ -336,46 +359,17 @@ export const gameStore = {
   async getRoom(code: string): Promise<Room | null> {
     const normalized = (code || "").trim().toUpperCase();
 
-    // 1. Try Redis
-    let redisRoom: Room | null = null;
+    // 1. Try Redis if circuit breaker is not open
     if (canAttemptRedis()) {
-      redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`));
+      const redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`));
       if (redisRoom) {
         saveLocalRoom(normalized, redisRoom);
         return redisRoom;
       }
     }
 
-    // 2. Fallback to Local Store
-    const localRoom = getLocalRoom(normalized);
-    if (localRoom) {
-      return localRoom;
-    }
-
-    // 3. Fallback: If local store has no room and Redis is configured, retry Redis once directly
-    if (redis && (isRedisConfigured || isTestEnv()) && !redisRoom) {
-      let timerId: NodeJS.Timeout | null = null;
-      try {
-        const directRoom = await Promise.race([
-          redis.get<Room>(`room:${normalized}`),
-          new Promise<never>((_, reject) => {
-            timerId = setTimeout(() => reject(new Error("Redis direct read timed out")), REDIS_READ_TIMEOUT_MS);
-            if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
-          }),
-        ]);
-        if (directRoom) {
-          recordRedisSuccess();
-          saveLocalRoom(normalized, directRoom);
-          return directRoom;
-        }
-      } catch (err) {
-        recordRedisFailure(err);
-      } finally {
-        if (timerId) clearTimeout(timerId);
-      }
-    }
-
-    return null;
+    // 2. Fallback to Local Store (authoritative SQLite fallback)
+    return getLocalRoom(normalized);
   },
 
   async saveRoom(code: string, room: Room): Promise<void> {
@@ -384,20 +378,22 @@ export const gameStore = {
     // 1. Always update local store (immediate write-through)
     saveLocalRoom(normalized, room);
 
-    // 2. Write to Redis
-    const syncData = {
-      version: room.version || 0,
-      status: room.status,
-      status_updated_at: room.status_updated_at || Date.now(),
-      current_question_index: room.current_question_index ?? 0,
-    };
+    // 2. Write to Redis if circuit breaker is not open
+    if (canAttemptRedis()) {
+      const syncData = {
+        version: room.version || 0,
+        status: room.status,
+        status_updated_at: room.status_updated_at || Date.now(),
+        current_question_index: room.current_question_index ?? 0,
+      };
 
-    await safeRedisWrite(() =>
-      Promise.all([
-        redis.set(`room:${normalized}`, room, { ex: ROOM_TTL }),
-        redis.set(`room_sync:${normalized}`, syncData, { ex: ROOM_TTL }),
-      ])
-    );
+      await safeRedisWrite(() =>
+        Promise.all([
+          redis.set(`room:${normalized}`, room, { ex: ROOM_TTL }),
+          redis.set(`room_sync:${normalized}`, syncData, { ex: ROOM_TTL }),
+        ])
+      );
+    }
   },
 
   async getPlayer(code: string, playerId: string): Promise<Player | null> {
@@ -509,15 +505,9 @@ export const gameStore = {
   async getFullState(code: string): Promise<{ room: Room | null; players: Player[]; allAnswers: Answer[] }> {
     const normalized = (code || "").trim().toUpperCase();
 
-    // 1. Try Redis
-    let redisResult: {
-      room: Room | null;
-      playersMap: Record<string, string | Player> | null;
-      answersMap: Record<string, string | Answer> | null;
-    } | null = null;
-
+    // 1. Try Redis if circuit breaker is not open
     if (canAttemptRedis()) {
-      redisResult = await safeRedisCall(async () => {
+      const redisResult = await safeRedisCall(async () => {
         const [room, playersMap, answersMap] = await Promise.all([
           redis.get<Room>(`room:${normalized}`),
           redis.hgetall<Record<string, string | Player>>(`players:${normalized}`),
@@ -525,69 +515,26 @@ export const gameStore = {
         ]);
         return { room, playersMap, answersMap };
       });
-    }
 
-    if (redisResult && redisResult.room) {
-      const players: Player[] = redisResult.playersMap
-        ? Object.values(redisResult.playersMap).map(p => (typeof p === "string" ? JSON.parse(p) : p))
-        : [];
-      const allAnswers: Answer[] = redisResult.answersMap
-        ? Object.values(redisResult.answersMap).map(a => (typeof a === "string" ? JSON.parse(a) : a))
-        : [];
+      if (redisResult && redisResult.room) {
+        const players: Player[] = redisResult.playersMap
+          ? Object.values(redisResult.playersMap).map(p => (typeof p === "string" ? JSON.parse(p) : p))
+          : [];
+        const allAnswers: Answer[] = redisResult.answersMap
+          ? Object.values(redisResult.answersMap).map(a => (typeof a === "string" ? JSON.parse(a) : a))
+          : [];
 
-      // Mirror fresh Redis state to Local Store
-      saveLocalRoom(normalized, redisResult.room);
-      for (const p of players) saveLocalPlayer(normalized, p);
-      if (allAnswers.length > 0) saveLocalAnswers(normalized, allAnswers);
+        // Mirror fresh Redis state to Local Store
+        saveLocalRoom(normalized, redisResult.room);
+        for (const p of players) saveLocalPlayer(normalized, p);
+        if (allAnswers.length > 0) saveLocalAnswers(normalized, allAnswers);
 
-      return { room: redisResult.room, players, allAnswers };
-    }
-
-    // 2. Check Local Store
-    const localState = getLocalFullState(normalized);
-    if (localState.room) {
-      return localState;
-    }
-
-    // 3. Fallback: If local store has no room and Redis is configured, retry Redis once directly
-    if (redis && (isRedisConfigured || isTestEnv()) && (!redisResult || !redisResult.room)) {
-      let timerId: NodeJS.Timeout | null = null;
-      try {
-        const directResult = await Promise.race([
-          Promise.all([
-            redis.get<Room>(`room:${normalized}`),
-            redis.hgetall<Record<string, string | Player>>(`players:${normalized}`),
-            redis.hgetall<Record<string, string | Answer>>(`answers:${normalized}`),
-          ]),
-          new Promise<never>((_, reject) => {
-            timerId = setTimeout(() => reject(new Error("Redis direct state read timed out")), REDIS_READ_TIMEOUT_MS);
-            if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
-          }),
-        ]);
-        const [room, playersMap, answersMap] = directResult;
-        if (room) {
-          recordRedisSuccess();
-          const players: Player[] = playersMap
-            ? Object.values(playersMap).map(p => (typeof p === "string" ? JSON.parse(p) : p))
-            : [];
-          const allAnswers: Answer[] = answersMap
-            ? Object.values(answersMap).map(a => (typeof a === "string" ? JSON.parse(a) : a))
-            : [];
-
-          saveLocalRoom(normalized, room);
-          for (const p of players) saveLocalPlayer(normalized, p);
-          if (allAnswers.length > 0) saveLocalAnswers(normalized, allAnswers);
-
-          return { room, players, allAnswers };
-        }
-      } catch (err) {
-        recordRedisFailure(err);
-      } finally {
-        if (timerId) clearTimeout(timerId);
+        return { room: redisResult.room, players, allAnswers };
       }
     }
 
-    return localState;
+    // 2. Check Local Store (authoritative SQLite fallback)
+    return getLocalFullState(normalized);
   },
 
   async getRoomSync(code: string): Promise<{
@@ -598,39 +545,41 @@ export const gameStore = {
   } | null> {
     const normalized = normalizeCode(code);
 
-    // 1. Try Redis
-    const redisSync = await safeRedisCall(async () => {
-      const sync = await redis.get<{
-        version: number;
-        status_updated_at: number;
-        status: GameState;
-        current_question_index: number;
-      }>(`room_sync:${normalized}`);
+    // 1. Try Redis if circuit breaker is not open
+    if (canAttemptRedis()) {
+      const redisSync = await safeRedisCall(async () => {
+        const sync = await redis.get<{
+          version: number;
+          status_updated_at: number;
+          status: GameState;
+          current_question_index: number;
+        }>(`room_sync:${normalized}`);
 
-      if (sync) {
+        if (sync) {
+          return {
+            version: sync.version || 0,
+            statusUpdatedAt: sync.status_updated_at || 0,
+            status: sync.status,
+            currentQuestionIndex: sync.current_question_index ?? 0,
+          };
+        }
+
+        const room = await redis.get<Room>(`room:${normalized}`);
+        if (!room) return null;
         return {
-          version: sync.version || 0,
-          statusUpdatedAt: sync.status_updated_at || 0,
-          status: sync.status,
-          currentQuestionIndex: sync.current_question_index ?? 0,
+          version: room.version || 0,
+          statusUpdatedAt: room.status_updated_at || 0,
+          status: room.status,
+          currentQuestionIndex: room.current_question_index ?? 0,
         };
+      });
+
+      if (redisSync) {
+        return redisSync;
       }
-
-      const room = await redis.get<Room>(`room:${normalized}`);
-      if (!room) return null;
-      return {
-        version: room.version || 0,
-        statusUpdatedAt: room.status_updated_at || 0,
-        status: room.status,
-        currentQuestionIndex: room.current_question_index ?? 0,
-      };
-    });
-
-    if (redisSync) {
-      return redisSync;
     }
 
-    // 2. Fallback to Local Store
+    // 2. Fallback to Local Store (authoritative SQLite query)
     const localRoom = getLocalRoom(normalized);
     if (localRoom) {
       return {
@@ -646,18 +595,19 @@ export const gameStore = {
   async touchRoomSync(code: string): Promise<number> {
     const normalized = normalizeCode(code);
 
-    // 1. Try Redis first
-    const redisTouched = await safeRedisCall(async () => {
-      const room = await redis.get<Room>(`room:${normalized}`);
-      if (!room) return null;
-      room.version = (room.version || 0) + 1;
-      room.status_updated_at = Date.now() + 1500;
-      await this.saveRoom(normalized, room);
-      return room.version || 0;
-    });
+    // 1. Try Redis first if circuit breaker is not open
+    if (canAttemptRedis()) {
+      const redisTouched = await safeRedisCall(async () => {
+        const room = await redis.get<Room>(`room:${normalized}`);
+        if (!room) return null;
+        room.version = (room.version || 0) + 1;
+        await this.saveRoom(normalized, room);
+        return room.version || 0;
+      });
 
-    if (typeof redisTouched === "number") {
-      return redisTouched;
+      if (typeof redisTouched === "number") {
+        return redisTouched;
+      }
     }
 
     // 2. Fallback to Local Store
@@ -665,25 +615,26 @@ export const gameStore = {
     if (!localRoom) return 0;
 
     localRoom.version = (localRoom.version || 0) + 1;
-    localRoom.status_updated_at = Date.now() + 1500;
     saveLocalRoom(normalized, localRoom);
 
-    // Attempt best-effort write to Redis in background
-    safeRedisWrite(() =>
-      Promise.all([
-        redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
-        redis.set(
-          `room_sync:${normalized}`,
-          {
-            version: localRoom.version,
-            status: localRoom.status,
-            status_updated_at: localRoom.status_updated_at,
-            current_question_index: localRoom.current_question_index,
-          },
-          { ex: ROOM_TTL }
-        ),
-      ])
-    ).catch(() => {});
+    // Attempt best-effort write to Redis in background if circuit breaker is not open
+    if (canAttemptRedis()) {
+      safeRedisWrite(() =>
+        Promise.all([
+          redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
+          redis.set(
+            `room_sync:${normalized}`,
+            {
+              version: localRoom.version,
+              status: localRoom.status,
+              status_updated_at: localRoom.status_updated_at,
+              current_question_index: localRoom.current_question_index,
+            },
+            { ex: ROOM_TTL }
+          ),
+        ])
+      ).catch(() => {});
+    }
 
     return localRoom.version || 0;
   },
@@ -691,6 +642,7 @@ export const gameStore = {
   resetMemoryStoreForTesting(): void {
     memoryStore.clear();
     redisFailureTimestamp = 0;
+    consecutiveFailures = 0;
     lastWarnTimestamp = 0;
   },
 };

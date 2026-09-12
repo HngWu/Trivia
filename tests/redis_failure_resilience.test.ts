@@ -298,4 +298,96 @@ describe('Resilience Against Upstash Redis Failures', () => {
       expect(finalCheck.room?.status).toBe('question');
     });
   });
+
+  describe('Edge Cases & Advanced Redis Fallback Resilience', () => {
+    it('propagates state changes written to SQLite even if process memory has an older version cached', async () => {
+      const redisError = () => Promise.reject(new Error('ECONNREFUSED'));
+      (redis.get as jest.Mock).mockImplementation(redisError);
+      (redis.set as jest.Mock).mockImplementation(redisError);
+
+      // Alice creates room in Process A
+      const { room } = await createRoom('geography', 'Alice');
+      expect(room.version).toBe(1);
+
+      // Verify initial sync sees version 1
+      const sync1 = await getRoomSync(room.code);
+      expect(sync1?.version).toBe(1);
+
+      // Simulate a concurrent worker or process writing an update (version 2) directly to SQLite
+      const { getSqliteDb } = await import('../src/lib/db/sqlite-connection');
+      const db = getSqliteDb();
+      const updatedRoom = { ...room, version: 2, status: 'wager' as const };
+      db.prepare('UPDATE active_rooms SET version = ?, status = ?, data = ? WHERE code = ?')
+        .run(2, 'wager', JSON.stringify(updatedRoom), room.code);
+
+      // Calling getRoomSync or getRoomState in this process MUST detect SQLite update and return version 2
+      const sync2 = await getRoomSync(room.code);
+      expect(sync2?.version).toBe(2);
+      expect(sync2?.status).toBe('wager');
+
+      const fullState = await getRoomState(room.code);
+      expect(fullState.room?.version).toBe(2);
+      expect(fullState.room?.status).toBe('wager');
+    });
+
+    it('touchRoomSync does NOT alter status_updated_at when bumping version', async () => {
+      const redisError = () => Promise.reject(new Error('ECONNREFUSED'));
+      (redis.get as jest.Mock).mockImplementation(redisError);
+      (redis.set as jest.Mock).mockImplementation(redisError);
+
+      const { room } = await createRoom('geography', 'Alice');
+      const initialSync = await getRoomSync(room.code);
+      expect(initialSync).toBeDefined();
+
+      const originalUpdatedAt = initialSync!.statusUpdatedAt;
+
+      // Advance time slightly to test that status_updated_at is not overwritten with Date.now() + 1500
+      await new Promise(r => setTimeout(r, 20));
+
+      const newVersion = await touchRoomSync(room.code);
+      expect(newVersion).toBe(2);
+
+      const updatedSync = await getRoomSync(room.code);
+      expect(updatedSync?.version).toBe(2);
+      expect(updatedSync?.statusUpdatedAt).toBe(originalUpdatedAt);
+    });
+
+    it('does not reset status_updated_at during partial wagers or player joins', async () => {
+      const redisError = () => Promise.reject(new Error('ECONNREFUSED'));
+      (redis.get as jest.Mock).mockImplementation(redisError);
+      (redis.set as jest.Mock).mockImplementation(redisError);
+
+      const { room, player: alice } = await createRoom('geography', 'Alice');
+      const { player: bob } = await joinRoom(room.code, 'Bob');
+
+      // Start game: transitions to 'wager'
+      const wagerState = await updateRoomStatus(room.code, 'wager', 0);
+      const initialWagerUpdatedAt = wagerState.room!.status_updated_at;
+      expect(initialWagerUpdatedAt).toBeDefined();
+
+      await new Promise(r => setTimeout(r, 25));
+
+      // Alice submits wager (Bob has not wagered yet -> room stays in 'wager')
+      const afterAliceWager = await submitWager(room.code, alice.id, 'q-1', 5);
+      expect(afterAliceWager.room?.status).toBe('wager');
+      expect(afterAliceWager.room?.version).toBeGreaterThan(wagerState.room!.version!);
+      // status_updated_at MUST NOT have been reset because phase did not change
+      expect(afterAliceWager.room?.status_updated_at).toBe(initialWagerUpdatedAt);
+    });
+
+    it('does NOT attempt direct Redis calls in step 3 when circuit breaker is open', async () => {
+      const redisError = () => Promise.reject(new Error('ECONNREFUSED'));
+      (redis.get as jest.Mock).mockImplementation(redisError);
+
+      // 1. Initial call fails and trips breaker
+      await gameStore.getRoom('UNKNOWN_ROOM');
+      (redis.get as jest.Mock).mockClear();
+
+      // 2. Circuit breaker is now OPEN: getRoom for unknown code should NOT invoke redis.get
+      const result = await gameStore.getRoom('ANOTHER_UNKNOWN');
+      expect(result).toBeNull();
+      expect(redis.get).not.toHaveBeenCalled();
+    });
+  });
 });
+

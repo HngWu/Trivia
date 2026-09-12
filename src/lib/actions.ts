@@ -32,9 +32,13 @@ async function getFullState(code: string) {
 
 // Internal helper for consistent room state transitions
 function advanceRoomState(room: Room, updates: Partial<Room>) {
+  const isPhaseChange = updates.status !== undefined && updates.status !== room.status;
+  const isQuestionChange = updates.current_question_index !== undefined && updates.current_question_index !== room.current_question_index;
   Object.assign(room, updates);
   room.version = (room.version || 0) + 1;
-  room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
+  if (isPhaseChange || isQuestionChange) {
+    room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
+  }
 }
 
 // Helper to persist room and its lightweight sync record

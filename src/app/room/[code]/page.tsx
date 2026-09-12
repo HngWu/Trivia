@@ -216,13 +216,16 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const handleKick = useCallback(async (targetPlayerId: string) => {
     if (!isLeader || targetPlayerId === myPlayerId) return;
     try {
-      await kickPlayer(roomCode, targetPlayerId, myPlayerId);
+      const newState = await kickPlayer(roomCode, targetPlayerId, myPlayerId);
+      if (newState) {
+        applyState(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      }
       triggerSync();
     } catch (error) { 
       console.error("Kick failed:", error);
       showToast("Failed to kick player."); 
     }
-  }, [isLeader, myPlayerId, roomCode, triggerSync, showToast]);
+  }, [isLeader, myPlayerId, roomCode, triggerSync, applyState, showToast]);
 
   const handleSelectWager = useCallback(async (weight: number) => {
     if (roundData.wager || !currentQuestion) return;
@@ -231,14 +234,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     pendingSubmissionsRef.current[key] = optimisticAnswer;
     setAllRoomAnswers(prev => [...prev.filter(a => !(a.player_id === myPlayerId && a.question_id === currentQuestion.id)), optimisticAnswer]);
     try {
-      await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
+      const newState = await submitWager(roomCode, myPlayerId, currentQuestion.id, weight);
       delete pendingSubmissionsRef.current[key];
+      if (newState) {
+        applyState(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      }
       triggerSync();
     } catch (error) { 
       console.error("Wager failed:", error);
       delete pendingSubmissionsRef.current[key]; 
     }
-  }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync]);
+  }, [roundData.wager, currentQuestion, myPlayerId, roomCode, triggerSync, applyState]);
 
   const handleSubmitAnswer = useCallback(async (val: string) => {
     if (roundData.answer || !currentQuestion) return;
@@ -248,14 +254,17 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     pendingSubmissionsRef.current[key] = optimisticAnswer;
     setAllRoomAnswers(prev => prev.map(a => (a.player_id === myPlayerId && a.question_id === currentQuestion.id) ? optimisticAnswer : a));
     try {
-      await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
+      const newState = await submitAnswer(roomCode, myPlayerId, currentQuestion.id, val);
       delete pendingSubmissionsRef.current[key];
+      if (newState) {
+        applyState(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      }
       triggerSync();
     } catch (error) { 
       console.error("Answer failed:", error);
       delete pendingSubmissionsRef.current[key]; 
     }
-  }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync]);
+  }, [roundData.answer, currentQuestion, roundData.wager, myPlayerId, roomCode, triggerSync, applyState]);
 
 
   const handleTimeUp = useCallback(() => {
@@ -268,15 +277,31 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (!isLeader) return;
     const nextIndex = currentIndex + 1;
     const nextStatus = nextIndex < questions.length ? "wager" : "final";
-    await updateRoomStatus(roomCode, nextStatus, nextIndex);
-    triggerSync();
-  }, [isLeader, currentIndex, questions.length, roomCode, triggerSync]);
+    try {
+      const newState = await updateRoomStatus(roomCode, nextStatus, nextIndex);
+      if (newState) {
+        applyState(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      }
+      triggerSync();
+    } catch (error) {
+      console.error("Next round failed:", error);
+      showToast("Failed to advance to next round.");
+    }
+  }, [isLeader, currentIndex, questions.length, roomCode, triggerSync, applyState, showToast]);
 
   const handleStartGame = useCallback(async () => {
     if (questions.length === 0) return;
-    await updateRoomStatus(roomCode, "wager");
-    triggerSync();
-  }, [questions.length, roomCode, triggerSync]);
+    try {
+      const newState = await updateRoomStatus(roomCode, "wager");
+      if (newState) {
+        applyState(newState as { room: Room | null; players: Player[]; allAnswers: Answer[] });
+      }
+      triggerSync();
+    } catch (error) {
+      console.error("Start game failed:", error);
+      showToast("Failed to start game.");
+    }
+  }, [questions.length, roomCode, triggerSync, applyState, showToast]);
 
   const handleForceAdvance = useCallback(async (targetStatus?: GameState) => {
     if (!isLeader) return;
@@ -438,10 +463,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       try {
         const sync = await getRoomSync(roomCode);
         if (sync) {
-          if (sync.version > currentVersionRef.current) {
+          if (sync.version > currentVersionRef.current || timeSinceLastSync > 6000) {
             await fetchData();
           }
-        } else if (timeSinceLastSync > 5000) {
+        } else if (timeSinceLastSync > 4000) {
           await fetchData();
         }
       } catch (err) {
