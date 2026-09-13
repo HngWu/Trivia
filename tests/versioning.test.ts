@@ -1,5 +1,6 @@
 import { createRoom, updateRoomStatus, getServerTime, submitWager, submitAnswer } from '../src/lib/actions';
 import { redis } from '../src/lib/redis';
+import { gameStore } from '../src/lib/game-store';
 
 // Mock redis
 jest.mock('../src/lib/redis', () => ({
@@ -35,6 +36,7 @@ jest.mock('../src/lib/supabase/server', () => ({
 describe('Server Actions - Versioning & Sync', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    gameStore.resetMemoryStoreForTesting();
   });
 
   it('getServerTime returns current timestamp', async () => {

@@ -17,6 +17,7 @@ interface ResultsViewProps {
   players: Player[];
   myPlayerId: string;
   isLeader: boolean;
+  isLocked?: boolean;
   onNextRound: () => void;
 }
 
@@ -26,22 +27,28 @@ export default function ResultsView({
   players, 
   myPlayerId, 
   isLeader,
+  isLocked = false,
   onNextRound
 }: ResultsViewProps) {
   if (!roundData.results) return null;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center w-full animate-fade-in py-4 pt-16 sm:pt-24 sm:-translate-y-10 space-y-6">
+    <div className="flex-1 flex flex-col items-center justify-start w-full animate-fade-in pt-28 sm:pt-32 md:pt-36 pb-12 sm:pb-16 space-y-6 px-3 sm:px-6">
       
+      {/* Question Details Recap */}
       {currentQuestion && (
-        <div className="text-center w-full max-w-4xl space-y-2 mb-4">
-          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground drop-shadow-sm break-words">
-            {currentQuestion.text}
-          </h2>
+        <div className="text-center w-full max-w-3xl space-y-2 px-2">
+          <span className="inline-block px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground bg-white/[0.04] border border-white/[0.08]">
+            Question Recap
+          </span>
+          <p className="text-base sm:text-xl md:text-2xl font-semibold text-foreground/90 leading-snug break-words">
+            &quot;{currentQuestion.text}&quot;
+          </p>
         </div>
       )}
 
-      <div className="w-full max-w-4xl space-y-4">
+      {/* Players Results List */}
+      <div className="w-full max-w-4xl space-y-3">
         <div className="flex flex-col gap-2">
           {players.map(p => {
             const submission = roundData.competitors.find(c => c.player_id === p.id);
@@ -49,7 +56,7 @@ export default function ResultsView({
             const isCorrect = submission?.is_correct;
             const hasAnswered = !!submission;
 
-            const highlightClass = isMe ? 'bg-white/10 border-white/20' : 'bg-white/5 border-white/10 text-foreground';
+            const highlightClass = isMe ? 'bg-white/10 border-white/20 shadow-md' : 'bg-white/5 border-white/10 text-foreground';
             const textHighlight = hasAnswered 
               ? (isCorrect ? 'text-success' : 'text-destructive')
               : 'text-muted-foreground';
@@ -61,20 +68,20 @@ export default function ResultsView({
             return (
               <div 
                 key={p.id} 
-                className={`flex justify-between items-center p-4 rounded-xl border ${highlightClass} transition-all`}
+                className={`flex flex-wrap sm:flex-nowrap justify-between items-center p-3.5 sm:p-4 rounded-xl border ${highlightClass} transition-all gap-2`}
               >
-                <div className="flex items-center gap-3">
-                  <span className={`font-bold text-lg ${isMe ? 'underline underline-offset-4' : ''}`}>
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <span className={`font-bold text-sm sm:text-base md:text-lg truncate ${isMe ? 'underline underline-offset-4' : ''}`}>
                     {p.name}
                   </span>
-                  {isMe && <span className="text-[10px] uppercase font-bold opacity-60">(You)</span>}
+                  {isMe && <span className="text-[10px] uppercase font-bold opacity-60 shrink-0">(You)</span>}
                 </div>
-                <div className={`text-right flex items-center gap-6`}>
-                  <span className={`font-semibold text-lg max-w-[150px] sm:max-w-[300px] truncate ${textHighlight}`}>
+                <div className="flex items-center gap-3 sm:gap-6 shrink-0 ml-auto">
+                  <span className={`font-semibold text-xs sm:text-base max-w-[140px] sm:max-w-[280px] truncate ${textHighlight}`}>
                     {submission?.submitted_answer || "No answer"}
                   </span>
-                  <span className={`font-bold text-lg min-w-[50px] px-3 py-1 rounded-lg border text-center ${wagerHighlight}`}>
-                    {submission?.wager || "-"}
+                  <span className={`font-bold text-xs sm:text-base min-w-[48px] sm:min-w-[56px] px-2.5 sm:px-3 py-1 rounded-lg border text-center ${wagerHighlight}`}>
+                    {submission?.wager ? `${submission.wager} pts` : "-"}
                   </span>
                 </div>
               </div>
@@ -83,20 +90,21 @@ export default function ResultsView({
         </div>
       </div>
 
-      <div className="w-full flex justify-center mt-8">
+      {/* Correct Answer Card */}
+      <div className="w-full flex justify-center mt-4 sm:mt-6">
         <Card className="w-full max-w-4xl border-white/10 bg-white/5 shadow-2xl overflow-hidden relative">
-          <div className="absolute top-0 left-0 w-full h-1" />
-          <CardContent className="p-6 sm:p-12 text-left space-y-6">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          <CardContent className="p-5 sm:p-8 md:p-10 text-left space-y-4 sm:space-y-6">
             <div className="space-y-1">
-              <h3 className="text-success/60 font-bold text-xs tracking-[0.3em] uppercase">The Correct Answer</h3>
-              <p className="text-2xl sm:text-4xl font-black text-foreground leading-none tracking-tighter">
+              <h3 className="text-success/80 font-bold text-[10px] sm:text-xs tracking-[0.25em] uppercase">The Correct Answer</h3>
+              <p className="text-xl sm:text-3xl md:text-4xl font-black text-foreground leading-tight tracking-tight break-words">
                 {roundData.results.answer}
               </p>
             </div>
             {roundData.results.explanation && (
-              <div className="pt-6 border-t border-white/5">
+              <div className="pt-4 sm:pt-6 border-t border-white/5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Explanation</p>
-                <p className="text-muted-foreground text-lg sm:text-xl font-medium leading-relaxed max-w-3xl italic break-words">
+                <p className="text-muted-foreground text-sm sm:text-base md:text-lg font-medium leading-relaxed max-w-3xl italic break-words">
                   &quot;{roundData.results.explanation}&quot;
                 </p>
               </div>
@@ -105,16 +113,18 @@ export default function ResultsView({
         </Card>
       </div>
 
+      {/* Next Round Button for Leader */}
       {isLeader && (
-        <div className="flex flex-col items-center gap-4 mt-8 pt-4">
-          <p className="text-muted-foreground text-[12px] font-bold tracking-widest animate-pulse uppercase">
+        <div className="flex flex-col items-center gap-3 mt-4 sm:mt-6 pt-2">
+          <p className="text-muted-foreground text-[11px] sm:text-[12px] font-bold tracking-widest animate-pulse uppercase">
             Next round starting soon...
           </p>
           <GlassButton 
             onClick={onNextRound}
-            className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase"
+            disabled={isLocked}
+            className="min-w-[200px] py-3.5 sm:py-4 px-8 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
           >
-            Next Round
+            {isLocked ? "Starting..." : "Next Round"}
           </GlassButton>
         </div>
       )}

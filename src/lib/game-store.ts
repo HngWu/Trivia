@@ -247,6 +247,12 @@ export function getLocalAnswer(code: string, playerId: string, questionId: strin
 export function saveLocalRoom(code: string, room: Room): void {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
+
+  // Guard: Never allow an older version to overwrite a newer version in memory
+  const currentVersion = state.room?.version || 0;
+  if (room.version !== undefined && room.version < currentVersion) {
+    return;
+  }
   state.room = cloneRoom(room);
   state.updatedAt = Date.now();
 
@@ -255,9 +261,9 @@ export function saveLocalRoom(code: string, room: Room): void {
       INSERT INTO active_rooms (code, data, version, status, updated_at)
       VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(code) DO UPDATE SET
-        data = excluded.data,
-        version = excluded.version,
-        status = excluded.status,
+        data = CASE WHEN excluded.version >= active_rooms.version THEN excluded.data ELSE active_rooms.data END,
+        version = CASE WHEN excluded.version >= active_rooms.version THEN excluded.version ELSE active_rooms.version END,
+        status = CASE WHEN excluded.version >= active_rooms.version THEN excluded.status ELSE active_rooms.status END,
         updated_at = excluded.updated_at
     `).run(normalized, JSON.stringify(room), room.version || 1, room.status, Date.now());
   });
@@ -363,6 +369,22 @@ export const gameStore = {
     if (canAttemptRedis()) {
       const redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`));
       if (redisRoom) {
+        const localRoom = getLocalRoom(normalized);
+        if (localRoom && (localRoom.version || 0) > (redisRoom.version || 0)) {
+          safeRedisWrite(() =>
+            Promise.all([
+              redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
+              redis.set(`room_sync:${normalized}`, {
+                version: localRoom.version || 0,
+                status: localRoom.status,
+                status_updated_at: localRoom.status_updated_at || Date.now(),
+                current_question_index: localRoom.current_question_index ?? 0,
+              }, { ex: ROOM_TTL }),
+            ])
+          ).catch(() => {});
+          return localRoom;
+        }
+
         saveLocalRoom(normalized, redisRoom);
         return redisRoom;
       }
@@ -517,6 +539,22 @@ export const gameStore = {
       });
 
       if (redisResult && redisResult.room) {
+        const localRoom = getLocalRoom(normalized);
+        if (localRoom && (localRoom.version || 0) > (redisResult.room.version || 0)) {
+          safeRedisWrite(() =>
+            Promise.all([
+              redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
+              redis.set(`room_sync:${normalized}`, {
+                version: localRoom.version || 0,
+                status: localRoom.status,
+                status_updated_at: localRoom.status_updated_at || Date.now(),
+                current_question_index: localRoom.current_question_index ?? 0,
+              }, { ex: ROOM_TTL }),
+            ])
+          ).catch(() => {});
+          return getLocalFullState(normalized);
+        }
+
         const players: Player[] = redisResult.playersMap
           ? Object.values(redisResult.playersMap).map(p => (typeof p === "string" ? JSON.parse(p) : p))
           : [];
@@ -544,6 +582,15 @@ export const gameStore = {
     currentQuestionIndex: number;
   } | null> {
     const normalized = normalizeCode(code);
+    const localRoom = getLocalRoom(normalized);
+    const localSync = localRoom
+      ? {
+          version: localRoom.version || 0,
+          statusUpdatedAt: localRoom.status_updated_at || 0,
+          status: localRoom.status,
+          currentQuestionIndex: localRoom.current_question_index ?? 0,
+        }
+      : null;
 
     // 1. Try Redis if circuit breaker is not open
     if (canAttemptRedis()) {
@@ -575,34 +622,34 @@ export const gameStore = {
       });
 
       if (redisSync) {
+        if (localSync && localSync.version > redisSync.version) {
+          return localSync;
+        }
         return redisSync;
       }
     }
 
     // 2. Fallback to Local Store (authoritative SQLite query)
-    const localRoom = getLocalRoom(normalized);
-    if (localRoom) {
-      return {
-        version: localRoom.version || 0,
-        statusUpdatedAt: localRoom.status_updated_at || 0,
-        status: localRoom.status,
-        currentQuestionIndex: localRoom.current_question_index ?? 0,
-      };
-    }
-    return null;
+    return localSync;
   },
 
   async touchRoomSync(code: string): Promise<number> {
     const normalized = normalizeCode(code);
+    const localRoom = getLocalRoom(normalized);
 
     // 1. Try Redis first if circuit breaker is not open
     if (canAttemptRedis()) {
       const redisTouched = await safeRedisCall(async () => {
         const room = await redis.get<Room>(`room:${normalized}`);
-        if (!room) return null;
-        room.version = (room.version || 0) + 1;
-        await this.saveRoom(normalized, room);
-        return room.version || 0;
+        if (!room && !localRoom) return null;
+
+        const baseRoom = (!room || (localRoom && (localRoom.version || 0) > (room.version || 0)))
+          ? localRoom!
+          : room;
+
+        baseRoom.version = (baseRoom.version || 0) + 1;
+        await this.saveRoom(normalized, baseRoom);
+        return baseRoom.version || 0;
       });
 
       if (typeof redisTouched === "number") {
@@ -611,7 +658,6 @@ export const gameStore = {
     }
 
     // 2. Fallback to Local Store
-    const localRoom = getLocalRoom(normalized);
     if (!localRoom) return 0;
 
     localRoom.version = (localRoom.version || 0) + 1;
@@ -644,5 +690,8 @@ export const gameStore = {
     redisFailureTimestamp = 0;
     consecutiveFailures = 0;
     lastWarnTimestamp = 0;
+    runSqlite(db => {
+      db.exec("DELETE FROM active_rooms; DELETE FROM active_players; DELETE FROM active_answers;");
+    });
   },
 };

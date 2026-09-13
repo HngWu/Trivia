@@ -60,11 +60,11 @@ export default function QuestionView({
   const booleanOptions = currentQuestion?.type === "boolean_yes_no" ? ["Yes", "No"] : ["True", "False"];
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4 pt-20 sm:pt-28">
-       <div className="glass p-4 sm:p-12 rounded-3xl shadow-2xl space-y-8 relative overflow-hidden border-white/[0.05]">
+    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4 pt-28 sm:pt-32 md:pt-36 pb-8 px-3 sm:px-6">
+       <div className="glass p-4 sm:p-12 rounded-2xl sm:rounded-3xl shadow-2xl space-y-6 sm:space-y-8 relative overflow-hidden border-white/[0.05]">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
-          <h2 className="text-lg sm:text-2xl font-bold tracking-tight leading-tight text-foreground break-words max-w-full">
+          <h2 className="text-lg sm:text-2xl md:text-3xl font-bold tracking-tight leading-snug text-foreground break-words max-w-full">
              &quot;{currentQuestion?.text}&quot;
           </h2>
 
@@ -130,9 +130,10 @@ export default function QuestionView({
                 <div className="pt-6 animate-fade-in w-full flex justify-center">
                   <GlassButton 
                     onClick={() => onForceAdvance()}
+                    disabled={isLocked}
                     className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
                   >
-                    Reveal Answer
+                    {isLocked ? "Revealing..." : "Reveal Answer"}
                   </GlassButton>
                 </div>
               )}

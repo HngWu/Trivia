@@ -44,7 +44,7 @@ export default function WagerView({
 
   if (!roundData.wager) {
     return (
-      <div className="w-full flex flex-col items-center justify-center max-w-3xl mx-auto animate-slide-up text-center pt-20 sm:pt-28 md:pt-32 pb-6 px-2 sm:px-4">
+      <div className="w-full flex flex-col items-center justify-center max-w-3xl mx-auto animate-slide-up text-center pt-28 sm:pt-32 md:pt-36 pb-8 px-2 sm:px-4">
         {/* Header - Flowed naturally with generous top clearance below RoomHeader */}
         <div className="space-y-1 mb-6 sm:mb-10">
           <p className="text-muted-foreground font-bold tracking-widest text-[10px] sm:text-xs uppercase">Points at stake</p>
@@ -87,7 +87,7 @@ export default function WagerView({
   }
 
   return (
-    <div className="w-full flex flex-col items-center justify-center max-w-xl mx-auto animate-fade-in text-center pt-20 sm:pt-28 md:pt-32 pb-6 px-4 space-y-8">
+    <div className="w-full flex flex-col items-center justify-center max-w-xl mx-auto animate-fade-in text-center pt-28 sm:pt-32 md:pt-36 pb-8 px-4 space-y-8">
       <div className="inline-block px-6 sm:px-8 py-3.5 sm:py-4 glass border-white/10 rounded-2xl shadow-xl relative overflow-hidden">
         <p className="text-foreground text-xl sm:text-3xl font-bold tracking-tight animate-pulse italic">
           Point stake locked ({roundData.wager} pts)
@@ -109,9 +109,10 @@ export default function WagerView({
           <div className="pt-6 animate-fade-in w-full flex justify-center">
             <GlassButton 
               onClick={() => onForceAdvance("question")}
+              disabled={isLocked}
               className="min-w-[200px] py-3.5 px-6 rounded-xl font-bold tracking-widest uppercase text-sm focus:ring-2 focus:ring-white/20 focus:outline-none"
             >
-              Reveal Question
+              {isLocked ? "Revealing..." : "Reveal Question"}
             </GlassButton>
           </div>
         )}

@@ -50,6 +50,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const [nickname, setNickname] = useState("");
   const [copied, setCopied] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [isAdvancing, setIsAdvancing] = useState(false);
 
   // --- REFS ---
   const currentVersionRef = useRef(0);
@@ -58,6 +59,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   const lastSyncTimeRef = useRef(0);
   const isRealtimeConnectedRef = useRef(false);
   const isSyncingRef = useRef(false);
+  const resultsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // --- DERIVED DATA ---
   const currentQuestion = useMemo(() => questions[currentIndex], [questions, currentIndex]);
@@ -100,9 +102,16 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   const applyState = useCallback((state: { room: Room | null; players: Player[]; allAnswers: Answer[] }) => {
     const { room, players: p, allAnswers: a } = state;
-    if (!room || (room.version && room.version <= currentVersionRef.current)) return;
+    if (!room) return;
+
+    const isNewer = (room.version || 0) > currentVersionRef.current;
+    const isStatusOrIndexChange =
+      room.status !== roomStatus ||
+      room.current_question_index !== currentIndexRef.current;
+
+    if (!isNewer && !isStatusOrIndexChange) return;
     
-    currentVersionRef.current = room.version || 0;
+    currentVersionRef.current = Math.max(currentVersionRef.current, room.version || 0);
     lastSyncTimeRef.current = Date.now();
 
     if (myPlayerId && p && !p.find((player: Player) => player.id === myPlayerId) && !isJoining) {
@@ -138,12 +147,14 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     if (scheduledUpdateRef.current !== null) cancelAnimationFrame(scheduledUpdateRef.current);
     const targetTime = room.status_updated_at || (Date.now() + serverOffset);
     const now = Date.now() + serverOffset;
+    const remainingMs = Math.max(0, targetTime - now);
     
-    if (now >= targetTime) {
+    if (remainingMs <= 0) {
       React.startTransition(() => {
         setDisplayStatus(room.status as GameState);
         setDisplayIndex(room.current_question_index);
       });
+      scheduledUpdateRef.current = null;
     } else {
       const syncLoop = () => {
         if (Date.now() + serverOffset >= targetTime) {
@@ -155,8 +166,20 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         } else scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
       };
       scheduledUpdateRef.current = requestAnimationFrame(syncLoop);
+
+      // Safety fallback timer in case requestAnimationFrame is throttled or paused in background
+      setTimeout(() => {
+        React.startTransition(() => {
+          setDisplayStatus(room.status as GameState);
+          setDisplayIndex(room.current_question_index);
+        });
+        if (scheduledUpdateRef.current !== null) {
+          cancelAnimationFrame(scheduledUpdateRef.current);
+          scheduledUpdateRef.current = null;
+        }
+      }, remainingMs + 50);
     }
-  }, [myPlayerId, isJoining, serverOffset]);
+  }, [myPlayerId, isJoining, serverOffset, roomStatus]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -274,7 +297,12 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [roomStatus, roundData.wager, roundData.answer, usedWagers, handleSelectWager, handleSubmitAnswer]);
 
   const handleNextRound = useCallback(async () => {
-    if (!isLeader) return;
+    if (!isLeader || isAdvancing) return;
+    if (resultsTimerRef.current) {
+      clearTimeout(resultsTimerRef.current);
+      resultsTimerRef.current = null;
+    }
+    setIsAdvancing(true);
     const nextIndex = currentIndex + 1;
     const nextStatus = nextIndex < questions.length ? "wager" : "final";
     try {
@@ -286,8 +314,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     } catch (error) {
       console.error("Next round failed:", error);
       showToast("Failed to advance to next round.");
+    } finally {
+      setIsAdvancing(false);
     }
-  }, [isLeader, currentIndex, questions.length, roomCode, triggerSync, applyState, showToast]);
+  }, [isLeader, isAdvancing, currentIndex, questions.length, roomCode, triggerSync, applyState, showToast]);
 
   const handleStartGame = useCallback(async () => {
     if (questions.length === 0) return;
@@ -304,8 +334,8 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
   }, [questions.length, roomCode, triggerSync, applyState, showToast]);
 
   const handleForceAdvance = useCallback(async (targetStatus?: GameState) => {
-    if (!isLeader) return;
-    
+    if (!isLeader || isAdvancing) return;
+    setIsAdvancing(true);
     // Determine the next status based on current roomStatus or explicit target
     const nextStatus = targetStatus || (roomStatus === "wager" ? "question" : "results");
     
@@ -317,8 +347,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     } catch (error) { 
       console.error("Force advance failed:", error);
       showToast("Failed to advance stage.");
+    } finally {
+      setIsAdvancing(false);
     }
-  }, [isLeader, roomStatus, currentIndex, roomCode, triggerSync, applyState, showToast]);
+  }, [isLeader, isAdvancing, roomStatus, currentIndex, roomCode, triggerSync, applyState, showToast]);
 
   const handleJoin = useCallback(async () => {
     if (isLoading || !nickname.trim()) return;
@@ -446,8 +478,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   // Redis fallback sync loop:
   // Dynamically adapts based on Supabase Realtime connection health.
-  // When Realtime is active, runs as a relaxed background safety check (every 3.5s).
-  // When Realtime is disconnected/degraded, actively polls Redis (every 1s) to ensure instant synchronization.
+  // When Realtime is disconnected/degraded or broadcast fails, actively polls Redis/local store (every 1s) to ensure instant synchronization.
   useEffect(() => {
     if (isLoading || roomStatus === "final") return;
 
@@ -455,7 +486,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       if (isSyncingRef.current) return;
       const now = Date.now();
       const timeSinceLastSync = now - lastSyncTimeRef.current;
-      const minThreshold = isRealtimeConnectedRef.current ? 3500 : 1000;
+      const minThreshold = isRealtimeConnectedRef.current ? 1500 : 1000;
 
       if (timeSinceLastSync < minThreshold) return;
 
@@ -463,15 +494,21 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       try {
         const sync = await getRoomSync(roomCode);
         if (sync) {
-          if (sync.version > currentVersionRef.current || timeSinceLastSync > 6000) {
+          const hasChanged =
+            sync.version > currentVersionRef.current ||
+            sync.status !== roomStatus ||
+            sync.currentQuestionIndex !== currentIndex ||
+            timeSinceLastSync > 5000;
+
+          if (hasChanged) {
             await fetchData();
           }
-        } else if (timeSinceLastSync > 4000) {
+        } else if (timeSinceLastSync > 3000) {
           await fetchData();
         }
       } catch (err) {
         console.warn("[Redis Fallback] Sync check error:", err);
-        if (timeSinceLastSync > 6000) {
+        if (timeSinceLastSync > 4000) {
           await fetchData().catch(() => {});
         }
       } finally {
@@ -480,7 +517,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isLoading, roomStatus, roomCode, fetchData]);
+  }, [isLoading, roomStatus, currentIndex, roomCode, fetchData]);
 
   useEffect(() => {
     if (roomStatus === "waiting" || roomStatus === "final" || isLoading || !statusUpdatedAt) return;
@@ -499,8 +536,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
   useEffect(() => {
     if (roomStatus === "results" && isLeader) {
-      const t = setTimeout(handleNextRound, 7000);
-      return () => clearTimeout(t);
+      resultsTimerRef.current = setTimeout(() => {
+        handleNextRound();
+      }, 7000);
+      return () => {
+        if (resultsTimerRef.current) {
+          clearTimeout(resultsTimerRef.current);
+          resultsTimerRef.current = null;
+        }
+      };
     }
   }, [roomStatus, isLeader, handleNextRound]);
 
@@ -532,7 +576,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
 
       <main key={`round-view-${displayIndex}`} className="flex-1 flex flex-col items-center max-w-6xl mx-auto w-full relative overflow-y-auto no-scrollbar">
         {/* Header is now absolute to ensure it doesn't push content down, allowing for true vertical centering */}
-        <div className="absolute top-0 left-0 w-full p-3 sm:p-6 md:p-10 z-20 pointer-events-none">
+        <div className="absolute top-0 left-0 w-full pt-3 sm:pt-5 md:pt-6 pb-2 px-3 sm:px-6 md:px-10 z-20 pointer-events-none">
           <div className="pointer-events-auto">
             <RoomHeader currentIndex={displayIndex} topic={topic} roomStatus={roomStatus} displayStatus={displayStatus} isLocked={isLocked} currentQuestion={displayedQuestion} />
           </div>
@@ -540,7 +584,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         
         <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
-        <div className="flex-1 w-full flex flex-col items-center justify-center min-h-[50vh] p-3 sm:p-6 md:p-10">
+        <div className="flex-1 w-full flex flex-col items-center justify-start min-h-0 p-3 sm:p-6 md:p-8">
           {/* Transition Overlay / Loading State */}
           {roomStatus !== displayStatus ? (
              <div className="flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-full">
@@ -561,15 +605,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               )}
 
               {displayStatus === "wager" && (
-                <WagerView roundData={displayedRoundData} players={players} isLocked={isLocked} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("question" as GameState)} />
+                <WagerView roundData={displayedRoundData} players={players} isLocked={isLocked || isAdvancing} usedWagers={usedWagers} onSelectWager={handleSelectWager} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("question" as GameState)} />
               )}
 
               {displayStatus === "question" && (
-                <QuestionView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} isLocked={isLocked} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("results" as GameState)} />
+                <QuestionView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} isLocked={isLocked || isAdvancing} textAnswer={textAnswer} setTextAnswer={setTextAnswer} onSubmitAnswer={handleSubmitAnswer} isLeader={isLeader} onForceAdvance={() => handleForceAdvance("results" as GameState)} />
               )}
 
               {displayStatus === "results" && (
-                <ResultsView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} onNextRound={handleNextRound} />
+                <ResultsView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked || isAdvancing} onNextRound={handleNextRound} />
               )}
 
               {displayStatus === "final" && (

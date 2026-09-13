@@ -21,7 +21,7 @@ export default function RoomHeader({
   if (displayStatus === "waiting" || displayStatus === "final") return null;
 
   return (
-    <header className="w-full text-center space-y-2 mb-6 sm:mb-8 animate-fade-in">
+    <header className="w-full text-center space-y-1.5 sm:space-y-2 mb-2 sm:mb-3 animate-fade-in">
       <div className="flex items-center justify-center space-x-3 text-[10px] font-bold tracking-widest text-gray-600 uppercase">
          <span>Round {currentIndex + 1}</span>
          <span className="w-1 h-1 rounded-full bg-white/10"></span>
