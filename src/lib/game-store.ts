@@ -166,28 +166,74 @@ export function getLocalAnswer(code: string, playerId: string, questionId: strin
   return mem ? { ...mem } : null;
 }
 
+const PHASE_RANK: Record<GameState, number> = {
+  waiting: 0,
+  wager: 1,
+  question: 2,
+  results: 3,
+  final: 4,
+};
+
 export function saveLocalRoom(code: string, room: Room): void {
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
 
-  // Guard: Never allow an older version to overwrite a newer version in memory
-  const currentVersion = state.room?.version || 0;
-  if (room.version !== undefined && room.version < currentVersion) {
-    return;
+  const currentRoom = state.room;
+  if (currentRoom) {
+    const curVer = currentRoom.version || 0;
+    const newVer = room.version || 0;
+    const curIdx = currentRoom.current_question_index ?? 0;
+    const newIdx = room.current_question_index ?? 0;
+
+    // Reject older versions
+    if (newVer < curVer) return;
+
+    // If same version and same question index, prevent phase regression
+    if (newVer === curVer && newIdx === curIdx) {
+      const curRank = PHASE_RANK[currentRoom.status] ?? 0;
+      const newRank = PHASE_RANK[room.status] ?? 0;
+      if (newRank < curRank) {
+        return;
+      }
+    }
   }
+
   state.room = cloneRoom(room);
   state.updatedAt = Date.now();
 
   runSqlite(db => {
+    const existing = db.prepare("SELECT version, status, current_question_index FROM active_rooms WHERE code = ?").get(normalized) as {
+      version: number;
+      status: GameState;
+      current_question_index: number;
+    } | undefined;
+
+    if (existing) {
+      const curVer = existing.version || 0;
+      const newVer = room.version || 0;
+      const curIdx = existing.current_question_index ?? 0;
+      const newIdx = room.current_question_index ?? 0;
+
+      if (newVer < curVer) return;
+
+      if (newVer === curVer && newIdx === curIdx) {
+        const curRank = PHASE_RANK[existing.status] ?? 0;
+        const newRank = PHASE_RANK[room.status] ?? 0;
+        if (newRank < curRank) {
+          return;
+        }
+      }
+    }
+
     db.prepare(`
       INSERT INTO active_rooms (code, data, version, status, status_updated_at, current_question_index, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(code) DO UPDATE SET
-        data = CASE WHEN excluded.version >= active_rooms.version THEN excluded.data ELSE active_rooms.data END,
-        version = CASE WHEN excluded.version >= active_rooms.version THEN excluded.version ELSE active_rooms.version END,
-        status = CASE WHEN excluded.version >= active_rooms.version THEN excluded.status ELSE active_rooms.status END,
-        status_updated_at = CASE WHEN excluded.version >= active_rooms.version THEN excluded.status_updated_at ELSE active_rooms.status_updated_at END,
-        current_question_index = CASE WHEN excluded.version >= active_rooms.version THEN excluded.current_question_index ELSE active_rooms.current_question_index END,
+        data = excluded.data,
+        version = excluded.version,
+        status = excluded.status,
+        status_updated_at = excluded.status_updated_at,
+        current_question_index = excluded.current_question_index,
         updated_at = excluded.updated_at
     `).run(
       normalized,
