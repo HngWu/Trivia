@@ -52,3 +52,7 @@ gha-creds-*.json
 *.db-journal
 *.db-wal
 *.db-shm
+
+# documentation
+/docs/
+
