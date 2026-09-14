@@ -117,6 +117,9 @@ export async function joinRoom(code: string, playerName: string) {
   // Prevent duplicate joins with same name
   const existingPlayer = players.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
   if (existingPlayer) {
+    if (room.kicked_players?.includes(existingPlayer.id)) {
+      throw new Error("You have been removed from this room.");
+    }
     return { room, player: existingPlayer };
   }
   
@@ -281,6 +284,7 @@ export async function kickPlayer(roomCode: string, playerId: string, leaderId: s
   const { room } = await getFullState(normalizedCode);
   if (!room || room.leader_id !== leaderId) throw new Error("Unauthorized");
 
+  room.kicked_players = Array.from(new Set([...(room.kicked_players || []), playerId]));
   await gameStore.removePlayer(normalizedCode, playerId);
 
   // Increment room version to trigger UI sync for everyone (especially the kicked player)

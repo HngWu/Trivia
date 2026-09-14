@@ -44,4 +44,5 @@ export type Room = {
   questions: Question[];
   status_updated_at?: number;
   version: number;
+  kicked_players?: string[];
 };

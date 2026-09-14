@@ -114,14 +114,15 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     currentVersionRef.current = Math.max(currentVersionRef.current, room.version || 0);
     lastSyncTimeRef.current = Date.now();
 
-    if (myPlayerId && p && !p.find((player: Player) => player.id === myPlayerId) && !isJoining) {
+    // Only kick if explicitly kicked by the room leader
+    if (myPlayerId && room.kicked_players?.includes(myPlayerId)) {
       window.location.href = "/?error=kicked";
       return;
     }
 
     setRoomLeaderId(room.leader_id);
     setTopic(room.topic || "");
-    if (p) setPlayers(p);
+    if (p && p.length > 0) setPlayers(p);
     if (room.questions) setQuestions(room.questions);
 
     if (a) {
@@ -431,6 +432,10 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
             showToast("Room not found.");
             setTimeout(() => window.location.href = "/", 2000);
             return;
+        }
+        if (savedId && state.room?.kicked_players?.includes(savedId)) {
+          window.location.href = "/?error=kicked";
+          return;
         }
         applyState(state as { room: Room | null; players: Player[]; allAnswers: Answer[] });
         const isAlreadyInRoom = state.players?.some((player: Player) => player.id === savedId);
