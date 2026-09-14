@@ -3,6 +3,7 @@
 import { getDatabase, getActiveProviderNameSync } from "./db";
 import { redis } from "./redis";
 import { gameStore, normalizeCode } from "./game-store";
+import { safeRedisCall } from "./redis-breaker";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
 import { AIProvider, generateRoasts, generateAIQuestions } from "./ai";
@@ -309,32 +310,13 @@ let inMemoryTopics: Topic[] | null = null;
 let inMemoryTopicsTime = 0;
 const IN_MEMORY_TOPICS_TTL = 300_000; // 5 minutes
 
-// Circuit breaker for Redis operations
-let redisFailureTimestamp = 0;
-const REDIS_COOLDOWN_MS = 60_000; // 60 seconds cooldown after a failure
-
-export async function safeRedisOp<T>(op: () => Promise<T>, timeoutMs = 300): Promise<T | null> {
+// Circuit breaker for Redis operations powered by unified redis-breaker
+export async function safeRedisOp<T>(op: () => Promise<T>, timeoutMs = 150): Promise<T | null> {
   // If active provider is SQLite, skip Redis entirely to avoid network latency and offline errors
   if (getActiveProviderNameSync() === 'sqlite') {
     return null;
   }
-  // If recently failed, skip without waiting
-  if (Date.now() - redisFailureTimestamp < REDIS_COOLDOWN_MS) {
-    return null;
-  }
-  try {
-    const result = await Promise.race([
-      op(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Redis timeout')), timeoutMs)
-      )
-    ]);
-    return result;
-  } catch (err) {
-    redisFailureTimestamp = Date.now();
-    console.warn('[Redis] Operation failed or timed out, tripping circuit breaker:', (err as Error).message);
-    return null;
-  }
+  return await safeRedisCall(op, timeoutMs);
 }
 
 export async function invalidateTopicCache() {

@@ -4,6 +4,14 @@ import { getSqliteDb } from './sqlite-connection';
 import { getActiveProviderName, supabaseProvider, clearProviderCache } from './index';
 import { redis } from '../redis';
 import { invalidateTopicCache, safeRedisOp } from '../actions';
+import {
+  getRedisStatus,
+  setRedisMode,
+  resetRedisBreaker,
+  testRedisPing,
+  RedisMode,
+  RedisStatus,
+} from '../redis-breaker';
 
 export async function getDatabaseProviderStatus() {
   const provider = await getActiveProviderName();
@@ -120,3 +128,22 @@ export async function importFromSupabaseToSqlite() {
     };
   }
 }
+
+export async function getRedisSessionStatus(): Promise<RedisStatus> {
+  return getRedisStatus();
+}
+
+export async function setRedisSessionMode(mode: RedisMode): Promise<{ success: boolean; mode: RedisMode }> {
+  setRedisMode(mode);
+  return { success: true, mode };
+}
+
+export async function testRedisPingAction(): Promise<{ success: boolean; latencyMs: number; error?: string }> {
+  return await testRedisPing();
+}
+
+export async function resetRedisBreakerAction(): Promise<{ success: boolean }> {
+  resetRedisBreaker();
+  return { success: true };
+}
+

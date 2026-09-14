@@ -110,6 +110,8 @@ export function getSqliteDb(): DatabaseSync {
       data TEXT NOT NULL,
       version INTEGER NOT NULL DEFAULT 1,
       status TEXT NOT NULL,
+      status_updated_at INTEGER,
+      current_question_index INTEGER DEFAULT 0,
       updated_at INTEGER NOT NULL
     );
 
@@ -134,6 +136,10 @@ export function getSqliteDb(): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_active_answers_room ON active_answers(room_code);
     CREATE INDEX IF NOT EXISTS idx_active_rooms_updated_at ON active_rooms(updated_at);
   `);
+
+  // Ensure lightweight sync columns exist on active_rooms
+  try { db.exec("ALTER TABLE active_rooms ADD COLUMN status_updated_at INTEGER;"); } catch { /* column exists */ }
+  try { db.exec("ALTER TABLE active_rooms ADD COLUMN current_question_index INTEGER;"); } catch { /* column exists */ }
 
   // Seed default settings
   const hasProvider = db.prepare("SELECT value FROM system_settings WHERE key = 'db_provider'").get();

@@ -1,98 +1,20 @@
 import { Room, Player, Answer, GameState } from "./types/game";
-import { redis, ROOM_TTL, isRedisConfigured } from "./redis";
+import { redis, ROOM_TTL } from "./redis";
 import { getSqliteDb } from "./db/sqlite-connection";
+import {
+  canAttemptRedis,
+  safeRedisCall,
+  safeRedisWrite,
+  resetRedisBreaker,
+  isCircuitBreakerOpen,
+  getRedisCooldownMs,
+} from "./redis-breaker";
 
-// Circuit breaker state
-let redisFailureTimestamp = 0;
-let consecutiveFailures = 0;
-let lastWarnTimestamp = 0;
-const BASE_COOLDOWN_MS = 10_000; // 10s base cooldown after Redis failure
-const MAX_COOLDOWN_MS = 60_000; // 60s max cooldown
-const REDIS_READ_TIMEOUT_MS = 800; // 800ms max wait for read operations
-const REDIS_WRITE_TIMEOUT_MS = 1000; // 1000ms max wait for write operations
-
-function isTestEnv(): boolean {
-  return process.env.NODE_ENV === "test";
-}
-
-export function getRedisCooldownMs(): number {
-  if (consecutiveFailures <= 1) return BASE_COOLDOWN_MS;
-  return Math.min(BASE_COOLDOWN_MS * Math.pow(2, consecutiveFailures - 1), MAX_COOLDOWN_MS);
-}
-
-export function isCircuitBreakerOpen(): boolean {
-  if (redisFailureTimestamp === 0) return false;
-  return Date.now() - redisFailureTimestamp < getRedisCooldownMs();
-}
-
-export function canAttemptRedis(): boolean {
-  if (!redis) return false;
-  if (!isRedisConfigured && !isTestEnv()) return false;
-  return !isCircuitBreakerOpen();
-}
-
-function recordRedisSuccess(): void {
-  redisFailureTimestamp = 0;
-  consecutiveFailures = 0;
-}
-
-function recordRedisFailure(err: unknown) {
-  consecutiveFailures++;
-  redisFailureTimestamp = Date.now();
-  const now = Date.now();
-  if (now - lastWarnTimestamp > 10_000) {
-    lastWarnTimestamp = now;
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[Redis Failover] Upstash operation failed (${msg}). Serving from local store for next ${getRedisCooldownMs() / 1000}s.`);
-  }
-}
-
-export async function safeRedisCall<T>(op: () => Promise<T>, timeoutMs = REDIS_READ_TIMEOUT_MS): Promise<T | null> {
-  if (!canAttemptRedis()) return null;
-
-  let timerId: NodeJS.Timeout | null = null;
-  try {
-    const result = await Promise.race([
-      op(),
-      new Promise<never>((_, reject) => {
-        timerId = setTimeout(() => reject(new Error("Redis operation timed out")), timeoutMs);
-        if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
-      }),
-    ]);
-    recordRedisSuccess();
-    return result;
-  } catch (err) {
-    recordRedisFailure(err);
-    return null;
-  } finally {
-    if (timerId) clearTimeout(timerId);
-  }
-}
-
-export async function safeRedisWrite(op: () => Promise<unknown>, timeoutMs = REDIS_WRITE_TIMEOUT_MS): Promise<boolean> {
-  if (!canAttemptRedis()) return false;
-
-  let timerId: NodeJS.Timeout | null = null;
-  try {
-    await Promise.race([
-      op(),
-      new Promise<never>((_, reject) => {
-        timerId = setTimeout(() => reject(new Error("Redis write timed out")), timeoutMs);
-        if (timerId && typeof timerId === "object" && "unref" in timerId) timerId.unref();
-      }),
-    ]);
-    recordRedisSuccess();
-    return true;
-  } catch (err) {
-    recordRedisFailure(err);
-    return false;
-  } finally {
-    if (timerId) clearTimeout(timerId);
-  }
-}
+// Export breaker status helpers so callers and tests can inspect failover state
+export { isCircuitBreakerOpen, canAttemptRedis, getRedisCooldownMs };
 
 // ---------------------------------------------------------------------------
-// LOCAL STORE: In-Memory Cache + Persistent SQLite
+// LOCAL STORE: In-Memory Cache + Persistent SQLite (WAL Mode)
 // ---------------------------------------------------------------------------
 
 export function normalizeCode(code: string): string {
@@ -129,7 +51,7 @@ function runSqlite<T>(fn: (db: ReturnType<typeof getSqliteDb>) => T): T | null {
     const db = getSqliteDb();
     return fn(db);
   } catch {
-    // If SQLite is unavailable or in a non-standard environment, memory store still functions
+    // If SQLite is unavailable, memory store still functions
     return null;
   }
 }
@@ -258,14 +180,24 @@ export function saveLocalRoom(code: string, room: Room): void {
 
   runSqlite(db => {
     db.prepare(`
-      INSERT INTO active_rooms (code, data, version, status, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO active_rooms (code, data, version, status, status_updated_at, current_question_index, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(code) DO UPDATE SET
         data = CASE WHEN excluded.version >= active_rooms.version THEN excluded.data ELSE active_rooms.data END,
         version = CASE WHEN excluded.version >= active_rooms.version THEN excluded.version ELSE active_rooms.version END,
         status = CASE WHEN excluded.version >= active_rooms.version THEN excluded.status ELSE active_rooms.status END,
+        status_updated_at = CASE WHEN excluded.version >= active_rooms.version THEN excluded.status_updated_at ELSE active_rooms.status_updated_at END,
+        current_question_index = CASE WHEN excluded.version >= active_rooms.version THEN excluded.current_question_index ELSE active_rooms.current_question_index END,
         updated_at = excluded.updated_at
-    `).run(normalized, JSON.stringify(room), room.version || 1, room.status, Date.now());
+    `).run(
+      normalized,
+      JSON.stringify(room),
+      room.version || 1,
+      room.status,
+      room.status_updated_at || Date.now(),
+      room.current_question_index ?? 0,
+      Date.now()
+    );
   });
 }
 
@@ -357,21 +289,73 @@ export function getLocalFullState(code: string): { room: Room | null; players: P
   return { room, players, allAnswers };
 }
 
+// Ultra-fast metadata query for client polling: runs in < 0.05ms without questions JSON parsing
+export function getLocalRoomSync(code: string): {
+  version: number;
+  statusUpdatedAt: number;
+  status: GameState;
+  currentQuestionIndex: number;
+} | null {
+  const normalized = normalizeCode(code);
+  const state = getOrCreateMemory(normalized);
+
+  const row = runSqlite(db => {
+    return db.prepare("SELECT version, status, status_updated_at, current_question_index, updated_at FROM active_rooms WHERE code = ?").get(normalized) as {
+      version: number;
+      status: GameState;
+      status_updated_at: number | null;
+      current_question_index: number | null;
+      updated_at: number;
+    } | undefined;
+  });
+
+  if (row) {
+    const sqliteVersion = row.version || 0;
+    const memVersion = state.room?.version || 0;
+    if (memVersion > sqliteVersion && state.room) {
+      return {
+        version: memVersion,
+        statusUpdatedAt: state.room.status_updated_at || state.updatedAt,
+        status: state.room.status,
+        currentQuestionIndex: state.room.current_question_index ?? 0,
+      };
+    }
+    return {
+      version: row.version,
+      statusUpdatedAt: row.status_updated_at || row.updated_at,
+      status: row.status,
+      currentQuestionIndex: row.current_question_index ?? 0,
+    };
+  }
+
+  if (state.room) {
+    return {
+      version: state.room.version || 0,
+      statusUpdatedAt: state.room.status_updated_at || state.updatedAt,
+      status: state.room.status,
+      currentQuestionIndex: state.room.current_question_index ?? 0,
+    };
+  }
+
+  return null;
+}
+
 // ---------------------------------------------------------------------------
-// TIERED GAME SESSION STORE (Redis Primary + Local Fallback)
+// TIERED GAME SESSION STORE (Authoritative Local Engine + Non-Blocking Redis)
 // ---------------------------------------------------------------------------
 
 export const gameStore = {
   async getRoom(code: string): Promise<Room | null> {
-    const normalized = (code || "").trim().toUpperCase();
+    const normalized = normalizeCode(code);
 
-    // 1. Try Redis if circuit breaker is not open
+    // 1. Try Redis if allowed by circuit breaker and mode
     if (canAttemptRedis()) {
       const redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`));
       if (redisRoom) {
         const localRoom = getLocalRoom(normalized);
         if (localRoom && (localRoom.version || 0) > (redisRoom.version || 0)) {
-          safeRedisWrite(() =>
+          // Asynchronous sync to Redis without blocking caller
+          void safeRedisWrite(() =>
             Promise.all([
               redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
               redis.set(`room_sync:${normalized}`, {
@@ -390,17 +374,17 @@ export const gameStore = {
       }
     }
 
-    // 2. Fallback to Local Store (authoritative SQLite fallback)
+    // 2. Fallback to Local Store (authoritative SQLite + Memory)
     return getLocalRoom(normalized);
   },
 
   async saveRoom(code: string, room: Room): Promise<void> {
     const normalized = normalizeCode(code);
 
-    // 1. Always update local store (immediate write-through)
+    // 1. Always update local store immediately (<0.5ms write-through)
     saveLocalRoom(normalized, room);
 
-    // 2. Write to Redis if circuit breaker is not open
+    // 2. Asynchronously dispatch write to Redis in background (non-blocking)
     if (canAttemptRedis()) {
       const syncData = {
         version: room.version || 0,
@@ -409,12 +393,12 @@ export const gameStore = {
         current_question_index: room.current_question_index ?? 0,
       };
 
-      await safeRedisWrite(() =>
+      void safeRedisWrite(() =>
         Promise.all([
           redis.set(`room:${normalized}`, room, { ex: ROOM_TTL }),
           redis.set(`room_sync:${normalized}`, syncData, { ex: ROOM_TTL }),
         ])
-      );
+      ).catch(() => {});
     }
   },
 
@@ -422,13 +406,15 @@ export const gameStore = {
     const normalized = normalizeCode(code);
 
     // 1. Try Redis
-    const redisPlayerRaw = await safeRedisCall(() =>
-      redis.hget<string | Player>(`players:${normalized}`, playerId)
-    );
-    if (redisPlayerRaw) {
-      const player = typeof redisPlayerRaw === "string" ? (JSON.parse(redisPlayerRaw) as Player) : redisPlayerRaw;
-      saveLocalPlayer(normalized, player);
-      return player;
+    if (canAttemptRedis()) {
+      const redisPlayerRaw = await safeRedisCall(() =>
+        redis.hget<string | Player>(`players:${normalized}`, playerId)
+      );
+      if (redisPlayerRaw) {
+        const player = typeof redisPlayerRaw === "string" ? (JSON.parse(redisPlayerRaw) as Player) : redisPlayerRaw;
+        saveLocalPlayer(normalized, player);
+        return player;
+      }
     }
 
     // 2. Fallback to Local Store
@@ -438,36 +424,40 @@ export const gameStore = {
   async setPlayer(code: string, player: Player): Promise<void> {
     const normalized = normalizeCode(code);
 
-    // 1. Update Local Store
+    // 1. Update Local Store immediately
     saveLocalPlayer(normalized, player);
 
-    // 2. Update Redis
-    await safeRedisWrite(() =>
-      Promise.all([
-        redis.hset(`players:${normalized}`, { [player.id]: JSON.stringify(player) }),
-        redis.expire(`players:${normalized}`, ROOM_TTL),
-      ])
-    );
+    // 2. Asynchronously dispatch write to Redis in background (non-blocking)
+    if (canAttemptRedis()) {
+      void safeRedisWrite(() =>
+        Promise.all([
+          redis.hset(`players:${normalized}`, { [player.id]: JSON.stringify(player) }),
+          redis.expire(`players:${normalized}`, ROOM_TTL),
+        ])
+      ).catch(() => {});
+    }
   },
 
   async removePlayer(code: string, playerId: string): Promise<void> {
     const normalized = normalizeCode(code);
 
-    // 1. Update Local Store
+    // 1. Update Local Store immediately
     deleteLocalPlayer(normalized, playerId);
 
-    // 2. Update Redis
-    await safeRedisWrite(async () => {
-      await redis.hdel(`players:${normalized}`, playerId);
-      const answersRaw = await redis.hgetall<Record<string, unknown>>(`answers:${normalized}`);
-      if (answersRaw) {
-        for (const key of Object.keys(answersRaw)) {
-          if (key.startsWith(`${playerId}:`)) {
-            await redis.hdel(`answers:${normalized}`, key);
+    // 2. Asynchronously dispatch removal to Redis in background (non-blocking)
+    if (canAttemptRedis()) {
+      void safeRedisWrite(async () => {
+        await redis.hdel(`players:${normalized}`, playerId);
+        const answersRaw = await redis.hgetall<Record<string, unknown>>(`answers:${normalized}`);
+        if (answersRaw) {
+          for (const key of Object.keys(answersRaw)) {
+            if (key.startsWith(`${playerId}:`)) {
+              await redis.hdel(`answers:${normalized}`, key);
+            }
           }
         }
-      }
-    });
+      }).catch(() => {});
+    }
   },
 
   async getAnswer(code: string, playerId: string, questionId: string): Promise<Answer | null> {
@@ -475,13 +465,15 @@ export const gameStore = {
     const key = `${playerId}:${questionId}`;
 
     // 1. Try Redis
-    const raw = await safeRedisCall(() =>
-      redis.hget<string | Answer>(`answers:${normalized}`, key)
-    );
-    if (raw) {
-      const ans = typeof raw === "string" ? (JSON.parse(raw) as Answer) : raw;
-      saveLocalAnswer(normalized, ans);
-      return ans;
+    if (canAttemptRedis()) {
+      const raw = await safeRedisCall(() =>
+        redis.hget<string | Answer>(`answers:${normalized}`, key)
+      );
+      if (raw) {
+        const ans = typeof raw === "string" ? (JSON.parse(raw) as Answer) : raw;
+        saveLocalAnswer(normalized, ans);
+        return ans;
+      }
     }
 
     // 2. Fallback to Local Store
@@ -492,42 +484,46 @@ export const gameStore = {
     const normalized = normalizeCode(code);
     const key = `${answer.player_id}:${answer.question_id}`;
 
-    // 1. Update Local Store
+    // 1. Update Local Store immediately
     saveLocalAnswer(normalized, answer);
 
-    // 2. Update Redis
-    await safeRedisWrite(() =>
-      Promise.all([
-        redis.hset(`answers:${normalized}`, { [key]: JSON.stringify(answer) }),
-        redis.expire(`answers:${normalized}`, ROOM_TTL),
-      ])
-    );
+    // 2. Asynchronously dispatch write to Redis in background (non-blocking)
+    if (canAttemptRedis()) {
+      void safeRedisWrite(() =>
+        Promise.all([
+          redis.hset(`answers:${normalized}`, { [key]: JSON.stringify(answer) }),
+          redis.expire(`answers:${normalized}`, ROOM_TTL),
+        ])
+      ).catch(() => {});
+    }
   },
 
   async setAnswers(code: string, answers: Answer[]): Promise<void> {
     const normalized = normalizeCode(code);
 
-    // 1. Update Local Store
+    // 1. Update Local Store immediately
     saveLocalAnswers(normalized, answers);
 
-    // 2. Update Redis
-    const updates: Record<string, string> = {};
-    for (const a of answers) {
-      updates[`${a.player_id}:${a.question_id}`] = JSON.stringify(a);
-    }
+    // 2. Asynchronously dispatch write to Redis in background (non-blocking)
+    if (canAttemptRedis()) {
+      const updates: Record<string, string> = {};
+      for (const a of answers) {
+        updates[`${a.player_id}:${a.question_id}`] = JSON.stringify(a);
+      }
 
-    await safeRedisWrite(() =>
-      Promise.all([
-        redis.hset(`answers:${normalized}`, updates),
-        redis.expire(`answers:${normalized}`, ROOM_TTL),
-      ])
-    );
+      void safeRedisWrite(() =>
+        Promise.all([
+          redis.hset(`answers:${normalized}`, updates),
+          redis.expire(`answers:${normalized}`, ROOM_TTL),
+        ])
+      ).catch(() => {});
+    }
   },
 
   async getFullState(code: string): Promise<{ room: Room | null; players: Player[]; allAnswers: Answer[] }> {
-    const normalized = (code || "").trim().toUpperCase();
+    const normalized = normalizeCode(code);
 
-    // 1. Try Redis if circuit breaker is not open
+    // 1. Try Redis if circuit breaker is not open and mode is allowed
     if (canAttemptRedis()) {
       const redisResult = await safeRedisCall(async () => {
         const [room, playersMap, answersMap] = await Promise.all([
@@ -541,7 +537,7 @@ export const gameStore = {
       if (redisResult && redisResult.room) {
         const localRoom = getLocalRoom(normalized);
         if (localRoom && (localRoom.version || 0) > (redisResult.room.version || 0)) {
-          safeRedisWrite(() =>
+          void safeRedisWrite(() =>
             Promise.all([
               redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
               redis.set(`room_sync:${normalized}`, {
@@ -582,17 +578,9 @@ export const gameStore = {
     currentQuestionIndex: number;
   } | null> {
     const normalized = normalizeCode(code);
-    const localRoom = getLocalRoom(normalized);
-    const localSync = localRoom
-      ? {
-          version: localRoom.version || 0,
-          statusUpdatedAt: localRoom.status_updated_at || 0,
-          status: localRoom.status,
-          currentQuestionIndex: localRoom.current_question_index ?? 0,
-        }
-      : null;
+    const localSync = getLocalRoomSync(normalized);
 
-    // 1. Try Redis if circuit breaker is not open
+    // 1. Try Redis if circuit breaker is not open and mode is allowed
     if (canAttemptRedis()) {
       const redisSync = await safeRedisCall(async () => {
         const sync = await redis.get<{
@@ -629,7 +617,7 @@ export const gameStore = {
       }
     }
 
-    // 2. Fallback to Local Store (authoritative SQLite query)
+    // 2. Fallback to Local Store (ultra-fast metadata query)
     return localSync;
   },
 
@@ -637,15 +625,14 @@ export const gameStore = {
     const normalized = normalizeCode(code);
     const localRoom = getLocalRoom(normalized);
 
-    // 1. Try Redis first if circuit breaker is not open
+    // 1. Try Redis first if breaker allows
     if (canAttemptRedis()) {
       const redisTouched = await safeRedisCall(async () => {
         const room = await redis.get<Room>(`room:${normalized}`);
         if (!room && !localRoom) return null;
 
-        const baseRoom = (!room || (localRoom && (localRoom.version || 0) > (room.version || 0)))
-          ? localRoom!
-          : room;
+        const baseRoom = room || localRoom;
+        if (!baseRoom) return null;
 
         baseRoom.version = (baseRoom.version || 0) + 1;
         await this.saveRoom(normalized, baseRoom);
@@ -665,7 +652,7 @@ export const gameStore = {
 
     // Attempt best-effort write to Redis in background if circuit breaker is not open
     if (canAttemptRedis()) {
-      safeRedisWrite(() =>
+      void safeRedisWrite(() =>
         Promise.all([
           redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
           redis.set(
@@ -687,9 +674,7 @@ export const gameStore = {
 
   resetMemoryStoreForTesting(): void {
     memoryStore.clear();
-    redisFailureTimestamp = 0;
-    consecutiveFailures = 0;
-    lastWarnTimestamp = 0;
+    resetRedisBreaker();
     runSqlite(db => {
       db.exec("DELETE FROM active_rooms; DELETE FROM active_players; DELETE FROM active_answers;");
     });

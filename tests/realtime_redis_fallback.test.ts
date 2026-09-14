@@ -1,5 +1,7 @@
 import { getRoomSync, touchRoomSync } from '../src/lib/actions';
 import { redis } from '../src/lib/redis';
+import { gameStore } from '../src/lib/game-store';
+import { resetSqliteDbForTesting, closeSqliteDb } from '../src/lib/db/sqlite-connection';
 
 // Mock redis
 jest.mock('../src/lib/redis', () => ({
@@ -29,6 +31,12 @@ jest.mock('../src/lib/supabase/server', () => ({
 describe('Realtime & Redis Fallback Sync', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetSqliteDbForTesting();
+    gameStore.resetMemoryStoreForTesting();
+  });
+
+  afterAll(() => {
+    closeSqliteDb();
   });
 
   describe('getRoomSync', () => {
