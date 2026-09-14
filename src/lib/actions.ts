@@ -3,6 +3,7 @@
 import { getDatabase, getActiveProviderNameSync } from "./db";
 import { redis } from "./redis";
 import { gameStore, normalizeCode } from "./game-store";
+import { withRoomLock } from "./game-lock";
 import { safeRedisCall } from "./redis-breaker";
 import { Room, Player, Question, Answer, GameState, Topic } from "./types/game";
 import { validateAnswer } from "./validation";
@@ -105,40 +106,42 @@ export async function createRoom(topic: string, leaderName: string, provider: AI
 }
 
 export async function joinRoom(code: string, playerName: string) {
-  const normalizedCode = normalizeCode(code);
-  const trimmedName = (playerName || "").trim();
-  if (!normalizedCode) throw new Error("Room code is required");
-  if (!trimmedName) throw new Error("Player name is required");
+  return withRoomLock(code, async () => {
+    const normalizedCode = normalizeCode(code);
+    const trimmedName = (playerName || "").trim();
+    if (!normalizedCode) throw new Error("Room code is required");
+    if (!trimmedName) throw new Error("Player name is required");
 
-  const { room, players } = await getFullState(normalizedCode);
-  
-  if (!room) throw new Error("Room not found");
-  
-  // Prevent duplicate joins with same name
-  const existingPlayer = players.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
-  if (existingPlayer) {
-    if (room.kicked_players?.includes(existingPlayer.id)) {
-      throw new Error("You have been removed from this room.");
+    const { room, players } = await getFullState(normalizedCode);
+    
+    if (!room) throw new Error("Room not found");
+    
+    // Prevent duplicate joins with same name
+    const existingPlayer = players.find(p => p.name.toLowerCase() === trimmedName.toLowerCase());
+    if (existingPlayer) {
+      if (room.kicked_players?.includes(existingPlayer.id)) {
+        throw new Error("You have been removed from this room.");
+      }
+      return { room, player: existingPlayer };
     }
-    return { room, player: existingPlayer };
-  }
-  
-  const player: Player = {
-    id: crypto.randomUUID(),
-    name: trimmedName,
-    score: 0,
-    is_leader: false,
-  };
-  
-  // Increment room version to trigger UI sync
-  advanceRoomState(room, {});
-  
-  await Promise.all([
-    gameStore.setPlayer(normalizedCode, player),
-    saveRoom(normalizedCode, room)
-  ]);
-  
-  return { room, player };
+    
+    const player: Player = {
+      id: crypto.randomUUID(),
+      name: trimmedName,
+      score: 0,
+      is_leader: false,
+    };
+    
+    // Increment room version to trigger UI sync
+    advanceRoomState(room, {});
+    
+    await Promise.all([
+      gameStore.setPlayer(normalizedCode, player),
+      saveRoom(normalizedCode, room)
+    ]);
+    
+    return { room, player };
+  });
 }
 
 export async function getRoomState(code: string) {
@@ -146,152 +149,164 @@ export async function getRoomState(code: string) {
 }
 
 export async function updateRoomStatus(code: string, status: GameState, index?: number) {
-  const normalizedCode = normalizeCode(code);
-  const { room, players, allAnswers } = await getFullState(normalizedCode);
-  if (!room) throw new Error("Room not found");
-  
-  const targetIndex = index !== undefined ? index : room.current_question_index;
-  const currentQuestion = room.questions[targetIndex];
-
-  // Auto-fill missing wagers/answers when advancing
-  if (currentQuestion) {
-    const updates: Record<string, string> = {};
+  return withRoomLock(code, async () => {
+    const normalizedCode = normalizeCode(code);
+    const { room, players, allAnswers } = await getFullState(normalizedCode);
+    if (!room) throw new Error("Room not found");
     
-    if (status === "question" && room.status === "wager") {
-      // Advancing from wager to question: fill missing wagers
-      for (const p of players) {
-        const existing = allAnswers.find(a => a.player_id === p.id && a.question_id === currentQuestion.id);
-        if (!existing) {
-          const answer: Answer = {
-            player_id: p.id,
-            question_id: currentQuestion.id,
-            wager: 1, // Default
-            submitted_answer: "",
-            is_correct: false,
-          };
-          updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(answer);
+    const targetIndex = index !== undefined ? index : room.current_question_index;
+    const currentQuestion = room.questions[targetIndex];
+
+    // Auto-fill missing wagers/answers when advancing
+    if (currentQuestion) {
+      const updates: Record<string, string> = {};
+      
+      if (status === "question" && room.status === "wager") {
+        // Advancing from wager to question: fill missing wagers
+        for (const p of players) {
+          const existing = allAnswers.find(a => a.player_id === p.id && a.question_id === currentQuestion.id);
+          if (!existing) {
+            const answer: Answer = {
+              player_id: p.id,
+              question_id: currentQuestion.id,
+              wager: 1, // Default
+              submitted_answer: "",
+              is_correct: false,
+            };
+            updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(answer);
+          }
+        }
+      } else if (status === "results" && room.status === "question") {
+        // Advancing from question to results: fill missing answers
+        for (const p of players) {
+          const existing = allAnswers.find(a => a.player_id === p.id && a.question_id === currentQuestion.id);
+          if (existing && existing.submitted_answer === "") {
+            existing.submitted_answer = "TIMEOUT_EXPIRED";
+            existing.is_correct = false;
+            updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(existing);
+          } else if (!existing) {
+            const answer: Answer = {
+              player_id: p.id,
+              question_id: currentQuestion.id,
+              wager: 1,
+              submitted_answer: "TIMEOUT_EXPIRED",
+              is_correct: false,
+            };
+            updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(answer);
+          }
         }
       }
-    } else if (status === "results" && room.status === "question") {
-      // Advancing from question to results: fill missing answers
-      for (const p of players) {
-        const existing = allAnswers.find(a => a.player_id === p.id && a.question_id === currentQuestion.id);
-        if (existing && existing.submitted_answer === "") {
-          existing.submitted_answer = "TIMEOUT_EXPIRED";
-          existing.is_correct = false;
-          updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(existing);
-        } else if (!existing) {
-          const answer: Answer = {
-            player_id: p.id,
-            question_id: currentQuestion.id,
-            wager: 1,
-            submitted_answer: "TIMEOUT_EXPIRED",
-            is_correct: false,
-          };
-          updates[`${p.id}:${currentQuestion.id}`] = JSON.stringify(answer);
-        }
+
+      if (Object.keys(updates).length > 0) {
+        const answersList: Answer[] = Object.values(updates).map(u => JSON.parse(u) as Answer);
+        await gameStore.setAnswers(normalizedCode, answersList);
       }
     }
 
-    if (Object.keys(updates).length > 0) {
-      const answersList: Answer[] = Object.values(updates).map(u => JSON.parse(u) as Answer);
-      await gameStore.setAnswers(normalizedCode, answersList);
-    }
-  }
-
-  // Explicit status update: ensure we respect the intended destination
-  advanceRoomState(room, { 
-    status, 
-    ...(index !== undefined && { current_question_index: index })
+    // Explicit status update: ensure we respect the intended destination
+    advanceRoomState(room, { 
+      status, 
+      ...(index !== undefined && { current_question_index: index })
+    });
+    
+    await saveRoom(normalizedCode, room);
+    return await getFullState(normalizedCode);
   });
-  
-  await saveRoom(normalizedCode, room);
-  return await getFullState(normalizedCode);
 }
 
 export async function submitWager(code: string, playerId: string, questionId: string, wager: number) {
-  const normalizedCode = normalizeCode(code);
-  const answer: Answer = {
-    player_id: playerId,
-    question_id: questionId,
-    wager,
-    submitted_answer: "",
-    is_correct: false,
-  };
-  
-  await gameStore.setAnswer(normalizedCode, answer);
+  return withRoomLock(code, async () => {
+    const normalizedCode = normalizeCode(code);
+    const answer: Answer = {
+      player_id: playerId,
+      question_id: questionId,
+      wager,
+      submitted_answer: "",
+      is_correct: false,
+    };
+    
+    await gameStore.setAnswer(normalizedCode, answer);
 
-  const state = await getFullState(normalizedCode);
-  if (state.room && state.room.status === "wager") {
-    const qAnswers = state.allAnswers.filter(a => a.question_id === questionId);
-    // Automatic transition only if NOT a single player room (leader must push for 1 player)
-    // or if we want automatic for everyone including 1 player
-    if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
-       advanceRoomState(state.room, { status: "question" });
-    } else {
-       advanceRoomState(state.room, {});
+    const state = await getFullState(normalizedCode);
+    if (state.room && state.room.status === "wager") {
+      const qAnswers = state.allAnswers.filter(a => a.question_id === questionId);
+      // Automatic transition only if all players in room submitted
+      if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
+         advanceRoomState(state.room, { status: "question" });
+      } else {
+         advanceRoomState(state.room, {});
+      }
+      await saveRoom(normalizedCode, state.room);
+      return await getFullState(normalizedCode);
     }
-    await saveRoom(normalizedCode, state.room);
-    return await getFullState(normalizedCode);
-  }
-  return state;
+    return state;
+  });
 }
 
 export async function submitAnswer(code: string, playerId: string, questionId: string, answerText: string) {
-  const normalizedCode = normalizeCode(code);
-  
-  const room = await gameStore.getRoom(normalizedCode);
-  if (!room) throw new Error("Room not found");
-  
-  const question = room.questions.find(q => q.id === questionId);
-  if (!question) throw new Error("Question not found");
+  return withRoomLock(code, async () => {
+    const normalizedCode = normalizeCode(code);
+    
+    const room = await gameStore.getRoom(normalizedCode);
+    if (!room) throw new Error("Room not found");
+    
+    const question = room.questions.find(q => q.id === questionId);
+    if (!question) throw new Error("Question not found");
 
-  const existing = await gameStore.getAnswer(normalizedCode, playerId, questionId);
-  if (!existing) throw new Error("Wager not found");
-  
-  const isCorrect = validateAnswer(answerText, question.correct_answer, question.type);
-  const scoreDelta = isCorrect ? existing.wager : 0;
-  
-  existing.submitted_answer = answerText;
-  existing.is_correct = isCorrect;
-  await gameStore.setAnswer(normalizedCode, existing);
-  
-  if (scoreDelta > 0) {
-    const player = await gameStore.getPlayer(normalizedCode, playerId);
-    if (player) {
-      player.score = (player.score || 0) + scoreDelta;
-      await gameStore.setPlayer(normalizedCode, player);
+    const existing = await gameStore.getAnswer(normalizedCode, playerId, questionId);
+    if (!existing) throw new Error("Wager not found");
+    
+    // Prevent duplicate answer scoring if already answered
+    if (existing.submitted_answer && existing.submitted_answer !== "") {
+      return await getFullState(normalizedCode);
     }
-  }
 
-  const state = await getFullState(normalizedCode);
-  if (state.room && state.room.status === "question") {
-    const qAnswers = state.allAnswers.filter(a => a.question_id === questionId && a.submitted_answer !== "");
-    if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
-       advanceRoomState(state.room, { status: "results" });
-    } else {
-       // Increment version even without state change to sync player counts
-       advanceRoomState(state.room, {});
+    const isCorrect = validateAnswer(answerText, question.correct_answer, question.type);
+    const scoreDelta = isCorrect ? existing.wager : 0;
+    
+    existing.submitted_answer = answerText;
+    existing.is_correct = isCorrect;
+    await gameStore.setAnswer(normalizedCode, existing);
+    
+    if (scoreDelta > 0) {
+      const player = await gameStore.getPlayer(normalizedCode, playerId);
+      if (player) {
+        player.score = (player.score || 0) + scoreDelta;
+        await gameStore.setPlayer(normalizedCode, player);
+      }
     }
-    await saveRoom(normalizedCode, state.room);
-    return await getFullState(normalizedCode);
-  }
-  return state;
+
+    const state = await getFullState(normalizedCode);
+    if (state.room && state.room.status === "question") {
+      const qAnswers = state.allAnswers.filter(a => a.question_id === questionId && a.submitted_answer !== "");
+      if (qAnswers.length > 0 && qAnswers.length === state.players.length) {
+         advanceRoomState(state.room, { status: "results" });
+      } else {
+         // Increment version even without state change to sync player counts
+         advanceRoomState(state.room, {});
+      }
+      await saveRoom(normalizedCode, state.room);
+      return await getFullState(normalizedCode);
+    }
+    return state;
+  });
 }
 
 export async function kickPlayer(roomCode: string, playerId: string, leaderId: string) {
-  const normalizedCode = normalizeCode(roomCode);
-  const { room } = await getFullState(normalizedCode);
-  if (!room || room.leader_id !== leaderId) throw new Error("Unauthorized");
+  return withRoomLock(roomCode, async () => {
+    const normalizedCode = normalizeCode(roomCode);
+    const { room } = await getFullState(normalizedCode);
+    if (!room || room.leader_id !== leaderId) throw new Error("Unauthorized");
 
-  room.kicked_players = Array.from(new Set([...(room.kicked_players || []), playerId]));
-  await gameStore.removePlayer(normalizedCode, playerId);
+    room.kicked_players = Array.from(new Set([...(room.kicked_players || []), playerId]));
+    await gameStore.removePlayer(normalizedCode, playerId);
 
-  // Increment room version to trigger UI sync for everyone (especially the kicked player)
-  advanceRoomState(room, {});
-  await saveRoom(normalizedCode, room);
+    // Increment room version to trigger UI sync for everyone (especially the kicked player)
+    advanceRoomState(room, {});
+    await saveRoom(normalizedCode, room);
 
-  return await getFullState(normalizedCode);
+    return await getFullState(normalizedCode);
+  });
 }
 
 // Lightweight sync check for room synchronization (Redis + Local Fallback)
