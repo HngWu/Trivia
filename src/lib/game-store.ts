@@ -100,9 +100,12 @@ export function getLocalPlayers(code: string): Player[] {
 
   if (players && players.length > 0) {
     for (const p of players) {
-      const mem = state.players.get(p.id);
+      const id = p.id || (p as unknown as { player_id?: string }).player_id;
+      if (!id) continue;
+      p.id = id;
+      const mem = state.players.get(id);
       if (!mem || (p.score || 0) >= (mem.score || 0)) {
-        state.players.set(p.id, { ...p });
+        state.players.set(id, { ...p });
       }
     }
   }
@@ -283,9 +286,14 @@ export function saveLocalRoom(code: string, room: Room): void {
 }
 
 export function saveLocalPlayer(code: string, player: Player): void {
+  if (!player) return;
+  const id = player.id || (player as unknown as { player_id?: string }).player_id;
+  if (!id) return;
+  player.id = id;
+
   const normalized = normalizeCode(code);
   const state = getOrCreateMemory(normalized);
-  state.players.set(player.id, { ...player });
+  state.players.set(id, { ...player });
   state.updatedAt = Date.now();
 
   runSqlite(db => {
@@ -295,7 +303,7 @@ export function saveLocalPlayer(code: string, player: Player): void {
       ON CONFLICT(room_code, player_id) DO UPDATE SET
         data = excluded.data,
         updated_at = excluded.updated_at
-    `).run(normalized, player.id, JSON.stringify(player), Date.now());
+    `).run(normalized, id, JSON.stringify(player), Date.now());
   });
 }
 
@@ -493,8 +501,12 @@ export const gameStore = {
       );
       if (redisPlayerRaw) {
         const player = typeof redisPlayerRaw === "string" ? (JSON.parse(redisPlayerRaw) as Player) : redisPlayerRaw;
-        saveLocalPlayer(normalized, player);
-        return player;
+        const id = player?.id || (player as unknown as { player_id?: string })?.player_id;
+        if (id) {
+          player.id = id;
+          saveLocalPlayer(normalized, player);
+          return player;
+        }
       }
     }
 
@@ -644,11 +656,20 @@ export const gameStore = {
 
         // Union merge players: never drop local players that Redis might have missed
         const playerMap = new Map<string, Player>();
-        for (const p of localPlayers) playerMap.set(p.id, p);
+        for (const p of localPlayers) {
+          const id = p.id || (p as unknown as { player_id?: string }).player_id;
+          if (id) {
+            p.id = id;
+            playerMap.set(id, p);
+          }
+        }
         for (const p of redisPlayers) {
-          const existing = playerMap.get(p.id);
+          const id = p.id || (p as unknown as { player_id?: string }).player_id;
+          if (!id) continue;
+          p.id = id;
+          const existing = playerMap.get(id);
           if (!existing || (p.score || 0) >= (existing.score || 0)) {
-            playerMap.set(p.id, p);
+            playerMap.set(id, p);
           }
         }
         const mergedPlayers = Array.from(playerMap.values());
