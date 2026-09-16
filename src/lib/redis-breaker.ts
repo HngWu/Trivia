@@ -22,8 +22,8 @@ let lastWarnTimestamp = 0;
 
 const BASE_COOLDOWN_MS = 15_000; // 15s base cooldown
 const MAX_COOLDOWN_MS = 60_000;  // 60s max cooldown
-export const FAST_REDIS_READ_TIMEOUT_MS = 150;  // 150ms fast timeout for reads
-export const FAST_REDIS_WRITE_TIMEOUT_MS = 500; // 500ms max wait for background writes
+export const FAST_REDIS_READ_TIMEOUT_MS = 1000;  // 1000ms timeout for network round-trips (prevents false trips on ~226ms ping)
+export const FAST_REDIS_WRITE_TIMEOUT_MS = 2000; // 2000ms max wait for background writes
 
 function isTestEnv(): boolean {
   return process.env.NODE_ENV === "test";
@@ -106,9 +106,13 @@ export function recordRedisFailure(err: unknown): void {
 
 export async function safeRedisCall<T>(
   op: () => Promise<T>,
-  timeoutMs = FAST_REDIS_READ_TIMEOUT_MS
+  timeoutMs = FAST_REDIS_READ_TIMEOUT_MS,
+  force = false
 ): Promise<T | null> {
-  if (!canAttemptRedis()) return null;
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (!force && !canAttemptRedis() && !(isServerless && isRedisConfigured && !isCircuitBreakerOpen())) {
+    return null;
+  }
 
   let timerId: NodeJS.Timeout | null = null;
   try {
@@ -131,9 +135,13 @@ export async function safeRedisCall<T>(
 
 export async function safeRedisWrite(
   op: () => Promise<unknown>,
-  timeoutMs = FAST_REDIS_WRITE_TIMEOUT_MS
+  timeoutMs = FAST_REDIS_WRITE_TIMEOUT_MS,
+  force = false
 ): Promise<boolean> {
-  if (!canAttemptRedis()) return false;
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  if (!force && !canAttemptRedis() && !(isServerless && isRedisConfigured && !isCircuitBreakerOpen())) {
+    return false;
+  }
 
   let timerId: NodeJS.Timeout | null = null;
   try {

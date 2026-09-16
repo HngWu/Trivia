@@ -2,13 +2,15 @@
 
 import { getSqliteDb } from './sqlite-connection';
 import { getActiveProviderName, supabaseProvider, clearProviderCache } from './index';
-import { redis } from '../redis';
+import { redis, isRedisConfigured } from '../redis';
 import { invalidateTopicCache, safeRedisOp } from '../actions';
 import {
   getRedisStatus,
   setRedisMode,
   resetRedisBreaker,
   testRedisPing,
+  safeRedisCall,
+  safeRedisWrite,
   RedisMode,
   RedisStatus,
 } from '../redis-breaker';
@@ -130,11 +132,24 @@ export async function importFromSupabaseToSqlite() {
 }
 
 export async function getRedisSessionStatus(): Promise<RedisStatus> {
+  if (redis && isRedisConfigured) {
+    try {
+      const globalMode = await safeRedisCall(() => redis.get<RedisMode>("system_settings:redis_mode"), 500, true);
+      if (globalMode && ["auto", "fallback_only", "redis_only"].includes(globalMode)) {
+        setRedisMode(globalMode);
+      }
+    } catch { /* ignore */ }
+  }
   return getRedisStatus();
 }
 
 export async function setRedisSessionMode(mode: RedisMode): Promise<{ success: boolean; mode: RedisMode }> {
   setRedisMode(mode);
+  if (redis && isRedisConfigured) {
+    try {
+      await safeRedisWrite(() => redis.set("system_settings:redis_mode", mode), 1500, true);
+    } catch { /* ignore */ }
+  }
   return { success: true, mode };
 }
 

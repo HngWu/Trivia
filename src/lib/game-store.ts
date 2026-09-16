@@ -1,5 +1,5 @@
 import { Room, Player, Answer, GameState } from "./types/game";
-import { redis, ROOM_TTL } from "./redis";
+import { redis, ROOM_TTL, isRedisConfigured } from "./redis";
 import { getSqliteDb } from "./db/sqlite-connection";
 import {
   canAttemptRedis,
@@ -9,6 +9,15 @@ import {
   isCircuitBreakerOpen,
   getRedisCooldownMs,
 } from "./redis-breaker";
+
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+function shouldSyncRedis(): boolean {
+  if (canAttemptRedis()) return true;
+  // On serverless (Vercel), independent lambda containers do not share filesystem /tmp.
+  // When Redis is configured and healthy, we must sync state through Redis so containers share rooms/players.
+  return Boolean(isServerless && isRedisConfigured && !isCircuitBreakerOpen());
+}
 
 // Export breaker status helpers so callers and tests can inspect failover state
 export { isCircuitBreakerOpen, canAttemptRedis, getRedisCooldownMs };
@@ -437,9 +446,9 @@ export const gameStore = {
   async getRoom(code: string): Promise<Room | null> {
     const normalized = normalizeCode(code);
 
-    // 1. Try Redis if allowed by circuit breaker and mode
-    if (canAttemptRedis()) {
-      const redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`));
+    // 1. Try Redis if allowed by circuit breaker and mode, or on serverless to bridge isolated containers
+    if (shouldSyncRedis()) {
+      const redisRoom = await safeRedisCall(() => redis.get<Room>(`room:${normalized}`), undefined, true);
       if (redisRoom) {
         const localRoom = getLocalRoom(normalized);
         if (localRoom && (localRoom.version || 0) > (redisRoom.version || 0)) {
@@ -453,7 +462,9 @@ export const gameStore = {
                 status_updated_at: localRoom.status_updated_at || Date.now(),
                 current_question_index: localRoom.current_question_index ?? 0,
               }, { ex: ROOM_TTL }),
-            ])
+            ]),
+            undefined,
+            true
           ).catch(() => {});
           return localRoom;
         }
@@ -474,7 +485,7 @@ export const gameStore = {
     saveLocalRoom(normalized, room);
 
     // 2. Asynchronously dispatch write to Redis in background (non-blocking)
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       const syncData = {
         version: room.version || 0,
         status: room.status,
@@ -486,7 +497,9 @@ export const gameStore = {
         Promise.all([
           redis.set(`room:${normalized}`, room, { ex: ROOM_TTL }),
           redis.set(`room_sync:${normalized}`, syncData, { ex: ROOM_TTL }),
-        ])
+        ]),
+        undefined,
+        true
       ).catch(() => {});
     }
   },
@@ -495,9 +508,11 @@ export const gameStore = {
     const normalized = normalizeCode(code);
 
     // 1. Try Redis
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       const redisPlayerRaw = await safeRedisCall(() =>
-        redis.hget<string | Player>(`players:${normalized}`, playerId)
+        redis.hget<string | Player>(`players:${normalized}`, playerId),
+        undefined,
+        true
       );
       if (redisPlayerRaw) {
         const player = typeof redisPlayerRaw === "string" ? (JSON.parse(redisPlayerRaw) as Player) : redisPlayerRaw;
@@ -521,12 +536,14 @@ export const gameStore = {
     saveLocalPlayer(normalized, player);
 
     // 2. Asynchronously dispatch write to Redis in background (non-blocking)
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       void safeRedisWrite(() =>
         Promise.all([
           redis.hset(`players:${normalized}`, { [player.id]: JSON.stringify(player) }),
           redis.expire(`players:${normalized}`, ROOM_TTL),
-        ])
+        ]),
+        undefined,
+        true
       ).catch(() => {});
     }
   },
@@ -538,7 +555,7 @@ export const gameStore = {
     deleteLocalPlayer(normalized, playerId);
 
     // 2. Asynchronously dispatch removal to Redis in background (non-blocking)
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       void safeRedisWrite(async () => {
         await redis.hdel(`players:${normalized}`, playerId);
         const answersRaw = await redis.hgetall<Record<string, unknown>>(`answers:${normalized}`);
@@ -549,7 +566,7 @@ export const gameStore = {
             }
           }
         }
-      }).catch(() => {});
+      }, undefined, true).catch(() => {});
     }
   },
 
@@ -558,9 +575,11 @@ export const gameStore = {
     const key = `${playerId}:${questionId}`;
 
     // 1. Try Redis
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       const raw = await safeRedisCall(() =>
-        redis.hget<string | Answer>(`answers:${normalized}`, key)
+        redis.hget<string | Answer>(`answers:${normalized}`, key),
+        undefined,
+        true
       );
       if (raw) {
         const ans = typeof raw === "string" ? (JSON.parse(raw) as Answer) : raw;
@@ -581,12 +600,14 @@ export const gameStore = {
     saveLocalAnswer(normalized, answer);
 
     // 2. Asynchronously dispatch write to Redis in background (non-blocking)
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       void safeRedisWrite(() =>
         Promise.all([
           redis.hset(`answers:${normalized}`, { [key]: JSON.stringify(answer) }),
           redis.expire(`answers:${normalized}`, ROOM_TTL),
-        ])
+        ]),
+        undefined,
+        true
       ).catch(() => {});
     }
   },
@@ -598,7 +619,7 @@ export const gameStore = {
     saveLocalAnswers(normalized, answers);
 
     // 2. Asynchronously dispatch write to Redis in background (non-blocking)
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       const updates: Record<string, string> = {};
       for (const a of answers) {
         updates[`${a.player_id}:${a.question_id}`] = JSON.stringify(a);
@@ -608,7 +629,9 @@ export const gameStore = {
         Promise.all([
           redis.hset(`answers:${normalized}`, updates),
           redis.expire(`answers:${normalized}`, ROOM_TTL),
-        ])
+        ]),
+        undefined,
+        true
       ).catch(() => {});
     }
   },
@@ -616,8 +639,8 @@ export const gameStore = {
   async getFullState(code: string): Promise<{ room: Room | null; players: Player[]; allAnswers: Answer[] }> {
     const normalized = normalizeCode(code);
 
-    // 1. Try Redis if circuit breaker is not open and mode is allowed
-    if (canAttemptRedis()) {
+    // 1. Try Redis if circuit breaker is not open and mode is allowed, or on serverless to bridge isolated containers
+    if (shouldSyncRedis()) {
       const redisResult = await safeRedisCall(async () => {
         const [room, playersMap, answersMap] = await Promise.all([
           redis.get<Room>(`room:${normalized}`),
@@ -625,7 +648,7 @@ export const gameStore = {
           redis.hgetall<Record<string, string | Answer>>(`answers:${normalized}`),
         ]);
         return { room, playersMap, answersMap };
-      });
+      }, undefined, true);
 
       if (redisResult && redisResult.room) {
         const localRoom = getLocalRoom(normalized);
@@ -642,7 +665,9 @@ export const gameStore = {
                 status_updated_at: localRoom.status_updated_at || Date.now(),
                 current_question_index: localRoom.current_question_index ?? 0,
               }, { ex: ROOM_TTL }),
-            ])
+            ]),
+            undefined,
+            true
           ).catch(() => {});
           return getLocalFullState(normalized);
         }
@@ -708,8 +733,8 @@ export const gameStore = {
     const normalized = normalizeCode(code);
     const localSync = getLocalRoomSync(normalized);
 
-    // 1. Try Redis if circuit breaker is not open and mode is allowed
-    if (canAttemptRedis()) {
+    // 1. Try Redis if circuit breaker is not open and mode is allowed, or on serverless
+    if (shouldSyncRedis()) {
       const redisSync = await safeRedisCall(async () => {
         const sync = await redis.get<{
           version: number;
@@ -735,7 +760,7 @@ export const gameStore = {
           status: room.status,
           currentQuestionIndex: room.current_question_index ?? 0,
         };
-      });
+      }, undefined, true);
 
       if (redisSync) {
         if (localSync && localSync.version > redisSync.version) {
@@ -753,8 +778,8 @@ export const gameStore = {
     const normalized = normalizeCode(code);
     const localRoom = getLocalRoom(normalized);
 
-    // 1. Try Redis first if breaker allows
-    if (canAttemptRedis()) {
+    // 1. Try Redis first if breaker allows or on serverless
+    if (shouldSyncRedis()) {
       const redisTouched = await safeRedisCall(async () => {
         const room = await redis.get<Room>(`room:${normalized}`);
         if (!room && !localRoom) return null;
@@ -765,7 +790,7 @@ export const gameStore = {
         baseRoom.version = (baseRoom.version || 0) + 1;
         await this.saveRoom(normalized, baseRoom);
         return baseRoom.version || 0;
-      });
+      }, undefined, true);
 
       if (typeof redisTouched === "number") {
         return redisTouched;
@@ -779,7 +804,7 @@ export const gameStore = {
     saveLocalRoom(normalized, localRoom);
 
     // Attempt best-effort write to Redis in background if circuit breaker is not open
-    if (canAttemptRedis()) {
+    if (shouldSyncRedis()) {
       void safeRedisWrite(() =>
         Promise.all([
           redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),
@@ -793,7 +818,9 @@ export const gameStore = {
             },
             { ex: ROOM_TTL }
           ),
-        ])
+        ]),
+        undefined,
+        true
       ).catch(() => {});
     }
 
