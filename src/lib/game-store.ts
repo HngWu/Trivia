@@ -99,11 +99,28 @@ export function getLocalPlayers(code: string): Player[] {
   });
 
   if (players && players.length > 0) {
-    state.players.clear();
     for (const p of players) {
-      state.players.set(p.id, { ...p });
+      const mem = state.players.get(p.id);
+      if (!mem || (p.score || 0) >= (mem.score || 0)) {
+        state.players.set(p.id, { ...p });
+      }
     }
-    return players.map(p => ({ ...p }));
+  }
+
+  // Also sync any memory-only players to SQLite if SQLite had fewer
+  if (state.players.size > 0 && (!players || players.length < state.players.size)) {
+    runSqlite(db => {
+      const stmt = db.prepare(`
+        INSERT INTO active_players (room_code, player_id, data, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(room_code, player_id) DO UPDATE SET
+          data = excluded.data,
+          updated_at = excluded.updated_at
+      `);
+      for (const p of state.players.values()) {
+        stmt.run(normalized, p.id, JSON.stringify(p), Date.now());
+      }
+    });
   }
 
   return Array.from(state.players.values()).map(p => ({ ...p }));
@@ -137,11 +154,29 @@ export function getLocalAnswers(code: string): Answer[] {
   });
 
   if (answers && answers.length > 0) {
-    state.answers.clear();
     for (const a of answers) {
-      state.answers.set(`${a.player_id}:${a.question_id}`, { ...a });
+      const key = `${a.player_id}:${a.question_id}`;
+      const mem = state.answers.get(key);
+      if (!mem || (!mem.submitted_answer && a.submitted_answer)) {
+        state.answers.set(key, { ...a });
+      }
     }
-    return answers.map(a => ({ ...a }));
+  }
+
+  // Also sync any memory-only answers to SQLite
+  if (state.answers.size > 0 && (!answers || answers.length < state.answers.size)) {
+    runSqlite(db => {
+      const stmt = db.prepare(`
+        INSERT INTO active_answers (room_code, player_id, question_id, data, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(room_code, player_id, question_id) DO UPDATE SET
+          data = excluded.data,
+          updated_at = excluded.updated_at
+      `);
+      for (const a of state.answers.values()) {
+        stmt.run(normalized, a.player_id, a.question_id, JSON.stringify(a), Date.now());
+      }
+    });
   }
 
   return Array.from(state.answers.values()).map(a => ({ ...a }));
@@ -582,6 +617,9 @@ export const gameStore = {
 
       if (redisResult && redisResult.room) {
         const localRoom = getLocalRoom(normalized);
+        const localPlayers = getLocalPlayers(normalized);
+        const localAnswers = getLocalAnswers(normalized);
+
         if (localRoom && (localRoom.version || 0) > (redisResult.room.version || 0)) {
           void safeRedisWrite(() =>
             Promise.all([
@@ -597,19 +635,42 @@ export const gameStore = {
           return getLocalFullState(normalized);
         }
 
-        const players: Player[] = redisResult.playersMap
+        const redisPlayers: Player[] = redisResult.playersMap
           ? Object.values(redisResult.playersMap).map(p => (typeof p === "string" ? JSON.parse(p) : p))
           : [];
-        const allAnswers: Answer[] = redisResult.answersMap
+        const redisAnswers: Answer[] = redisResult.answersMap
           ? Object.values(redisResult.answersMap).map(a => (typeof a === "string" ? JSON.parse(a) : a))
           : [];
 
-        // Mirror fresh Redis state to Local Store
-        saveLocalRoom(normalized, redisResult.room);
-        for (const p of players) saveLocalPlayer(normalized, p);
-        if (allAnswers.length > 0) saveLocalAnswers(normalized, allAnswers);
+        // Union merge players: never drop local players that Redis might have missed
+        const playerMap = new Map<string, Player>();
+        for (const p of localPlayers) playerMap.set(p.id, p);
+        for (const p of redisPlayers) {
+          const existing = playerMap.get(p.id);
+          if (!existing || (p.score || 0) >= (existing.score || 0)) {
+            playerMap.set(p.id, p);
+          }
+        }
+        const mergedPlayers = Array.from(playerMap.values());
 
-        return { room: redisResult.room, players, allAnswers };
+        // Union merge answers: never drop local answers that Redis might have missed
+        const answerMap = new Map<string, Answer>();
+        for (const a of localAnswers) answerMap.set(`${a.player_id}:${a.question_id}`, a);
+        for (const a of redisAnswers) {
+          const key = `${a.player_id}:${a.question_id}`;
+          const existing = answerMap.get(key);
+          if (!existing || (!existing.submitted_answer && a.submitted_answer)) {
+            answerMap.set(key, a);
+          }
+        }
+        const mergedAnswers = Array.from(answerMap.values());
+
+        // Mirror fresh merged state to Local Store
+        saveLocalRoom(normalized, redisResult.room);
+        for (const p of mergedPlayers) saveLocalPlayer(normalized, p);
+        if (mergedAnswers.length > 0) saveLocalAnswers(normalized, mergedAnswers);
+
+        return { room: redisResult.room, players: mergedPlayers, allAnswers: mergedAnswers };
       }
     }
 
