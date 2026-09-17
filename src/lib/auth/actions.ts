@@ -43,13 +43,30 @@ export async function adminLogin(formData: { email: string; password: string }):
     }
 
     const db = getSqliteDb();
-    const user = db.prepare('SELECT id, email, password_hash, salt FROM users WHERE lower(email) = ?').get(email) as UserRow | undefined;
+    const defaultAdminEmail = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local').trim().toLowerCase();
+    const isDefaultAdmin = email === defaultAdminEmail || email === 'admin@trivia.local';
+    const envAdminPass = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD;
+
+    let user = db.prepare('SELECT id, email, password_hash, salt FROM users WHERE lower(email) = ?').get(email) as UserRow | undefined;
+
+    if (!user && isDefaultAdmin && envAdminPass && password === envAdminPass) {
+      const { hash, salt } = hashPassword(envAdminPass);
+      const id = crypto.randomUUID();
+      db.prepare('INSERT INTO users (id, email, password_hash, salt) VALUES (?, ?, ?, ?)').run(id, email, hash, salt);
+      user = { id, email, password_hash: hash, salt };
+    }
 
     if (!user) {
       return { success: false, error: 'Invalid email or password.' };
     }
 
-    const isValid = verifyPassword(password, user.password_hash, user.salt);
+    let isValid = verifyPassword(password, user.password_hash, user.salt);
+    if (!isValid && envAdminPass && isDefaultAdmin && password === envAdminPass) {
+      isValid = true;
+      const { hash, salt } = hashPassword(envAdminPass);
+      db.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').run(hash, salt, user.id);
+    }
+
     if (!isValid) {
       return { success: false, error: 'Invalid email or password.' };
     }

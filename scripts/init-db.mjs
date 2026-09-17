@@ -106,13 +106,15 @@ if (!hasProvider) {
   db.prepare("INSERT INTO system_settings (key, value) VALUES ('db_provider', 'sqlite')").run();
 }
 
+const defaultEmail = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local').trim().toLowerCase();
+const defaultPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
 const usersCount = db.prepare("SELECT count(*) as count FROM users").get().count;
 if (usersCount === 0) {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync('admin123', salt, 100000, 32, 'sha256').toString('hex');
+  const hash = crypto.pbkdf2Sync(defaultPassword, salt, 100000, 32, 'sha256').toString('hex');
   db.prepare("INSERT INTO users (id, email, password_hash, salt) VALUES (?, ?, ?, ?)").run(
     crypto.randomUUID(),
-    'admin@trivia.local',
+    defaultEmail,
     hash,
     salt
   );

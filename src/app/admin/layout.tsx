@@ -9,7 +9,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await getAdminSession();
 
   if (!session) {
-    return <AdminLoginClient />;
+    const defaultEmail = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local').trim().toLowerCase();
+    return <AdminLoginClient defaultEmail={defaultEmail} />;
   }
 
   return (

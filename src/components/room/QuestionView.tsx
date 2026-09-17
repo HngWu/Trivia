@@ -58,24 +58,33 @@ export default function QuestionView({
   }, [currentQuestion, isLocked, roundData.answer, onSubmitAnswer]);
 
   const booleanOptions = currentQuestion?.type === "boolean_yes_no" ? ["Yes", "No"] : ["True", "False"];
+  const questionLength = currentQuestion?.text?.length || 0;
+  const questionFontSize = 
+    questionLength > 240
+      ? "text-base sm:text-lg md:text-xl leading-relaxed"
+      : questionLength > 140
+      ? "text-lg sm:text-xl md:text-2xl leading-snug"
+      : questionLength > 80
+      ? "text-lg sm:text-2xl md:text-2.5xl leading-snug"
+      : "text-lg sm:text-2xl md:text-3xl leading-snug";
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in text-center py-4 pt-28 sm:pt-32 md:pt-36 pb-8 px-3 sm:px-6">
-       <div className="glass p-4 sm:p-12 rounded-2xl sm:rounded-3xl shadow-2xl space-y-6 sm:space-y-8 relative overflow-hidden border-white/[0.05]">
+    <div className="w-full max-w-5xl mx-auto space-y-4 sm:space-y-5 animate-fade-in text-center pt-20 sm:pt-22 md:pt-24 pb-4 px-3 sm:px-6">
+       <div className="glass p-4 sm:p-7 md:p-8 rounded-2xl sm:rounded-3xl shadow-2xl space-y-4 sm:space-y-6 relative overflow-hidden border-white/[0.05]">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
-          <h2 className="text-lg sm:text-2xl md:text-3xl font-bold tracking-tight leading-snug text-foreground break-words max-w-full">
+          <h2 className={`font-bold tracking-tight text-foreground break-words max-w-full ${questionFontSize}`}>
              &quot;{currentQuestion?.text}&quot;
           </h2>
 
           {!roundData.answer ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               {currentQuestion?.type === "multiple_choice" && currentQuestion.options?.map((option, i) => (
                 <GlassButton 
                   key={i} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(option)} 
-                  className="p-4 sm:p-6 rounded-xl text-left font-bold text-base sm:text-lg hover:border-white/30 active:scale-95 group focus:ring-2 focus:ring-white/20 focus:outline-none h-auto"
+                  className="p-3.5 sm:p-4.5 rounded-xl text-left font-bold text-base sm:text-lg hover:border-white/30 active:scale-95 group focus:ring-2 focus:ring-white/20 focus:outline-none h-auto"
                 >
                   <div className="flex items-start justify-between w-full gap-2">
                     <div className="flex items-start">
@@ -91,7 +100,7 @@ export default function QuestionView({
                   key={val} 
                   disabled={isLocked}
                   onClick={() => onSubmitAnswer(val)} 
-                  className="p-8 rounded-2xl font-bold text-2xl hover:border-white/30 active:scale-95 group relative focus:ring-2 focus:ring-white/20 focus:outline-none"
+                  className="p-5 sm:p-6 rounded-2xl font-bold text-xl sm:text-2xl hover:border-white/30 active:scale-95 group relative focus:ring-2 focus:ring-white/20 focus:outline-none"
                 >
                   {val}
                   <span className="absolute bottom-2 right-4 text-[10px] opacity-0 group-hover:opacity-30 transition-opacity font-mono">[{val[0]}]</span>
@@ -100,7 +109,7 @@ export default function QuestionView({
               {currentQuestion?.type === "text" && (
                 <form 
                   onSubmit={(e) => { e.preventDefault(); onSubmitAnswer(textAnswer); }}
-                  className="col-span-full flex flex-col sm:flex-row gap-4 items-stretch sm:items-center"
+                  className="col-span-full flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center"
                 >
                   <input 
                     type="text" 
@@ -109,12 +118,12 @@ export default function QuestionView({
                     value={textAnswer}
                     onChange={(e) => setTextAnswer(e.target.value)}
                     placeholder="Type your answer..." 
-                    className="flex-1 w-full py-3 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/20 focus:outline-none" 
+                    className="flex-1 w-full py-2.5 sm:py-3 glass-input rounded-xl px-4 font-semibold text-base text-foreground focus:ring-2 focus:ring-white/20 focus:outline-none" 
                   />
                   <GlassButton 
                     type="submit"
                     disabled={isLocked || !textAnswer.trim()}
-                    className="w-full sm:w-auto py-3 px-8 rounded-xl font-bold text-base active:scale-95 focus:ring-2 focus:ring-white/20 focus:outline-none"
+                    className="w-full sm:w-auto py-2.5 sm:py-3 px-8 rounded-xl font-bold text-base active:scale-95 focus:ring-2 focus:ring-white/20 focus:outline-none"
                   >
                     Submit
                   </GlassButton>
@@ -122,16 +131,16 @@ export default function QuestionView({
               )}
             </div>
           ) : (
-            <div className="space-y-4 pt-8 flex flex-col items-center">
-              <p className="text-foreground text-2xl sm:text-4xl font-bold tracking-tight animate-pulse italic">Answer submitted</p>
+            <div className="space-y-3 pt-4 sm:pt-6 flex flex-col items-center">
+              <p className="text-foreground text-xl sm:text-3xl font-bold tracking-tight animate-pulse italic">Answer submitted</p>
               <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Waiting for everyone ({roundData.answerCount}/{players.length})</p>
               
               {isLeader && (
-                <div className="pt-6 animate-fade-in w-full flex justify-center">
+                <div className="pt-4 animate-fade-in w-full flex justify-center">
                   <GlassButton 
                     onClick={() => onForceAdvance()}
                     disabled={isLocked}
-                    className="min-w-[200px] py-4 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
+                    className="min-w-[200px] py-3 sm:py-3.5 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
                   >
                     {isLocked ? "Revealing..." : "Reveal Answer"}
                   </GlassButton>
@@ -140,8 +149,8 @@ export default function QuestionView({
             </div>
           )}
        </div>
-       <div className="pt-4">
-          <span className="glass px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-white/[0.03]">
+       <div className="pt-2 sm:pt-3">
+          <span className="glass px-6 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-white/[0.03]">
             Your wager: <span className="text-foreground">{roundData.wager} Points</span>
           </span>
        </div>

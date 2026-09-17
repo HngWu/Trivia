@@ -23,7 +23,7 @@ describe('TopicGrid Hover Animation', () => {
     const iconSpan = screen.getByText('🧪');
 
     expect(button).toHaveClass('group');
-    expect(iconSpan).toHaveClass('group-hover:scale-[2]');
+    expect(iconSpan).toHaveClass('group-hover:scale-115');
     expect(iconSpan).toHaveClass('inline-block');
   });
 

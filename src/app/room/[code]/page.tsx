@@ -589,7 +589,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
         
         <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
-        <div className="flex-1 w-full flex flex-col items-center justify-start min-h-0 p-3 sm:p-6 md:p-8">
+        <div className="flex-1 w-full flex flex-col items-center justify-start min-h-0 p-3 sm:p-5 md:py-3 md:px-6">
           {/* Transition Overlay / Loading State */}
           {roomStatus !== displayStatus ? (
              <div className="flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-full">
@@ -618,7 +618,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
               )}
 
               {displayStatus === "results" && (
-                <ResultsView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked || isAdvancing} onNextRound={handleNextRound} />
+                <ResultsView currentQuestion={displayedQuestion} roundData={displayedRoundData} players={players} myPlayerId={myPlayerId} isLeader={isLeader} isLocked={isLocked || isAdvancing} isLastRound={displayIndex >= questions.length - 1} onNextRound={handleNextRound} />
               )}
 
               {displayStatus === "final" && (
@@ -628,7 +628,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           )}
         </div>
       </main>
-      <footer className="min-h-[4rem] sm:min-h-[5rem] flex items-center justify-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">TriviaDuel • v4.2-GLASS</footer>
+      <footer className="h-9 sm:h-10 min-h-0 flex items-center justify-center text-gray-800 text-[10px] font-bold tracking-[1em] opacity-30 pointer-events-none">TriviaDuel • v4.2-GLASS</footer>
     </div>
   );
 }

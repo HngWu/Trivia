@@ -18,6 +18,7 @@ interface ResultsViewProps {
   myPlayerId: string;
   isLeader: boolean;
   isLocked?: boolean;
+  isLastRound?: boolean;
   onNextRound: () => void;
 }
 
@@ -28,20 +29,21 @@ export default function ResultsView({
   myPlayerId, 
   isLeader,
   isLocked = false,
+  isLastRound = false,
   onNextRound
 }: ResultsViewProps) {
   if (!roundData.results) return null;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-start w-full animate-fade-in pt-28 sm:pt-32 md:pt-36 pb-12 sm:pb-16 space-y-6 px-3 sm:px-6">
+    <div className="flex-1 flex flex-col items-center justify-start w-full animate-fade-in pt-20 sm:pt-22 md:pt-24 pb-4 md:pb-6 space-y-4 sm:space-y-5 px-3 sm:px-6">
       
       {/* Question Details Recap */}
       {currentQuestion && (
-        <div className="text-center w-full max-w-3xl space-y-2 px-2">
-          <span className="inline-block px-3 py-1 rounded-full text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted-foreground bg-white/[0.04] border border-white/[0.08]">
+        <div className="text-center w-full max-w-3xl space-y-1.5 px-2">
+          <span className="inline-block px-2.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground bg-white/[0.04] border border-white/[0.08]">
             Question Recap
           </span>
-          <p className="text-base sm:text-xl md:text-2xl font-semibold text-foreground/90 leading-snug break-words">
+          <p className="text-sm sm:text-lg md:text-xl font-semibold text-foreground/90 leading-snug break-words">
             &quot;{currentQuestion.text}&quot;
           </p>
         </div>
@@ -91,20 +93,20 @@ export default function ResultsView({
       </div>
 
       {/* Correct Answer Card */}
-      <div className="w-full flex justify-center mt-4 sm:mt-6">
+      <div className="w-full flex justify-center mt-2 sm:mt-3">
         <Card className="w-full max-w-4xl border-white/10 bg-white/5 shadow-2xl overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          <CardContent className="p-5 sm:p-8 md:p-10 text-left space-y-4 sm:space-y-6">
+          <CardContent className="p-4 sm:p-6 md:p-7 text-left space-y-3 sm:space-y-4">
             <div className="space-y-1">
               <h3 className="text-success/80 font-bold text-[10px] sm:text-xs tracking-[0.25em] uppercase">The Correct Answer</h3>
-              <p className="text-xl sm:text-3xl md:text-4xl font-black text-foreground leading-tight tracking-tight break-words">
+              <p className="text-lg sm:text-2xl md:text-3xl font-black text-foreground leading-tight tracking-tight break-words">
                 {roundData.results.answer}
               </p>
             </div>
             {roundData.results.explanation && (
-              <div className="pt-4 sm:pt-6 border-t border-white/5">
+              <div className="pt-3 sm:pt-4 border-t border-white/5">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Explanation</p>
-                <p className="text-muted-foreground text-sm sm:text-base md:text-lg font-medium leading-relaxed max-w-3xl italic break-words">
+                <p className="text-muted-foreground text-xs sm:text-sm md:text-base font-medium leading-relaxed max-w-3xl italic break-words">
                   &quot;{roundData.results.explanation}&quot;
                 </p>
               </div>
@@ -113,18 +115,18 @@ export default function ResultsView({
         </Card>
       </div>
 
-      {/* Next Round Button for Leader */}
+      {/* Next Round / Leaderboard Button for Leader */}
       {isLeader && (
-        <div className="flex flex-col items-center gap-3 mt-4 sm:mt-6 pt-2">
-          <p className="text-muted-foreground text-[11px] sm:text-[12px] font-bold tracking-widest animate-pulse uppercase">
-            Next round starting soon...
+        <div className="flex flex-col items-center gap-2 sm:gap-2.5 mt-2 sm:mt-3 pt-1">
+          <p className="text-muted-foreground text-[10px] sm:text-[11px] font-bold tracking-widest animate-pulse uppercase">
+            {isLastRound ? "Final standings incoming..." : "Next round starting soon..."}
           </p>
           <GlassButton 
             onClick={onNextRound}
             disabled={isLocked}
-            className="min-w-[200px] py-3.5 sm:py-4 px-8 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
+            className="min-w-[200px] py-3 sm:py-3.5 px-8 rounded-xl font-bold tracking-widest uppercase focus:ring-2 focus:ring-white/20 focus:outline-none"
           >
-            {isLocked ? "Starting..." : "Next Round"}
+            {isLocked ? "Starting..." : (isLastRound ? "Show Leaderboard" : "Next Round")}
           </GlassButton>
         </div>
       )}

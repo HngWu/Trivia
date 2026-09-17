@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { adminLogin } from '@/lib/auth/actions';
 import AdminLogin from './AdminLogin';
 
-export default function AdminLoginClient() {
+export default function AdminLoginClient({ defaultEmail = 'admin@trivia.local' }: { defaultEmail?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,6 +34,7 @@ export default function AdminLoginClient() {
       setPassword={setPassword}
       onLogin={handleLogin}
       error={error}
+      defaultEmail={defaultEmail}
     />
   );
 }

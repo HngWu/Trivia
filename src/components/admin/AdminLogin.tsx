@@ -7,9 +7,18 @@ interface AdminLoginProps {
   setPassword: (val: string) => void;
   onLogin: (e: React.FormEvent) => void;
   error: string | null;
+  defaultEmail?: string;
 }
 
-export default function AdminLogin({ email, setEmail, password, setPassword, onLogin, error }: AdminLoginProps) {
+export default function AdminLogin({ 
+  email, 
+  setEmail, 
+  password, 
+  setPassword, 
+  onLogin, 
+  error,
+  defaultEmail = 'admin@trivia.local'
+}: AdminLoginProps) {
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-6 page-transition">
       <div className="glass p-8 sm:p-12 rounded-3xl w-full max-w-md space-y-6 border-white/10 shadow-xl">
@@ -46,7 +55,7 @@ export default function AdminLogin({ email, setEmail, password, setPassword, onL
 
         <div className="p-3 rounded-2xl bg-white/5 border border-white/5 text-center space-y-1">
           <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Default Local Credentials</p>
-          <p className="text-xs text-foreground font-mono">admin@trivia.local &bull; admin123</p>
+          <p className="text-xs text-foreground font-mono">{defaultEmail} &bull; (set in .env)</p>
         </div>
 
         <button onClick={() => window.location.href = "/"} className="w-full text-[10px] font-bold tracking-widest text-muted-foreground hover:text-foreground transition-colors uppercase">Back to home</button>

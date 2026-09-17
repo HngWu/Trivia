@@ -147,15 +147,36 @@ export function getSqliteDb(): DatabaseSync {
     db.prepare("INSERT INTO system_settings (key, value) VALUES ('db_provider', 'sqlite')").run();
   }
 
-  // Seed default admin user (admin@trivia.local / admin123)
-  const usersCount = (db.prepare("SELECT count(*) as count FROM users").get() as { count: number }).count;
-  if (usersCount === 0) {
-    const salt = crypto.randomBytes(16).toString('hex');
-    const hash = crypto.pbkdf2Sync('admin123', salt, 100000, 32, 'sha256').toString('hex');
-    db.prepare(`
-      INSERT INTO users (id, email, password_hash, salt)
-      VALUES (?, ?, ?, ?)
-    `).run(crypto.randomUUID(), 'admin@trivia.local', hash, salt);
+  // Seed or sync default admin user (from env ADMIN_EMAIL / ADMIN_PASSWORD)
+  const defaultAdminEmail = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local').trim().toLowerCase();
+  const defaultAdminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+  const defaultAdmin = db.prepare("SELECT id, email, password_hash, salt FROM users WHERE lower(email) = ?").get(defaultAdminEmail) as { id: string; email: string; password_hash: string; salt: string } | undefined;
+  if (!defaultAdmin) {
+    // Check if legacy default 'admin@trivia.local' exists and can be migrated to the configured email
+    const legacyAdmin = db.prepare("SELECT id, email FROM users WHERE lower(email) = 'admin@trivia.local'").get() as { id: string; email: string } | undefined;
+    if (legacyAdmin && defaultAdminEmail !== 'admin@trivia.local') {
+      const newSalt = crypto.randomBytes(16).toString('hex');
+      const newHash = crypto.pbkdf2Sync(defaultAdminPassword, newSalt, 100000, 32, 'sha256').toString('hex');
+      db.prepare(`
+        UPDATE users SET email = ?, password_hash = ?, salt = ? WHERE id = ?
+      `).run(defaultAdminEmail, newHash, newSalt, legacyAdmin.id);
+    } else {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = crypto.pbkdf2Sync(defaultAdminPassword, salt, 100000, 32, 'sha256').toString('hex');
+      db.prepare(`
+        INSERT INTO users (id, email, password_hash, salt)
+        VALUES (?, ?, ?, ?)
+      `).run(crypto.randomUUID(), defaultAdminEmail, hash, salt);
+    }
+  } else if (process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD) {
+    const currentHash = crypto.pbkdf2Sync(defaultAdminPassword, defaultAdmin.salt, 100000, 32, 'sha256').toString('hex');
+    if (defaultAdmin.password_hash !== currentHash) {
+      const newSalt = crypto.randomBytes(16).toString('hex');
+      const newHash = crypto.pbkdf2Sync(defaultAdminPassword, newSalt, 100000, 32, 'sha256').toString('hex');
+      db.prepare(`
+        UPDATE users SET password_hash = ?, salt = ? WHERE id = ?
+      `).run(newHash, newSalt, defaultAdmin.id);
+    }
   }
 
   // Seed default topics and questions

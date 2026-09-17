@@ -36,10 +36,10 @@ export default function TopicGrid({ topics, selectedTopic, onSelect, isLoading }
                 : 'glass-button opacity-90 hover:opacity-100'
             }`}
           >
-            <span className={`inline-block transition-all duration-500 origin-center scale-100 will-change-transform ${
+            <span className={`inline-block transition-all duration-300 origin-center scale-100 will-change-transform ${
               selectedTopic === topic.id 
                 ? "text-2xl sm:text-3xl" 
-                : "text-xl sm:text-2xl group-hover:scale-[2] group-hover:-translate-y-1 group-hover:text-white"
+                : "text-xl sm:text-2xl group-hover:scale-115 group-hover:-translate-y-0.5 group-hover:text-white"
             }`}>
               {topic.icon}
             </span>
