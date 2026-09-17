@@ -39,7 +39,7 @@ function advanceRoomState(room: Room, updates: Partial<Room>) {
   Object.assign(room, updates);
   room.version = (room.version || 0) + 1;
   if (isPhaseChange || isQuestionChange) {
-    room.status_updated_at = Date.now() + SYNC_BUFFER_MS;
+    room.status_updated_at = updates.status === "final" ? Date.now() : Date.now() + SYNC_BUFFER_MS;
   }
 }
 

@@ -235,6 +235,11 @@ export function saveLocalRoom(code: string, room: Room): void {
     // Reject older versions
     if (newVer < curVer) return;
 
+    // Never regress once room reaches final state
+    if (currentRoom.status === "final" && room.status !== "final") {
+      return;
+    }
+
     // If same version and same question index, prevent phase regression
     if (newVer === curVer && newIdx === curIdx) {
       const curRank = PHASE_RANK[currentRoom.status] ?? 0;
@@ -262,6 +267,11 @@ export function saveLocalRoom(code: string, room: Room): void {
       const newIdx = room.current_question_index ?? 0;
 
       if (newVer < curVer) return;
+
+      // Never regress once room reaches final state
+      if (existing.status === "final" && room.status !== "final") {
+        return;
+      }
 
       if (newVer === curVer && newIdx === curIdx) {
         const curRank = PHASE_RANK[existing.status] ?? 0;
@@ -655,7 +665,7 @@ export const gameStore = {
         const localPlayers = getLocalPlayers(normalized);
         const localAnswers = getLocalAnswers(normalized);
 
-        if (localRoom && (localRoom.version || 0) > (redisResult.room.version || 0)) {
+        if (localRoom && ((localRoom.version || 0) >= (redisResult.room.version || 0) || (localRoom.status === "final" && redisResult.room.status !== "final"))) {
           void safeRedisWrite(() =>
             Promise.all([
               redis.set(`room:${normalized}`, localRoom, { ex: ROOM_TTL }),

@@ -18,7 +18,7 @@ export default function RoomHeader({
   isLocked, 
   currentQuestion 
 }: RoomHeaderProps) {
-  if (displayStatus === "waiting" || displayStatus === "final") return null;
+  if (displayStatus === "waiting" || displayStatus === "final" || roomStatus === "final") return null;
 
   return (
     <header className="w-full text-center space-y-1.5 sm:space-y-2 mb-2 sm:mb-3 animate-fade-in">

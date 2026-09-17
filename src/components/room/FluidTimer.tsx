@@ -6,18 +6,19 @@ import { GameState } from "@/lib/types/game";
 interface FluidTimerProps {
   statusUpdatedAt: number;
   displayStatus: GameState;
+  roomStatus?: GameState;
   timer: number;
   serverOffset: number;
   isLocked?: boolean;
 }
 
-export default function FluidTimer({ statusUpdatedAt, displayStatus, timer, serverOffset, isLocked }: FluidTimerProps) {
+export default function FluidTimer({ statusUpdatedAt, displayStatus, roomStatus, timer, serverOffset, isLocked }: FluidTimerProps) {
   const [visualOffset, setVisualOffset] = useState(0);
 
   useEffect(() => {
     let rafId: number;
     const animate = () => {
-      if (displayStatus === "waiting" || displayStatus === "final" || !statusUpdatedAt) {
+      if (displayStatus === "waiting" || displayStatus === "final" || roomStatus === "final" || !statusUpdatedAt) {
         setVisualOffset(0);
         return;
       }
@@ -34,9 +35,9 @@ export default function FluidTimer({ statusUpdatedAt, displayStatus, timer, serv
 
     rafId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafId);
-  }, [displayStatus, statusUpdatedAt, serverOffset]);
+  }, [displayStatus, roomStatus, statusUpdatedAt, serverOffset]);
 
-  if (displayStatus === "waiting" || displayStatus === "final") return null;
+  if (displayStatus === "waiting" || displayStatus === "final" || roomStatus === "final") return null;
 
   return (
     <div className={`fixed bottom-6 right-6 sm:bottom-10 sm:right-10 z-40 flex items-center justify-center animate-fade-in transition-all duration-500 ${isLocked ? "scale-105" : ""}`}>

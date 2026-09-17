@@ -69,8 +69,8 @@ export default function QuestionView({
       : "text-lg sm:text-2xl md:text-3xl leading-snug";
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-4 sm:space-y-5 animate-fade-in text-center pt-20 sm:pt-22 md:pt-24 pb-4 px-3 sm:px-6">
-       <div className="glass p-4 sm:p-7 md:p-8 rounded-2xl sm:rounded-3xl shadow-2xl space-y-4 sm:space-y-6 relative overflow-hidden border-white/[0.05]">
+    <div className="flex-1 my-auto flex flex-col justify-center items-center w-full max-w-5xl mx-auto space-y-3 sm:space-y-4 animate-fade-in text-center pt-14 sm:pt-16 pb-4 px-3 sm:px-6">
+       <div className="glass p-4 sm:p-7 md:p-8 rounded-2xl sm:rounded-3xl shadow-2xl space-y-4 sm:space-y-6 relative overflow-hidden border-white/[0.05] w-full">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           
           <h2 className={`font-bold tracking-tight text-foreground break-words max-w-full ${questionFontSize}`}>

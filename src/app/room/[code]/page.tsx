@@ -141,6 +141,25 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       currentIndexRef.current = room.current_question_index;
       pendingSubmissionsRef.current = {};
     }
+
+    // Once in final state, never regress to an earlier state
+    if (roomStatus === "final" || displayStatus === "final") {
+      if (room.status !== "final") return;
+    }
+
+    if (room.status === "final") {
+      if (scheduledUpdateRef.current !== null) {
+        cancelAnimationFrame(scheduledUpdateRef.current);
+        scheduledUpdateRef.current = null;
+      }
+      setRoomStatus("final");
+      setDisplayStatus("final");
+      setCurrentIndex(room.current_question_index);
+      setDisplayIndex(room.current_question_index);
+      setStatusUpdatedAt(room.status_updated_at || Date.now());
+      return;
+    }
+
     setRoomStatus(room.status as GameState);
     setCurrentIndex(room.current_question_index);
     setStatusUpdatedAt(room.status_updated_at || (Date.now() + serverOffset));
@@ -303,9 +322,21 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
       clearTimeout(resultsTimerRef.current);
       resultsTimerRef.current = null;
     }
-    setIsAdvancing(true);
+    const isFinal = displayIndex >= questions.length - 1 || currentIndex >= questions.length - 1;
     const nextIndex = currentIndex + 1;
-    const nextStatus = nextIndex < questions.length ? "wager" : "final";
+    const nextStatus = isFinal ? "final" : (nextIndex < questions.length ? "wager" : "final");
+
+    setIsAdvancing(true);
+    if (nextStatus === "final") {
+      if (scheduledUpdateRef.current !== null) {
+        cancelAnimationFrame(scheduledUpdateRef.current);
+        scheduledUpdateRef.current = null;
+      }
+      setRoomStatus("final");
+      setDisplayStatus("final");
+      setCurrentIndex(nextIndex);
+      setDisplayIndex(nextIndex);
+    }
     try {
       const newState = await updateRoomStatus(roomCode, nextStatus, nextIndex);
       if (newState) {
@@ -318,7 +349,7 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
     } finally {
       setIsAdvancing(false);
     }
-  }, [isLeader, isAdvancing, currentIndex, questions.length, roomCode, triggerSync, applyState, showToast]);
+  }, [isLeader, isAdvancing, displayIndex, currentIndex, questions.length, roomCode, triggerSync, applyState, showToast]);
 
   const handleStartGame = useCallback(async () => {
     if (questions.length === 0) return;
@@ -587,11 +618,11 @@ export default function RoomPage({ params }: { params: Promise<{ code: string }>
           </div>
         </div>
         
-        <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
+        <FluidTimer statusUpdatedAt={statusUpdatedAt} displayStatus={displayStatus} roomStatus={roomStatus} timer={timer} serverOffset={serverOffset} isLocked={isLocked} />
 
         <div className="flex-1 w-full flex flex-col items-center justify-start min-h-0 p-3 sm:p-5 md:py-3 md:px-6">
           {/* Transition Overlay / Loading State */}
-          {roomStatus !== displayStatus ? (
+          {roomStatus !== displayStatus && roomStatus !== "final" && displayStatus !== "final" ? (
              <div className="flex flex-col items-center justify-center w-full animate-fade-in space-y-8 h-full">
                 <div className="relative group"><div className="w-20 h-20 border-4 border-white/[0.03] border-t-foreground rounded-full animate-spin" /></div>
                 <div className="text-center space-y-2">
