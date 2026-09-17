@@ -44,56 +44,58 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
   }, [sortedPlayers, allAnswers, questions]);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center w-full animate-slide-up py-8 space-y-12 sm:space-y-16">
-      <div className="text-center space-y-3">
-        <h2 className="text-4xl sm:text-5xl font-bold text-foreground tracking-tight">Final Rankings</h2>
+    <div className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl mx-auto animate-slide-up py-4 sm:py-6 space-y-4 sm:space-y-5 px-3 sm:px-6">
+      <div className="text-center space-y-1">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground tracking-tight">Final Rankings</h2>
         <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest">Match conclusion</p>
       </div>
       
-      <div className="glass w-full max-w-2xl rounded-4xl border-white/[0.03] overflow-hidden shadow-2xl">
-        {sortedPlayers.map((p, i) => {
-          // Calculate rank with tie handling
-          const rank = i > 0 && p.score === sortedPlayers[i - 1].score 
-            ? sortedPlayers.slice(0, i).findIndex(prev => prev.score === p.score) + 1
-            : i + 1;
+      <div className="glass w-full rounded-2xl sm:rounded-3xl border-white/[0.04] overflow-hidden shadow-xl">
+        <div className="max-h-[200px] sm:max-h-[230px] overflow-y-auto no-scrollbar divide-y divide-white/[0.02]">
+          {sortedPlayers.map((p, i) => {
+            // Calculate rank with tie handling
+            const rank = i > 0 && p.score === sortedPlayers[i - 1].score 
+              ? sortedPlayers.slice(0, i).findIndex(prev => prev.score === p.score) + 1
+              : i + 1;
 
-          return (
-            <div key={p.id} className={`flex items-center justify-between p-6 sm:p-10 transition-all ${i === 0 ? "bg-white/[0.05] border-b border-white/10" : "border-b border-white/[0.02] last:border-0"}`}>
-               <div className="flex items-center space-x-6 sm:space-x-10">
-                  <span className={`text-4xl sm:text-6xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/10"}`}>
-                    #{rank}
-                  </span>
-                  <div className="text-left">
-                    <p className="text-xl sm:text-3xl font-bold uppercase tracking-tight text-foreground">{p.name}</p>
-                    <p className="text-[9px] font-bold tracking-wider text-foreground/30 uppercase">{p.id === myPlayerId ? "You" : "Player"}</p>
-                  </div>
-               </div>
-               <span className="text-4xl sm:text-6xl font-bold tabular-nums text-foreground">{p.score}</span>
-            </div>
-          );
-        })}
+            return (
+              <div key={p.id} className={`flex items-center justify-between px-4 py-2.5 sm:px-6 sm:py-3 transition-all ${i === 0 ? "bg-white/[0.05]" : ""}`}>
+                 <div className="flex items-center space-x-4 sm:space-x-6">
+                    <span className={`text-2xl sm:text-3xl font-bold italic tabular-nums ${i === 0 ? "text-foreground" : "text-foreground/20"}`}>
+                      #{rank}
+                    </span>
+                    <div className="text-left">
+                      <p className="text-base sm:text-lg font-bold uppercase tracking-tight text-foreground">{p.name}</p>
+                      <p className="text-[9px] font-bold tracking-wider text-foreground/30 uppercase">{p.id === myPlayerId ? "You" : "Player"}</p>
+                    </div>
+                 </div>
+                 <span className="text-2xl sm:text-3xl font-bold tabular-nums text-foreground">{p.score}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* ROAST SECTION */}
-      <div className="w-full max-w-2xl space-y-6">
+      <div className="w-full space-y-2 sm:space-y-3">
         <div className="flex items-center justify-center gap-3">
-           <div className="h-px w-12 bg-white/5" />
-           <h3 className="text-[10px] font-bold text-muted-foreground tracking-[0.4em] uppercase">Intelligence Report</h3>
-           <div className="h-px w-12 bg-white/5" />
+           <div className="h-px w-10 bg-white/5" />
+           <h3 className="text-[9px] sm:text-[10px] font-bold text-muted-foreground tracking-[0.3em] uppercase">Intelligence Report</h3>
+           <div className="h-px w-10 bg-white/5" />
         </div>
 
         {isRoasting ? (
-          <div className="text-center py-10 glass rounded-3xl border-white/5 animate-pulse">
+          <div className="text-center py-4 sm:py-6 glass rounded-2xl border-white/5 animate-pulse">
             <p className="text-muted-foreground font-bold text-[10px] tracking-widest uppercase italic">Synthesizing roasts...</p>
           </div>
         ) : Object.keys(roasts).length > 0 ? (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="max-h-[120px] sm:max-h-[140px] overflow-y-auto no-scrollbar grid grid-cols-1 gap-2 pr-0.5">
              {Object.entries(roasts).map(([name, roast]) => (
-               <div key={name} className="glass p-6 rounded-3xl border-white/5 relative overflow-hidden group hover:border-white/10 transition-all">
+               <div key={name} className="glass p-3 sm:p-3.5 rounded-xl border-white/5 relative overflow-hidden group hover:border-white/10 transition-all">
                   <div className="absolute top-0 left-0 w-1 h-full bg-white/5 group-hover:bg-white/20 transition-all" />
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1">
                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{name}</span>
-                     <p className="text-base sm:text-lg font-semibold text-foreground italic leading-snug">
+                     <p className="text-xs sm:text-sm font-semibold text-foreground italic leading-snug">
                         &quot;{roast}&quot;
                      </p>
                   </div>
@@ -101,13 +103,16 @@ export default function FinalView({ sortedPlayers, myPlayerId, onHome, allAnswer
              ))}
           </div>
         ) : (
-          <div className="text-center py-10 glass rounded-3xl border-white/5 opacity-40">
+          <div className="text-center py-4 glass rounded-2xl border-white/5 opacity-40">
             <p className="text-muted-foreground font-bold text-[10px] tracking-widest uppercase italic">No meaningful failures detected.</p>
           </div>
         )}
       </div>
       
-      <GlassButton onClick={onHome} className="mt-16 sm:mt-24 px-16 sm:px-32 py-5 rounded-2xl font-bold text-xl sm:text-2xl transition-all bg-white/5 border-white/10 uppercase tracking-widest">
+      <GlassButton 
+        onClick={onHome} 
+        className="mt-2 sm:mt-3 px-10 sm:px-14 py-3 rounded-xl font-bold text-sm sm:text-base transition-all bg-white/5 border-white/10 uppercase tracking-widest hover:bg-white/10 focus:ring-2 focus:ring-white/20 focus:outline-none"
+      >
         Leave game
       </GlassButton>
     </div>

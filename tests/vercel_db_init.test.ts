@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @jest-environment node
  */
 import fs from 'node:fs';
@@ -40,8 +40,9 @@ describe('Vercel DB auto-initialization', () => {
     const questionsCount = (db.prepare('SELECT count(*) as count FROM questions').get() as { count: number }).count;
     expect(questionsCount).toBe(1072);
 
-    const admin = db.prepare("SELECT email FROM users WHERE email = 'admin@trivia.local'").get() as { email: string } | undefined;
-    expect(admin?.email).toBe('admin@trivia.local');
+    const expectedEmail = (process.env.ADMIN_EMAIL || 'admin@trivia.local').replace(/^["']|["']$/g, '').trim().toLowerCase();
+    const admin = db.prepare("SELECT email FROM users WHERE lower(email) = ?").get(expectedEmail) as { email: string } | undefined;
+    expect(admin?.email.toLowerCase()).toBe(expectedEmail);
 
     const providerSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'db_provider'").get() as { value: string } | undefined;
     expect(providerSetting?.value).toBe('sqlite');

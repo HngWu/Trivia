@@ -31,15 +31,16 @@ describe('Admin Environment Credentials Authentication', () => {
   });
 
   it('authenticates admin user using configured ADMIN_PASSWORD', async () => {
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@trivia.local').replace(/^["']|["']$/g, '').trim().toLowerCase();
     process.env.ADMIN_PASSWORD = 'custom_secret_password_456';
 
     // Re-initialize or sync sqlite db with new env password
     const db = getSqliteDb();
-    const user = db.prepare("SELECT email FROM users WHERE lower(email) = 'admin@trivia.local'").get() as { email: string };
+    const user = db.prepare("SELECT email FROM users WHERE lower(email) = ?").get(adminEmail) as { email: string };
     expect(user).toBeDefined();
 
     const result = await adminLogin({
-      email: 'admin@trivia.local',
+      email: adminEmail,
       password: 'custom_secret_password_456'
     });
 
@@ -48,10 +49,11 @@ describe('Admin Environment Credentials Authentication', () => {
   });
 
   it('rejects incorrect password when ADMIN_PASSWORD is set', async () => {
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@trivia.local').replace(/^["']|["']$/g, '').trim().toLowerCase();
     process.env.ADMIN_PASSWORD = 'custom_secret_password_456';
 
     const result = await adminLogin({
-      email: 'admin@trivia.local',
+      email: adminEmail,
       password: 'wrong_password_attempt'
     });
 

@@ -29,7 +29,8 @@ describe('Admin Users CRUD Actions', () => {
   beforeEach(() => {
     resetSqliteDbForTesting();
     const db = getSqliteDb();
-    const user = db.prepare("SELECT id FROM users WHERE email = 'admin@trivia.local'").get() as { id: string };
+    const expectedEmail = (process.env.ADMIN_EMAIL || 'admin@trivia.local').replace(/^["']|["']$/g, '').trim().toLowerCase();
+    const user = db.prepare("SELECT id FROM users WHERE lower(email) = ?").get(expectedEmail) as { id: string };
     adminId = user.id;
     (verifySessionToken as jest.Mock).mockReturnValue(adminId);
   });
@@ -39,9 +40,10 @@ describe('Admin Users CRUD Actions', () => {
   });
 
   it('lists existing users', async () => {
+    const expectedEmail = (process.env.ADMIN_EMAIL || 'admin@trivia.local').replace(/^["']|["']$/g, '').trim().toLowerCase();
     const users = await getAdminUsers();
     expect(users.length).toBeGreaterThanOrEqual(1);
-    expect(users.some(u => u.email === 'admin@trivia.local')).toBe(true);
+    expect(users.some(u => u.email.toLowerCase() === expectedEmail)).toBe(true);
   });
 
   it('creates, updates, and deletes a user', async () => {

@@ -31,8 +31,9 @@ describe('SQLite Database Initialization', () => {
     const settings = db.prepare("SELECT value FROM system_settings WHERE key = 'db_provider'").get() as { value: string } | undefined;
     expect(settings?.value).toBe('sqlite');
 
-    const adminUser = db.prepare("SELECT email FROM users WHERE email = 'admin@trivia.local'").get() as { email: string } | undefined;
-    expect(adminUser?.email).toBe('admin@trivia.local');
+    const expectedEmail = (process.env.ADMIN_EMAIL || 'admin@trivia.local').replace(/^["']|["']$/g, '').trim().toLowerCase();
+    const adminUser = db.prepare("SELECT email FROM users WHERE lower(email) = ?").get(expectedEmail) as { email: string } | undefined;
+    expect(adminUser?.email.toLowerCase()).toBe(expectedEmail);
 
     const topicsCount = db.prepare("SELECT count(*) as count FROM topics").get() as { count: number };
     expect(topicsCount.count).toBeGreaterThanOrEqual(10);

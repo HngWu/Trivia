@@ -148,8 +148,10 @@ export function getSqliteDb(): DatabaseSync {
   }
 
   // Seed or sync default admin user (from env ADMIN_EMAIL / ADMIN_PASSWORD)
-  const defaultAdminEmail = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local').trim().toLowerCase();
-  const defaultAdminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+  const rawAdminEmail = process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local';
+  const defaultAdminEmail = rawAdminEmail.replace(/^["']|["']$/g, '').trim().toLowerCase();
+  const rawAdminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || 'admin123';
+  const defaultAdminPassword = rawAdminPassword.replace(/^["']|["']$/g, '').trim();
   const defaultAdmin = db.prepare("SELECT id, email, password_hash, salt FROM users WHERE lower(email) = ?").get(defaultAdminEmail) as { id: string; email: string; password_hash: string; salt: string } | undefined;
   if (!defaultAdmin) {
     // Check if legacy default 'admin@trivia.local' exists and can be migrated to the configured email

@@ -43,9 +43,11 @@ export async function adminLogin(formData: { email: string; password: string }):
     }
 
     const db = getSqliteDb();
-    const defaultAdminEmail = (process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local').trim().toLowerCase();
+    const rawAdminEmail = process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@trivia.local';
+    const defaultAdminEmail = rawAdminEmail.replace(/^["']|["']$/g, '').trim().toLowerCase();
     const isDefaultAdmin = email === defaultAdminEmail || email === 'admin@trivia.local';
-    const envAdminPass = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD;
+    const rawAdminPassword = process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD;
+    const envAdminPass = rawAdminPassword ? rawAdminPassword.replace(/^["']|["']$/g, '').trim() : undefined;
 
     let user = db.prepare('SELECT id, email, password_hash, salt FROM users WHERE lower(email) = ?').get(email) as UserRow | undefined;
 
